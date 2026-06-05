@@ -10,10 +10,24 @@ TASK_DONE_MSG="目标已锁定，请指示"
 SUBCMD="${1:-}"
 
 get_tty_line() {
-  local parent_pid="${1:-}"
-  local tty
-  tty=$(ps -o tty= -p "$parent_pid" 2>/dev/null | tr -d ' ' || true)
-  echo "/dev/$tty"
+  # 沿着 ppid 链向上爬, 找到第一个有真实 tty 的祖先进程.
+  # Claude Code 的中间进程 (worker / wrapper) 经常显示 tty=?? (无 tty),
+  # 直接用 $PPID 经常拿不到. 真正绑了 tty 的是 shell / Terminal tab.
+  local pid="${1:-}"
+  local tty=""
+  local hops=0
+  while [ -n "$pid" ] && [ "$pid" != "0" ] && [ "$pid" != "1" ] && [ $hops -lt 12 ]; do
+    tty=$(ps -o tty= -p "$pid" 2>/dev/null | tr -d ' ' || true)
+    if [ -n "$tty" ] && [ "$tty" != "?" ] && [ "$tty" != "??" ]; then
+      echo "/dev/$tty"
+      return
+    fi
+    # 取上层 ppid 继续找
+    pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ' || true)
+    hops=$((hops + 1))
+  done
+  # 实在找不到, 写空 /dev/ — main.js 检测到非 /dev/tty 开头会跳过 session 设置
+  echo "/dev/"
 }
 
 # ── 不触发 VF-1 告警的工具白名单 ─────────────────────────────────────────
@@ -23,26 +37,25 @@ case "$SUBCMD" in
   pending)
     parent_pid="${2:-$$}"
 
-    # 读 stdin JSON, 提取关键字段:
-    #   tool_name        — 工具名
-    #   permission_mode  — 会话权限模式 (bypassPermissions = 全自动, 不弹框)
-    #   suggestion_behavior — permission_suggestions[0].behavior ("allow" = 已建议自动放行)
+    # 读 stdin JSON 并把完整内容写到 debug log 帮助排查
     if command -v python3 &>/dev/null; then
-      read -r tool_name permission_mode suggestion_behavior <<< "$(python3 -c "
+      eval_result=$(python3 -c "
 import sys, json
 try:
     data = json.load(sys.stdin)
+    # 把完整 JSON 写到 debug log
+    with open('/tmp/zaku_debug.log', 'a') as f:
+        f.write(json.dumps(data, ensure_ascii=False) + '\n')
     tool = data.get('tool_name', '')
     pmode = data.get('permission_mode', '')
-    # permission_suggestions 是数组, 取第一条的 behavior
-    suggestions = data.get('permission_suggestions', [])
-    sbehavior = suggestions[0].get('behavior', '') if suggestions else ''
-    print(tool, pmode, sbehavior)
+    print(tool + '|' + pmode)
 except:
-    print('', '', '')
-" 2>/dev/null || echo "  ")"
+    print('|')
+" 2>/dev/null || echo "|")
+      tool_name="${eval_result%%|*}"
+      permission_mode="${eval_result##*|}"
     else
-      tool_name=""; permission_mode=""; suggestion_behavior=""
+      tool_name=""; permission_mode=""
     fi
 
     # 1) 内部工具白名单 → 不需要用户介入, 跳过
@@ -54,9 +67,6 @@ except:
     if [ "$permission_mode" = "bypassPermissions" ]; then
       exit 0
     fi
-
-    # ℹ️ suggestion_behavior ("allow") 只是 Claude Code 建议把命令加到 allow list,
-    # 不代表它已经自动放行 —— 真实确认框依然会弹. 不能用这个字段来跳过.
 
     get_tty_line "$parent_pid" > "$PENDING_FLAG"
     ;;

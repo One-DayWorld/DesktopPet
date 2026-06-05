@@ -1,35 +1,53 @@
-# Dependencies
+# ── Node / Electron ─────────────────────────────────────────
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Build output
+# ── 打包产物 (容易超过 GitHub 100MB 单文件限制) ──────────────
 dist/
-build/
+out/
+*.dmg
+*.dmg.blockmap
 
-# OS files
-.DS_Store
-Thumbs.db
+# ── 图标构建中间产物 (保留 build/icon.icns + app_icon_src.png) ─
+build/icon.iconset/
+build/preview_*.png
+build/iconA*.png
+build/iconB*.png
+build/iconC*.png
 
-# Playwright MCP browsing sessions
+# ── Claude Code 本地会话/权限缓存 (含本机绝对路径 + bash 历史) ─
+.claude/
+.claude-cache/
+
+# ── Playwright MCP 调试日志 ─────────────────────────────────
 .playwright-mcp/
 
-# Claude Code local settings (may contain machine-specific paths)
-.claude/
+# ── 临时 / 调试文件 ─────────────────────────────────────────
+/tmp/
+*.log
+zaku-notify-debug.log
 
-# IDE
-.vscode/
+# ── 用户运行时数据 (虽然存在 home, 不在仓库, 但避免误提交) ─
+.desktop-pet/
+
+# ── macOS / 编辑器 ──────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
 .idea/
+.vscode/
 *.swp
 *.swo
+*~
 
-# Logs
-*.log
-npm-debug.log*
-
-# Environment (if added later)
+# ── 环境变量文件 ────────────────────────────────────────────
 .env
 .env.local
 .env.*.local
 
-# Large binary assets (optional — uncomment if you want to exclude models)
-# assets/*.glb
-# assets/*.gltf
+# ── Python 副产物 (build_pptx.py 生成的) ────────────────────
+__pycache__/
+*.pyc

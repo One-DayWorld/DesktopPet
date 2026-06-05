@@ -1,6 +1,5 @@
 """Generate ZAKU DESKTOP AGENT product pitch deck — v2 UI/UX optimised."""
 
-import os
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
@@ -777,6 +776,6 @@ bottom_bar(s9, "DEPLOY READY", 9)
 
 
 # ── Save ───────────────────────────────────────────────────────────────────────
-out = os.path.join(os.path.expanduser("~"), "Documents", "DesktopPet", "ZAKU_DESKTOP_AGENT.pptx")
+out = "/Users/ace/Documents/AI Folder/Desktop tools/DesktopPet/ZAKU_DESKTOP_AGENT.pptx"
 prs.save(out)
 print(f"Saved: {out}")

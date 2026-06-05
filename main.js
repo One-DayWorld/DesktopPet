@@ -12,6 +12,85 @@ let panelWindow = null;
 let state = store.load();
 const notifiedReminders = new Set();
 
+// ── Claude Code Hooks 自动安装 ──────────────────────────────────────────────
+// 让 VF-1 在任何 Mac 上首次启动时自动配置 ~/.claude/settings.json,
+// 不需要用户手动复制脚本 / 编辑 JSON. 幂等 — 已配置过会跳过, 路径变了会刷新.
+//
+// 流程:
+//   1. 把 asar 里的 zaku-notify.sh 提取到 ~/.macross/zaku-notify.sh (asar 是只读, hook 没法直接执行)
+//   2. 给提取出的脚本 +x 可执行权限
+//   3. 读 ~/.claude/settings.json (不存在就创建空对象)
+//   4. 把 4 类 hook (PermissionRequest/PostToolUse/PermissionDenied/Stop) 注入或更新
+//   5. 写回 settings.json
+function ensureClaudeHooksInstalled() {
+  try {
+    const homedir = os.homedir();
+    const macrossDir = path.join(homedir, '.macross');
+    const scriptDest = path.join(macrossDir, 'zaku-notify.sh');
+    const scriptSrc = path.join(__dirname, 'scripts', 'zaku-notify.sh');
+    const claudeDir = path.join(homedir, '.claude');
+    const settingsPath = path.join(claudeDir, 'settings.json');
+
+    // 1) 提取 / 更新脚本到 ~/.macross/
+    if (!fs.existsSync(macrossDir)) fs.mkdirSync(macrossDir, { recursive: true });
+    let srcContent;
+    try { srcContent = fs.readFileSync(scriptSrc, 'utf8'); }
+    catch (e) { console.error('[HOOK] cannot read script source at', scriptSrc, e.message); return; }
+    let needsCopy = true;
+    if (fs.existsSync(scriptDest)) {
+      try { needsCopy = fs.readFileSync(scriptDest, 'utf8') !== srcContent; } catch (_) {}
+    }
+    if (needsCopy) {
+      fs.writeFileSync(scriptDest, srcContent, { mode: 0o755 });
+      console.log('[HOOK] script copied →', scriptDest);
+    }
+    try { fs.chmodSync(scriptDest, 0o755); } catch (_) {}
+
+    // 2) 准备目标 hooks 配置
+    const q = `'${scriptDest}'`;
+    const desired = {
+      PermissionRequest: [{ matcher: '.*', hooks: [{ type: 'command', command: `${q} pending $PPID` }] }],
+      PostToolUse:       [{ matcher: '.*', hooks: [{ type: 'command', command: `${q} pending-clear` }] }],
+      PermissionDenied:  [{ matcher: '.*', hooks: [{ type: 'command', command: `${q} pending-clear` }] }],
+      Stop:              [{ hooks: [
+        { type: 'command', command: `${q} pending-clear` },
+        { type: 'command', command: `${q} task-done $PPID` },
+      ] }],
+    };
+
+    // 3) 读 / 创建 settings.json
+    if (!fs.existsSync(claudeDir)) fs.mkdirSync(claudeDir, { recursive: true });
+    let settings = {};
+    if (fs.existsSync(settingsPath)) {
+      try { settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8')); } catch (_) { settings = {}; }
+    }
+    settings.hooks = settings.hooks || {};
+
+    // 4) 对每个事件: 删掉所有指向 zaku-notify.sh 的旧条目 (路径可能过时), 加入 desired
+    let changed = false;
+    for (const evt of Object.keys(desired)) {
+      const oldGroups = settings.hooks[evt] || [];
+      const filteredGroups = oldGroups.map(g => ({
+        ...g,
+        hooks: (g.hooks || []).filter(h => !(h.command || '').includes('zaku-notify.sh')),
+      })).filter(g => (g.hooks || []).length > 0);
+      const newGroups = [...filteredGroups, ...desired[evt]];
+      if (JSON.stringify(settings.hooks[evt]) !== JSON.stringify(newGroups)) {
+        settings.hooks[evt] = newGroups;
+        changed = true;
+      }
+    }
+    if (changed) {
+      fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf8');
+      console.log('[HOOK] hooks installed/updated in', settingsPath);
+    } else {
+      console.log('[HOOK] hooks already up-to-date');
+    }
+  } catch (e) {
+    console.error('[HOOK] auto-install failed:', e.message);
+  }
+}
+
 function createPetWindow() {
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
   console.log('[PET STARTUP] workArea:', width, 'x', height, 'saved pos:', state.petPosition);
@@ -638,6 +717,9 @@ async function checkClaudePendingFlag() {
 }
 
 app.whenReady().then(() => {
+  // 自动安装 Claude Code hooks (首次启动 / app 被搬到新位置 / 脚本更新都会刷新)
+  ensureClaudeHooksInstalled();
+
   createPetWindow();
   createPanelWindow();
 
@@ -1084,25 +1166,13 @@ const CLAUDE_TOOLS = [
       type: 'object',
       properties: {
         url: { type: 'string', description: '文件的直接下载URL' },
-        filename: { type: 'string', description: '保存的文件名（含扩展名，如"BenchReport_2024.pdf"）。不填则从URL自动推断' },
+        filename: { type: 'string', description: '保存的文件名（含扩展名，如"report.pdf"）。不填则从URL自动推断' },
         directory: {
           type: 'string',
-          description: '保存位置：downloads=下载文件夹（默认），desktop=桌面，或填写绝对路径（如"~/Documents/BenchReport"）'
+          description: '保存位置：downloads=下载文件夹（默认），desktop=桌面，或填写绝对路径（如"/Users/yourname/Documents/your-folder"）'
         }
       },
       required: ['url']
-    }
-  },
-  {
-    name: 'run_bench_comparison',
-    description: '打开 Bench 对比分析工具并自动加载两个 Excel 文件进行对比。用于 Bench Report 流程的最后一步',
-    input_schema: {
-      type: 'object',
-      properties: {
-        file1: { type: 'string', description: '第一个（较早）Excel 文件的完整路径' },
-        file2: { type: 'string', description: '第二个（较新）Excel 文件的完整路径' }
-      },
-      required: ['file1', 'file2']
     }
   }
 ];
@@ -1195,7 +1265,7 @@ const OPENAI_TOOLS = [
           },
           directory: {
             type: 'string',
-            description: '目录：downloads=下载文件夹，desktop=桌面，或填写绝对路径（如"~/Documents/BenchReport"）'
+            description: '目录：downloads=下载文件夹，desktop=桌面，或填写绝对路径（如"/Users/yourname/Documents/your-folder"）'
           },
           filter: {
             type: 'string',
@@ -1232,25 +1302,10 @@ const OPENAI_TOOLS = [
           filename: { type: 'string', description: '保存的文件名（含扩展名）。不填则从URL自动推断' },
           directory: {
             type: 'string',
-            description: '保存位置：downloads=下载文件夹（默认），desktop=桌面，或填写绝对路径（如"~/Documents/BenchReport"）'
+            description: '保存位置：downloads=下载文件夹（默认），desktop=桌面，或填写绝对路径（如"/Users/yourname/Documents/your-folder"）'
           }
         },
         required: ['url']
-      }
-    }
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'run_bench_comparison',
-      description: '打开 Bench 对比分析工具并自动加载两个 Excel 文件进行对比。用于 Bench Report 流程的最后一步',
-      parameters: {
-        type: 'object',
-        properties: {
-          file1: { type: 'string', description: '第一个（较早）Excel 文件的完整路径' },
-          file2: { type: 'string', description: '第二个（较新）Excel 文件的完整路径' }
-        },
-        required: ['file1', 'file2']
       }
     }
   }
@@ -1689,65 +1744,6 @@ end tell`;
       return `❌ 下载失败：${errText.slice(0, 200)}`;
     }
   }
-  if (name === 'run_bench_comparison') {
-    const { file1, file2 } = input;
-    if (!file1 || !file2) return '需要提供 file1 和 file2 两个 Excel 文件路径';
-    if (!fs.existsSync(file1)) return `文件不存在：${file1}`;
-    if (!fs.existsSync(file2)) return `文件不存在：${file2}`;
-    const htmlPath = path.join(os.homedir(), 'Documents/AI Folder/BenchReport/bench_comparison_interactive.html');
-    if (!fs.existsSync(htmlPath)) return `HTML 文件不存在：${htmlPath}`;
-
-    const b64_1 = fs.readFileSync(file1).toString('base64');
-    const b64_2 = fs.readFileSync(file2).toString('base64');
-    const name1 = path.basename(file1);
-    const name2 = path.basename(file2);
-
-    return new Promise((resolve) => {
-      const win = new BrowserWindow({
-        width: 1600, height: 1000, show: true,
-        title: 'Bench 对比分析',
-        webPreferences: { nodeIntegration: false, contextIsolation: true }
-      });
-
-      win.loadURL('file://' + htmlPath);
-
-      win.webContents.once('did-finish-load', async () => {
-        // Wait for XLSX library to initialise, then inject both files
-        setTimeout(async () => {
-          const injectScript = `(function() {
-            function b64toBuffer(b64) {
-              var bin = atob(b64), buf = new Uint8Array(bin.length);
-              for (var i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
-              return buf.buffer;
-            }
-            function loadFile(fileNum, b64, filename) {
-              var buf = b64toBuffer(b64);
-              var wb = XLSX.read(buf, {type:'array'});
-              var parsed = parseExcelData(wb);
-              if (fileNum === 1) { file1Data = parsed; }
-              else { file2Data = parsed; }
-              var info = document.getElementById('file'+fileNum+'-info');
-              if (info) { info.style.display='block'; info.textContent='✓ 已加载: '+filename; }
-              if (file1Data && file2Data) {
-                var btn = document.getElementById('compareBtn');
-                if (btn) { btn.disabled = false; btn.click(); }
-              }
-            }
-            loadFile(1, ${JSON.stringify(b64_1)}, ${JSON.stringify(name1)});
-            loadFile(2, ${JSON.stringify(b64_2)}, ${JSON.stringify(name2)});
-          })()`;
-          try {
-            await win.webContents.executeJavaScript(injectScript);
-            resolve(`✅ 已打开对比分析窗口\n文件1：${name1}\n文件2：${name2}`);
-          } catch (e) {
-            resolve(`⚠️ 窗口已打开，但自动加载失败：${e.message}\n请手动上传文件`);
-          }
-        }, 2000);
-      });
-
-      win.on('closed', () => {});
-    });
-  }
   return '未知工具';
 }
 
@@ -1793,9 +1789,9 @@ async function callAI(provider, apiKey, petName, history, userMessage, metasoKey
 - 用户要求打开网址/应用/软件时（明确说"打开/启动/运行"，且不是在询问内容信息）：调用 execute_action；【严禁】在用户询问平台内容/节目/赛事排期时调用 execute_action，即使搜索结果不理想也绝对不能打开网站兜底
 - 用户询问提醒事项/待办/todo时：必须立即调用 get_reminders 工具——此工具直接读取用户Mac本地的提醒事项，一定能获取到数据，绝对不能说"无法访问"或"没有权限"，调用后根据返回数据和今天日期回答
 - 用户要求删除/清理/整理Downloads或Desktop文件时：必须调用 manage_files 工具——先用action=list列出文件，展示给用户确认，用户同意后再用action=delete执行删除（移入废纸篓），绝对不能说"无法操作文件"
-- 用户要求下载 Box 文件时：直接调用 download_file 工具，directory 填绝对路径（如"~/Documents/BenchReport"）；Box 链接会自动通过浏览器自动化下载，无需手动操作；若工具返回"下载超时或未检测到新文件"，说明 Box 页面已打开但需要用户手动点击一次下载按钮，用户完成后告诉我文件名，再用 manage_files action=rename 移动/重命名；如需移动文件（从 Downloads 移动到 BenchReport 目录），用 manage_files action=rename 配合完整路径实现跨目录移动
+- 用户要求下载文件时：调用 download_file 工具，directory 填 downloads/desktop 或绝对路径；若工具返回"下载超时或未检测到新文件"，说明页面已打开但需要用户手动点击一次下载按钮，用户完成后告诉我文件名，再用 manage_files action=rename 移动/重命名
 - 用户要求重命名文件时：调用 manage_files action=rename，需要提供完整路径和新文件名
-- manage_files action=list 的 directory 参数和 download_file 的 directory 参数都支持绝对路径，不限于 downloads/desktop；用户的 BenchReport 目录请使用 ~/Documents/BenchReport
+- manage_files action=list 的 directory 参数和 download_file 的 directory 参数都支持绝对路径，不限于 downloads/desktop
 
 其他规则：
 - 只回答用户实际问的问题，不要主动补充无关信息`;
