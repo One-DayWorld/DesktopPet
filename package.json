@@ -2,6 +2,7 @@
   "name": "vf-1-desktop-pet",
   "version": "1.0.0",
   "description": "VF-1 骷髅一号 桌面 AI 助手",
+  "license": "MIT",
   "main": "main.js",
   "scripts": {
     "start": "electron .",

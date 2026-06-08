@@ -12,13 +12,7 @@
 
 **English** · [简体中文](./README.zh-CN.md)
 
-<!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  ⚠️  ADD A DEMO GIF HERE — this is the single biggest driver of   ║
-     ║  stars for a *visual* project. Record ~8s of: the VF-1 patrolling ║
-     ║  a screen edge → transforming → flashing gold on a Claude prompt. ║
-     ║  Save as docs/demo.gif and uncomment the line below.              ║
-     ╚══════════════════════════════════════════════════════════════════╝ -->
-<!-- ![VF-1 Valkyrie patrolling the desktop](docs/demo.gif) -->
+![VF-1S Valkyrie — 360° showcase with live Fighter ↔ Battloid transformation](docs/demo.gif)
 
 </div>
 
@@ -33,15 +27,6 @@
 - 🔒 **100% local** — no telemetry, no cloud sync. Keys and state live in a `0600` file in your home directory.
 
 > The pet itself is not the AI — it's a **frontend container**. The intelligence comes from whichever LLM you bind in `CONFIG`.
-
----
-
-## 🎬 Demo
-
-<!-- Replace these with real captures — even one good GIF dramatically lifts conversion to stars. -->
-| Edge patrol & transform | Claude Code alert | Cockpit panel |
-|---|---|---|
-| _`docs/patrol.gif`_ | _`docs/alert.gif`_ | _`docs/panel.png`_ |
 
 ---
 

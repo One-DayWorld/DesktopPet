@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; overflow:hidden; }
+  /* 深色 HUD 风格背景 — 让 GIF 不透明、干净、有质感 */
+  body {
+    background:
+      radial-gradient(ellipse 60% 60% at 50% 42%, rgba(40,90,90,0.35) 0%, rgba(10,16,30,0) 60%),
+      radial-gradient(ellipse 100% 100% at 50% 50%, #0c1322 0%, #060912 100%);
+  }
+  /* 细网格, 增强"机库/座舱"氛围 */
+  body::before {
+    content:''; position:absolute; inset:0; pointer-events:none; opacity:0.10;
+    background-image:
+      linear-gradient(rgba(110,240,200,0.6) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(110,240,200,0.6) 1px, transparent 1px);
+    background-size: 36px 36px;
+    mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, #000 30%, transparent 80%);
+  }
+  #c { display:block; width:100%; height:100%; position:relative; z-index:1; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script type="module">
+import * as THREE from '../node_modules/three/build/three.module.js';
+import { GLTFLoader } from '../assets/GLTFLoader.js';
+
+const W = 480, H = 380;
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+renderer.setSize(W, H);
+renderer.setPixelRatio(1);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, W / H, 0.01, 1000);
+
+// 灯光 — 沿用 pet.html 的布光, 保证机体质感一致
+scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+const key = new THREE.DirectionalLight(0xFFEECC, 2.2); key.position.set(3, 6, 5); scene.add(key);
+const rim = new THREE.DirectionalLight(0x334466, 0.8); rim.position.set(-4, 2, -3); scene.add(rim);
+const fill = new THREE.DirectionalLight(0xCCDDFF, 0.5); fill.position.set(0, -3, 4); scene.add(fill);
+
+let modelGroup = null, mixer = null, morphAction = null, morphDur = 1;
+
+const ready = new Promise((resolve, reject) => {
+  new GLTFLoader().load('../assets/vf-1-strike/vf1.glb', (gltf) => {
+    const model = gltf.scene;
+    const box = new THREE.Box3().setFromObject(model);
+    const size = new THREE.Vector3(), center = new THREE.Vector3();
+    box.getSize(size); box.getCenter(center);
+    model.position.sub(center);
+
+    // 相机自适配 (同 pet.html, 留白系数 1.25 给变形/旋转留余量)
+    const aspect = W / H;
+    const halfFovTan = Math.tan((camera.fov * Math.PI / 180) / 2);
+    const distH = (size.y / 2) / halfFovTan;
+    const distW = (size.x / 2) / (halfFovTan * aspect);
+    const dist = Math.max(distH, distW) * 1.25;
+    camera.position.set(0, 0, dist);
+    camera.lookAt(0, 0, 0);
+    camera.near = dist * 0.01; camera.far = dist * 10; camera.updateProjectionMatrix();
+
+    model.rotation.x = -0.08;
+    modelGroup = new THREE.Group();
+    modelGroup.add(model);
+    scene.add(modelGroup);
+
+    if (gltf.animations && gltf.animations.length) {
+      mixer = new THREE.AnimationMixer(model);
+      const actions = {};
+      gltf.animations.forEach(c => actions[c.name] = mixer.clipAction(c));
+      morphAction = actions['__ActionLegGERWALKgunner'] || Object.values(actions)[0];
+      if (morphAction) {
+        morphAction.setLoop(THREE.LoopOnce);
+        morphAction.clampWhenFinished = true;
+        morphAction.play();
+        morphAction.paused = true;
+        morphDur = morphAction.getClip().duration;
+      }
+    }
+    resolve(true);
+  }, undefined, (err) => reject(err));
+});
+window.__ready = ready;
+
+// 三角波: 0→1→0, 用于让变形 fighter→battloid→fighter 无缝循环
+function tri(t) { return t < 0.5 ? t * 2 : (1 - t) * 2; }
+
+// t ∈ [0,1): 确定性渲染一帧 (整圈 yaw + 一次完整变形循环), 供主进程逐帧抓取
+const START_YAW = -0.6;   // 起始 3/4 视角 (封面帧更立体); 加常量偏移不影响整圈无缝循环
+window.__render = (t) => {
+  if (!modelGroup) return;
+  modelGroup.rotation.y = START_YAW + t * Math.PI * 2;   // 连续整圈, 首尾无缝
+  if (morphAction) {
+    // fighter(0.18) ↔ battloid(1.0) 往返, 起止都在 fighter
+    const m = 0.18 + tri(t) * (1.0 - 0.18);
+    morphAction.time = m * morphDur;
+    morphAction.paused = true;
+    mixer.update(0);
+  }
+  renderer.render(scene, camera);
+};
+</script>
+</body>
+</html>

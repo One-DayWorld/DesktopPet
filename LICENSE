@@ -1,0 +1,33 @@
+MIT License
+
+Copyright (c) 2026 One-DayWorld
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+NOTE ON BUNDLED 3D ASSETS
+
+This MIT license covers the application source code only. The 3D model files
+under `assets/` (e.g. the VF-1 Valkyrie and SD Zaku II GLB models) are
+third-party, fan-made assets derived from the Macross / Robotech and Gundam
+franchises. They are NOT licensed under MIT and are included for personal and
+educational use only. If you redistribute this project, you are responsible for
+verifying and complying with the original creators' and rights holders' terms.
+"Macross" is a trademark of Big West / Tatsunoko Production.
