@@ -4,11 +4,11 @@
 <meta charset="UTF-8">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { width: 180px; height: 350px; overflow: hidden; background: transparent; user-select: none; }
+  html, body { width: 180px; height: 290px; overflow: hidden; background: transparent; user-select: none; }
 
   #pet-container {
     width: 180px;
-    height: 350px;     /* 320 canvas + 30 给推进器尾焰超出区域 (维修甲板已停用) */
+    height: 290px;     /* 260 canvas + 30 给推进器尾焰超出区域 (维修甲板已停用) */
     position: relative;
     cursor: pointer;
     display: flex;
@@ -19,13 +19,13 @@
   #canvas-area {
     position: relative;
     width: 180px;
-    height: 320px;
+    height: 260px;
     flex-shrink: 0;
   }
 
   #pet-canvas {
     width: 180px;
-    height: 320px;
+    height: 260px;
     display: block;
   }
 
@@ -235,8 +235,8 @@
     display: none;
   }
   /* 位置 — Gerwalk 形态双脚正下方; 数字根据视觉对齐微调 */
-  #thruster-l { left: 52px;  top: 248px; }
-  #thruster-r { left: 110px; top: 248px; }
+  #thruster-l { left: 52px;  top: 228px; }
+  #thruster-r { left: 110px; top: 228px; }
   @keyframes thruster-burn {
     0%   { transform: scaleY(1.00) translateX(0);    opacity: 0.92; }
     20%  { transform: scaleY(1.18) translateX(-1px); opacity: 1;    }
@@ -375,7 +375,7 @@
   }
 
   /* ── Radar Sweep HUD: 静态扫描盘 + 旋转扫描线 + 同心声呐 + 底部状态字 ──
-     扎古单眼"搜索目标"的雷达视觉.
+     机体单眼"搜索目标"的雷达视觉.
      .alert 高优: 金色 conic 扫描线 2s 一圈 + 3 圈错位扩散声呐 + [INCOMING] 闪烁
      .ax-missing 中优: 暖橘静态扫描盘, 不旋转, 标 [SCAN OFFLINE]
   */
@@ -514,7 +514,7 @@
       rgba(255, 215, 70, 0.55) 355deg,
       rgba(255, 220, 110, 0.95) 360deg
     );
-    /* 中心挖空, 不遮扎古身体 */
+    /* 中心挖空, 不遮机体 */
     -webkit-mask: radial-gradient(circle, transparent 12%, black 13%, black 100%);
             mask: radial-gradient(circle, transparent 12%, black 13%, black 100%);
   }
@@ -644,13 +644,13 @@ import { GLTFLoader } from './assets/GLTFLoader.js';
 const canvas = document.getElementById('pet-canvas');
 const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
 renderer.setPixelRatio(window.devicePixelRatio || 1);
-renderer.setSize(180, 320);
+renderer.setSize(180, 260);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.shadowMap.enabled = false;
 renderer.setClearColor(0x000000, 0);
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(45, 180 / 320, 0.01, 1000);
+const camera = new THREE.PerspectiveCamera(45, 180 / 260, 0.01, 1000);
 
 // ── Lights ────────────────────────────────────────────────────────────
 const ambient = new THREE.AmbientLight(0xffffff, 1.2);
@@ -671,8 +671,8 @@ scene.add(fillLight);
 // Eye glow light — red by default, turns yellow when TERM needs confirmation
 const eyeLight = new THREE.PointLight(0xFF2200, 3.0, 8);
 let termAlertActive = false;
-// 任务完成 (Stop hook 写 /tmp/zaku_task_done) 后, main 广播 taskDoneAvailable=true.
-// 此时单击宠物会跳转到对应 terminal 而不是变形, 跳完由 main 广播 false 清掉.
+// 任务完成 (Stop hook 写 /tmp/vf1_task_done) 后, main 广播 taskDoneAvailable=true.
+// 此时单击机体会跳转到对应 terminal 而不是变形, 跳完由 main 广播 false 清掉.
 let taskDoneAvailable = false;
 
 // ── 上升扫频警告音 (Macross / 星际牛仔风) ─────────────────────────────
@@ -942,9 +942,9 @@ const ALERT_VOICE_TEXT = '发现不明物体';
 function startAlertVoiceLoop() {
   if (_alertVoiceTimer) return;            // 已经在跑
   if (!_alertSoundEnabled) return;
-  speakZaku(ALERT_VOICE_TEXT);             // 立刻念第一遍
+  speakVF1(ALERT_VOICE_TEXT);             // 立刻念第一遍
   _alertVoiceTimer = setInterval(() => {
-    if (_alertSoundEnabled) speakZaku(ALERT_VOICE_TEXT);
+    if (_alertSoundEnabled) speakVF1(ALERT_VOICE_TEXT);
   }, 30000);
 }
 function stopAlertVoiceLoop() {
@@ -995,7 +995,7 @@ const YAW_LERP_SPEED = 4.0;
 const IDLE_PITCH = 0.32;
 
 // ── Load GLTF model ───────────────────────────────────────────────────
-// 切换模型: SD 扎古 (轻量, 5.3k 三角) → VF-1 Super Valkyrie Strike (重, 259.9k 三角, 但带骨骼+变形动画)
+// 切换模型: 旧 SD 模型 (轻量, 5.3k 三角) → VF-1 Super Valkyrie Strike (重, 259.9k 三角, 但带骨骼+变形动画)
 //   ./assets/zaku-sd/sd_ms-06f_zaku_ii.glb       — 旧模型
 //   ./assets/vf-1-strike/vf1.glb                 — 新模型 (Roy Focker 骷髅中队 VF-1S, 含 Gerwalk 变形动画)
 const loader = new GLTFLoader();
@@ -1017,12 +1017,12 @@ loader.load(
     model.position.sub(center);
 
     // Fit camera with correct aspect-ratio-aware calculation + padding
-    const aspect = 180 / 320;
+    const aspect = 180 / 260;
     const fovRad = (camera.fov * Math.PI) / 180;
     const halfFovTan = Math.tan(fovRad / 2);
     const distH = (size.y / 2) / halfFovTan;
     const distW = (size.x / 2) / (halfFovTan * aspect);
-    // 留白系数: 1.0=贴边, 1.2=适中(默认), 1.75=扎古时代的留白
+    // 留白系数: 1.0=贴边, 1.2=适中(默认), 1.75=旧模型时代的留白
     // 数字越大模型显得越小, 但 rotation/手臂伸展时不会被边框裁掉
     const dist = Math.max(distH, distW) * 1.2;
     camera.position.set(0, 0, dist);
@@ -1075,7 +1075,7 @@ loader.load(
     //  ② emissive 颜色偏红/暖 → 多半是发光的眼睛/警示灯
     //  ③ 啥都没匹配到, fallback 到 [所有有 emissive 槽位的小材质] 用作兜底
     // 启动时把所有 mesh/material/emissive 列出来便于诊断
-    // 找头部节点用于"扎古扫视"转头动作 — 名字包含 head/neck/skull 都算
+    // 找头部节点用于"机体扫视"转头动作 — 名字包含 head/neck/skull 都算
     // SD 风格模型可能没有命名节点, 此时 headNode 留 null, 退回到整体身体摆动
     let headNode = null;
     const allNodeNames = [];
@@ -1133,8 +1133,8 @@ loader.load(
     modelGroup.userData.modelSizeX = size.x;
 
     // ── Weapon Upgrade System ──────────────────────────────────
-    // 这段是给原 SD 扎古做的"等级武器装备"(护盾/炮/巴祖卡/翼/重装甲等), 几何位置写死在扎古坐标系.
-    // 换 VF-1 飞机后, 这些扎古配件会漂浮在飞机周围 → 整段禁用. 想恢复扎古时把 false 改成 true.
+    // 这段是给旧 SD 模型做的"等级武器装备"(护盾/炮/巴祖卡/翼/重装甲等), 几何位置写死在旧模型坐标系.
+    // 换 VF-1 飞机后, 这些旧配件会漂浮在飞机周围 → 整段禁用. 想恢复旧模型时把 false 改成 true.
     if (false) {
       const sx = size.x, sy = size.y, sz = size.z;
       const accGroup = new THREE.Group();
@@ -1185,7 +1185,7 @@ loader.load(
         gCannon.add(bPivot);
       }
 
-      // ── Lv5: H&L-SB25K/280mmA-P 扎古巴祖卡 (Zaku Bazooka) ──
+      // ── Lv5: H&L-SB25K/280mmA-P 巴祖卡炮 (Bazooka) ──
       // 9 个零件组合: 主筒 + 加固环 + 炮口 + 弹匣 + 弹匣顶盖 + 瞄准镜壳 + 目镜 + 扳机握把 + 护圈
       // 用 pivot group 统一姿态: 整体右手腰前, 端枪指向右前方 ~23°
       const gBazooka = new THREE.Group();
@@ -1201,7 +1201,7 @@ loader.load(
         // 内部建模约定: 主筒沿 Z+ 轴方向 (cylinder 默认沿 Y, 加 rx=π/2 转过来)
         const ZAXIS = Math.PI / 2;
 
-        // 1. 主筒身 — 军绿色, 跟扎古机体同色
+        // 1. 主筒身 — 军绿色, 跟旧模型机体同色
         bzPivot.add(mkMesh(
           new THREE.CylinderGeometry(sx * 0.052, sx * 0.052, sy * 0.46, 14), mGreen,
           0, 0, 0,
@@ -1365,13 +1365,11 @@ function pickEmoLine() {
   _lastEmoIdx = idx;
   return EMO_LINES[idx];
 }
-// 形态循环: 根据当前 _morphTarget 推算下一态, 顺序 Gerwalk → Battloid → Fighter → Gerwalk
+// 形态循环 (点击): 仅在 Fighter (飞机) ↔ Gerwalk (半人形) 两态间切换, 不再经过 Battloid
 function nextFormAfterClick() {
-  // 容差 0.2: 0.2 / 0.7 / 1.0 三档间隔够大
-  if (Math.abs(_morphTarget - 0.7) < 0.2) return { name: 'Battloid (人形)',  val: 1.0 };
-  if (Math.abs(_morphTarget - 1.0) < 0.15) return { name: 'Fighter (飞机)', val: 0.2 };
-  if (Math.abs(_morphTarget - 0.2) < 0.15) return { name: 'Gerwalk (半人形)', val: 0.7 };
-  return { name: 'Gerwalk (半人形)', val: 0.7 };  // fallback
+  // 当前在 Gerwalk(0.7) 附近 → 切到 Fighter; 其它情况 (Fighter / 残留 Battloid) → 切回 Gerwalk
+  if (Math.abs(_morphTarget - 0.7) < 0.2) return { name: 'Fighter (飞机)', val: 0.2 };
+  return { name: 'Gerwalk (半人形)', val: 0.7 };
 }
 let petState = null, bubbleTimer = null;
 let isHovering = false, currentMood = 'happy';
@@ -1492,6 +1490,9 @@ let prevTime = 0;
 
 function animate() {
   requestAnimationFrame(animate);
+  // 窗口隐藏/最小化时跳过动画计算与渲染, 省 GPU/CPU (桌宠长期驻留后台).
+  // 仍推进 prevTime, 避免恢复可见时 delta 突跳导致动画瞬移.
+  if (document.hidden) { prevTime = clock.getElapsedTime(); return; }
   const t = clock.getElapsedTime();
   const delta = t - prevTime;
   prevTime = t;
@@ -1708,7 +1709,7 @@ function showBubble(text, duration) {
   }
 }
 
-// 控制扎古周围的 Target Lock HUD — 不依赖 GLB 材质, 兜底视觉.
+// 控制机体周围的 Target Lock HUD — 不依赖 GLB 材质, 兜底视觉.
 // 优先级: termAlert (金色锁定动画 + INPUT REQ + 充能条) > axMissing (静态暖橘 + AX OFFLINE) > 关闭
 // 任务完成 (taskDoneAvailable) 走气泡常驻提示, 不再叠加四角锁定框 — 该状态下不显示任何 HUD 框
 function updateAlertRing() {
@@ -1721,7 +1722,7 @@ function updateAlertRing() {
 
 // 用 Web Speech API + macOS 系统中文 TTS 念一句话, 同时弹气泡
 // persist=true: 气泡不自动消失, 由调用方负责清(任务完成场景, 等单击切窗)
-function speakZaku(text, persist) {
+function speakVF1(text, persist) {
   if (!text) return;
   try {
     const u = new SpeechSynthesisUtterance(text);
@@ -1774,7 +1775,7 @@ async function init() {
   // 开机问候: 随机选一句, 延迟 600ms 等 voices 加载完
   setTimeout(() => {
     const greet = greetings[Math.floor(Math.random() * greetings.length)];
-    speakZaku(greet);
+    speakVF1(greet);
   }, 600);
 
   // 读取警报音开关初始值 (store 默认 true)
@@ -1817,7 +1818,7 @@ async function init() {
     if (data.pet && data.pet.mood === 'excited') showBubble('任务完成！骷髅一号升级 ⚡', 2000);
     if (data.reminderAlert) showBubble(data.reminderAlert, 6000);
     if (data.petSay) showBubble(data.petSay, 4000);
-    if (data.speakText) speakZaku(data.speakText, !!data.speakPersist);
+    if (data.speakText) speakVF1(data.speakText, !!data.speakPersist);
     // Fighter 不到 0 — 动画 time=0 是"地面停机"(起落架放下/舱盖打开),
     // 跳过最末端那段地面状态. 调大数值 = 飞机更像变形中, 调小 = 更接近完整飞机但可能露起落架
     if (data.transformTo === 'fighter')   _morphTarget = 0.2;
@@ -1912,7 +1913,7 @@ const petContainer = document.getElementById('pet-container');
 petContainer.addEventListener('mouseenter', () => { isHovering = true;  });
 petContainer.addEventListener('mouseleave', () => { isHovering = false; });
 
-// 双指滑动 / 鼠标滚轮 → 旋转扎古 (横向 yaw, 纵向 pitch)
+// 双指滑动 / 鼠标滚轮 → 旋转机体 (横向 yaw, 纵向 pitch)
 petContainer.addEventListener('wheel', (e) => {
   e.preventDefault();
   if (!modelGroup) return;

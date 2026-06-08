@@ -2,9 +2,12 @@ const { app, BrowserWindow, ipcMain, screen, shell, session: electronSession, sy
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { exec } = require('child_process');
+const { exec, execFile } = require('child_process');
 const util = require('util');
 const execAsync = util.promisify(exec);
+// execFile 不经 shell, 参数以数组传入 → 从根上杜绝命令注入. 凡是把外部/AI 传入的
+// 路径/URL/应用名拼进命令行的地方都应优先用它.
+const execFileAsync = util.promisify(execFile);
 const store = require('./store');
 
 let petWindow = null;
@@ -17,7 +20,7 @@ const notifiedReminders = new Set();
 // 不需要用户手动复制脚本 / 编辑 JSON. 幂等 — 已配置过会跳过, 路径变了会刷新.
 //
 // 流程:
-//   1. 把 asar 里的 zaku-notify.sh 提取到 ~/.macross/zaku-notify.sh (asar 是只读, hook 没法直接执行)
+//   1. 把 asar 里的 vf1-notify.sh 提取到 ~/.macross/vf1-notify.sh (asar 是只读, hook 没法直接执行)
 //   2. 给提取出的脚本 +x 可执行权限
 //   3. 读 ~/.claude/settings.json (不存在就创建空对象)
 //   4. 把 4 类 hook (PermissionRequest/PostToolUse/PermissionDenied/Stop) 注入或更新
@@ -26,13 +29,15 @@ function ensureClaudeHooksInstalled() {
   try {
     const homedir = os.homedir();
     const macrossDir = path.join(homedir, '.macross');
-    const scriptDest = path.join(macrossDir, 'zaku-notify.sh');
-    const scriptSrc = path.join(__dirname, 'scripts', 'zaku-notify.sh');
+    const scriptDest = path.join(macrossDir, 'vf1-notify.sh');
+    const scriptSrc = path.join(__dirname, 'scripts', 'vf1-notify.sh');
     const claudeDir = path.join(homedir, '.claude');
     const settingsPath = path.join(claudeDir, 'settings.json');
 
-    // 1) 提取 / 更新脚本到 ~/.macross/
-    if (!fs.existsSync(macrossDir)) fs.mkdirSync(macrossDir, { recursive: true });
+    // 1) 提取 / 更新脚本到 ~/.macross/ (并确保私有 flag 目录 run/ 存在, 均收紧到 700)
+    if (!fs.existsSync(macrossDir)) fs.mkdirSync(macrossDir, { recursive: true, mode: 0o700 });
+    else { try { fs.chmodSync(macrossDir, 0o700); } catch (_) {} }
+    try { fs.mkdirSync(path.join(macrossDir, 'run'), { recursive: true, mode: 0o700 }); } catch (_) {}
     let srcContent;
     try { srcContent = fs.readFileSync(scriptSrc, 'utf8'); }
     catch (e) { console.error('[HOOK] cannot read script source at', scriptSrc, e.message); return; }
@@ -66,13 +71,15 @@ function ensureClaudeHooksInstalled() {
     }
     settings.hooks = settings.hooks || {};
 
-    // 4) 对每个事件: 删掉所有指向 zaku-notify.sh 的旧条目 (路径可能过时), 加入 desired
+    // 4) 对每个事件: 删掉所有指向通知脚本的旧条目 (含已废弃的 zaku-notify.sh 与当前 vf1-notify.sh,
+    //    路径可能过时), 再加入 desired —— 保证旧机体名残留的 hook 在升级后被清掉
+    const isNotifyHook = (cmd) => /(?:zaku|vf1)-notify\.sh/.test(cmd || '');
     let changed = false;
     for (const evt of Object.keys(desired)) {
       const oldGroups = settings.hooks[evt] || [];
       const filteredGroups = oldGroups.map(g => ({
         ...g,
-        hooks: (g.hooks || []).filter(h => !(h.command || '').includes('zaku-notify.sh')),
+        hooks: (g.hooks || []).filter(h => !isNotifyHook(h.command)),
       })).filter(g => (g.hooks || []).length > 0);
       const newGroups = [...filteredGroups, ...desired[evt]];
       if (JSON.stringify(settings.hooks[evt]) !== JSON.stringify(newGroups)) {
@@ -91,24 +98,28 @@ function ensureClaudeHooksInstalled() {
   }
 }
 
+// 机体 "home" / 复位位置: 屏幕右下角 (相对传入显示器的整块 bounds 计算, 含 dock/菜单栏).
+// 启动初始位置与 reset-pet-position 共用此函数, 保证两者完全一致.
+const PET_W = 180, PET_H = 290;
+const PET_HOME_DX = 12, PET_HOME_DY = 60;  // 在贴边基础上的微调 (右移 / 下移)
+function homePetPosition(display) {
+  const { x: sx, y: sy, width: sw, height: sh } = display.bounds;
+  return {
+    x: Math.round(sx + sw - PET_W + PET_HOME_DX),
+    y: Math.round(sy + sh - PET_H + PET_HOME_DY)
+  };
+}
+
 function createPetWindow() {
-  const { width, height } = screen.getPrimaryDisplay().workAreaSize;
-  console.log('[PET STARTUP] workArea:', width, 'x', height, 'saved pos:', state.petPosition);
-  // 位置迁移 V5: 强制重置到屏幕右下贴 dock (V4 之后用户拖过, 这次再强制一次)
-  if (!state._posMigratedV5) {
-    state.petPosition = {
-      x: Math.round(width - 200),
-      y: Math.round(height - 400)
-    };
-    state._posMigratedV5 = true;
-    store.save(state);
-    console.log('[PET] >>> V5 RESET APPLIED, new pos:', state.petPosition);
-  }
-  const pos = state.petPosition;
+  // 初始位置 = 复位位置 (屏幕右下角 home), 每次启动都落在这里
+  const pos = homePetPosition(screen.getPrimaryDisplay());
+  state.petPosition = pos;
+  store.save(state);
+  console.log('[PET STARTUP] home pos:', pos);
 
   petWindow = new BrowserWindow({
     width: 180,
-    height: 350,
+    height: 290,
     x: pos.x,
     y: pos.y,
     transparent: true,
@@ -239,13 +250,13 @@ end tell`;
 }
 
 // ── Claude Code 权限等待检测（通过 hook 写入的 flag 文件）────────────────
-// hook 命令用绝对路径 /tmp/zaku_claude_pending, 这里也必须硬编码同一路径
-const CLAUDE_PENDING_FLAG = '/tmp/zaku_claude_pending';
+// flag 放在 ~/.macross/run (700, 私有), hook 脚本与本进程都从 $HOME 派生同一路径对接.
+// 不能用 os.tmpdir() ── Claude Code 进程的 TMPDIR 与本进程不同, 必须用固定的 HOME 派生路径.
+const RUN_DIR = path.join(os.homedir(), '.macross', 'run');
+const CLAUDE_PENDING_FLAG = path.join(RUN_DIR, 'vf1_claude_pending');
 
 // ── 任务完成语音播报 ──────────────────────────────────────────────────────
-// 注意: 必须用绝对路径 /tmp, 不能用 os.tmpdir() ── Claude Code 进程会设置
-// TMPDIR=/tmp/claude-XXX, 但 Stop hook 写文件时用的是绝对路径 /tmp/zaku_task_done.
-const ZAKU_DONE_FLAG = '/tmp/zaku_task_done';
+const VF1_DONE_FLAG = path.join(RUN_DIR, 'vf1_task_done');
 
 // ── 休息提醒 ─────────────────────────────────────────────────────────────
 // 飞到屏幕中央 → 语音提示 → 4 秒后飞回原位
@@ -291,7 +302,7 @@ async function runBreakAnimation() {
   if (!petWindow || petWindow.isDestroyed()) return;
   const display = screen.getDisplayMatching(petWindow.getBounds());
   const { x: sx, y: sy, width: sw, height: sh } = display.workArea;
-  const PW = 180, PH = 350;
+  const PW = 180, PH = 290;
   const startBounds = petWindow.getBounds();
   const targetX = Math.round(sx + (sw - PW) / 2);
   const targetY = Math.round(sy + (sh - PH) / 2);
@@ -381,8 +392,10 @@ function tweenWindow(x0, y0, x1, y1, durationMs) {
 //   Y (顶底) = 0    → 顶/底飞行紧贴菜单栏 / dock (用户偏好)
 const PATROL_PAD_X = 12;
 const PATROL_PAD_Y = 0;
+const PATROL_BOTTOM_EXTRA = 60;   // 底边左右飞行额外下移 (BR/BL 两角的 y), 让下边巡航贴更低
+const PATROL_TOP_EXTRA    = -100; // 顶边左右飞行额外偏移 (TL/TR 两角的 y), 负值=上移
 const PATROL_LEG_MS        = 28000;  // 单条边的飞行时间 (~30s)
-const PATROL_DWELL_MS      = 700;    // 角落停顿 (从 2s 再缩到 0.7s, 几乎无停留, 立刻进入变形+下条 leg)
+const PATROL_DWELL_MS      = 0;      // 角落停顿 = 0, 飞到角立刻接下一条 leg, 中间不停留
 const PATROL_USER_GRACE_MS = 6000;   // 用户拖完后多久不打扰
 const PATROL_FORM_SETTLE_MS = 1200;  // 形态切换后等多少毫秒再起飞 (从 1.8s 降到 1.2s)
 const PATROL_REPOS_MS      = 2200;   // 初次/恢复时, 飞到最近角的过渡时间
@@ -408,12 +421,18 @@ function _canPatrolNow() {
 function _patrolCorners() {
   const display = screen.getDisplayMatching(petWindow.getBounds());
   const { x: sx, y: sy, width: sw, height: sh } = display.workArea;
-  const PW = 180, PH = 350;
+  const b = display.bounds;   // 物理屏幕范围 (含菜单栏/dock), 用于把角点钳到屏幕内
+  const PW = 180, PH = 290;
+  // 顶边角点不能高过屏幕物理上端 (b.y), 否则窗口跑到屏幕外, macOS getBounds 会返回越界值
+  // 导致后续 setPosition 抛 "conversion failure" 并让巡航循环崩在角上.
+  const topY    = Math.max(b.y, sy + PATROL_PAD_Y + PATROL_TOP_EXTRA);
+  // 底边角点最多让窗口底缘略微越过屏幕下端一点点 (留 PH-30 可见), 同样避免越界过多.
+  const bottomY = Math.min(b.y + b.height - 30, sy + sh - PH - PATROL_PAD_Y + PATROL_BOTTOM_EXTRA);
   return [
-    { x: sx + PATROL_PAD_X,           y: sy + PATROL_PAD_Y },                  // 0 TL
-    { x: sx + sw - PW - PATROL_PAD_X, y: sy + PATROL_PAD_Y },                  // 1 TR
-    { x: sx + sw - PW - PATROL_PAD_X, y: sy + sh - PH - PATROL_PAD_Y },        // 2 BR
-    { x: sx + PATROL_PAD_X,           y: sy + sh - PH - PATROL_PAD_Y }         // 3 BL
+    { x: sx + PATROL_PAD_X,           y: topY },     // 0 TL
+    { x: sx + sw - PW - PATROL_PAD_X, y: topY },     // 1 TR
+    { x: sx + sw - PW - PATROL_PAD_X, y: bottomY },  // 2 BR
+    { x: sx + PATROL_PAD_X,           y: bottomY }   // 3 BL
   ];
 }
 
@@ -438,6 +457,12 @@ function tweenWindowCancellable(x0, y0, x1, y1, durationMs, shouldCancel) {
       const k = Math.min(1, (Date.now() - t0) / durationMs);
       const x = Math.round(x0 + (x1 - x0) * k);
       const y = Math.round(y0 + (y1 - y0) * k);
+      // 安全网: 坐标非有限或超出 32 位整数范围时直接中断本段, 不让 setPosition 抛异常炸掉巡航循环
+      if (!Number.isFinite(x) || !Number.isFinite(y) ||
+          Math.abs(x) > 2147483000 || Math.abs(y) > 2147483000) {
+        console.error('[PATROL] tween 坐标异常, 跳过本段:', { x0, y0, x1, y1, k, x, y });
+        return resolve('cancelled');
+      }
       petWindow.setPosition(x, y);
       if (k < 1) setTimeout(step, 16);
       else resolve('done');
@@ -535,13 +560,13 @@ async function startEdgePatrolLoop() {
 }
 
 async function checkTaskDoneFlag() {
-  if (!fs.existsSync(ZAKU_DONE_FLAG)) return;
+  if (!fs.existsSync(VF1_DONE_FLAG)) return;
   let raw = '';
   try {
-    raw = fs.readFileSync(ZAKU_DONE_FLAG, 'utf8');
-    fs.unlinkSync(ZAKU_DONE_FLAG);
+    raw = fs.readFileSync(VF1_DONE_FLAG, 'utf8');
+    fs.unlinkSync(VF1_DONE_FLAG);
   } catch (e) {
-    console.error('[ZAKU_DONE] read error:', e.message);
+    console.error('[VF1_DONE] read error:', e.message);
     return;
   }
   // 新格式: 第一行 tty (/dev/ttysXXX), 第二行起为消息. 老格式: 整文件就是消息.
@@ -557,7 +582,7 @@ async function checkTaskDoneFlag() {
   // 不管 flag 文件里是什么提示词, 任务完成播报统一固定为"任务已完成"
   msg = '任务已完成';
 
-  // 记录任务完成对应的 terminal session, 让单击宠物时能跳过去
+  // 记录任务完成对应的 terminal session, 让单击机体时能跳过去
   // 没拿到 tty 则不存 session — 不能 fallback 到"最前的 terminal", 容易误跳到别人
   if (tty) {
     try {
@@ -567,7 +592,7 @@ async function checkTaskDoneFlag() {
     _taskDoneSession = null;
   }
 
-  console.log('[ZAKU_DONE] firing:', msg, '| tty:', tty || '(none)', '| session:', _taskDoneSession ? _taskDoneSession.app + '#' + _taskDoneSession.windowIndex : '(none)');
+  console.log('[VF1_DONE] firing:', msg, '| tty:', tty || '(none)', '| session:', _taskDoneSession ? _taskDoneSession.app + '#' + _taskDoneSession.windowIndex : '(none)');
   if (petWindow && !petWindow.isDestroyed()) {
     petWindow.webContents.send('pet-update', {
       speakText: msg,
@@ -577,7 +602,7 @@ async function checkTaskDoneFlag() {
     });
   }
 }
-// 任务完成后未消费的 terminal session — 单击宠物会跳过去, 跳完清空
+// 任务完成后未消费的 terminal session — 单击机体会跳过去, 跳完清空
 let _taskDoneSession = null;
 let _claudeFlagActive = false;
 
@@ -725,7 +750,7 @@ app.whenReady().then(() => {
 
   // 启动时清掉残留的 flag 文件 — 它们是 app 关闭期间累积的陈旧通知,
   // 不该在新会话启动时被当作"刚刚完成"重新播报
-  try { if (fs.existsSync(ZAKU_DONE_FLAG)) fs.unlinkSync(ZAKU_DONE_FLAG); } catch (_) {}
+  try { if (fs.existsSync(VF1_DONE_FLAG)) fs.unlinkSync(VF1_DONE_FLAG); } catch (_) {}
   try { if (fs.existsSync(CLAUDE_PENDING_FLAG)) fs.unlinkSync(CLAUDE_PENDING_FLAG); } catch (_) {}
 
   setInterval(() => { checkClaudePendingFlag().catch(() => {}); }, 800);   // 检测 Claude Code 权限等待
@@ -733,7 +758,7 @@ app.whenReady().then(() => {
   setTimeout(checkReminderAlerts, 30 * 1000);
   setInterval(checkReminderAlerts, 5 * 60 * 1000);
 
-  // 休息提醒: 每分钟检查一次, 到点了让扎古飞到屏幕中央播报
+  // 休息提醒: 每分钟检查一次, 到点了让机体飞到屏幕中央播报
   setInterval(() => { checkBreakReminder().catch(() => {}); }, 60 * 1000);
 
   // 边沿巡航: 待机时沿屏幕四角顺时针缓慢飞行 (开关在 CONFIG → 机体设置)
@@ -766,11 +791,13 @@ function escAppleScript(str) {
   return String(str).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
-async function runAppleScript(script) {
-  const tmpFile = path.join(os.tmpdir(), `pet-scpt-${Date.now()}.scpt`);
+// args 通过 osascript 的 `on run argv` 传入脚本, 不拼进脚本源码 → 含外部数据的路径/文本
+// 不会破坏 AppleScript 结构, 杜绝脚本注入. 不传 args 时行为与旧版一致.
+async function runAppleScript(script, args = []) {
+  const tmpFile = path.join(os.tmpdir(), `pet-scpt-${Date.now()}-${process.pid}.scpt`);
   fs.writeFileSync(tmpFile, script, 'utf8');
   try {
-    const { stdout } = await execAsync(`osascript "${tmpFile}"`);
+    const { stdout } = await execFileAsync('osascript', [tmpFile, ...args.map(String)]);
     return stdout.trim();
   } finally {
     try { fs.unlinkSync(tmpFile); } catch (_) {}
@@ -838,7 +865,7 @@ ipcMain.handle('list-windows', async () => {
             // 跳过 background-only 守护进程
             try { if (p.backgroundOnly()) continue; } catch (e) {}
             const appName = p.name();
-            // 跳过桌宠自己 (Electron / Helper 进程)
+            // 跳过本应用自己 (Electron / Helper 进程)
             if (/^Electron/i.test(appName) || appName === 'DesktopPet') continue;
             const wins = p.windows();
             const winList = [];
@@ -1527,18 +1554,18 @@ async function runTool(name, input, ctx = {}) {
       // 在 Terminal.app 弹出新窗口执行 — 比 macOS 默认 `open` 路径稳很多
       // 用 shell single-quote 包裹路径避免空格被截断 ("AI Folder/x.command" 这种路径)
       if (isLocalPath && /\.(command|sh|zsh|bash)$/i.test(localFilePath)) {
-        // 先做 shell single-quote 转义 (路径里若有 ' 替换为 '\''), 再做 AppleScript 字符串转义
-        const shellSafe = localFilePath.replace(/'/g, "'\\''");
-        const escaped = shellSafe.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-        const script = `tell application "Terminal"
-  activate
-  do script "'${escaped}'"
-end tell`;
-        await runAppleScript(script);
+        // 路径经 argv 传入, AppleScript 用 `quoted form of` 做 shell 转义 → 无字符串拼接, 不可注入
+        const script = `on run argv
+  set p to item 1 of argv
+  tell application "Terminal"
+    activate
+    do script (quoted form of p)
+  end tell
+end run`;
+        await runAppleScript(script, [localFilePath]);
         return `已在 Terminal 中启动执行: ${value}`;
       }
 
-      const safePath = localFilePath.replace(/"/g, '\\"');
       if (browser) {
         const browserMap = {
           'chrome': 'Google Chrome', 'google chrome': 'Google Chrome',
@@ -1550,13 +1577,13 @@ end tell`;
           'opera': 'Opera',
         };
         const appName = browserMap[browser.toLowerCase()] || browser;
-        await execAsync(`open -a "${appName}" "${safePath}"`);
+        await execFileAsync('open', ['-a', appName, localFilePath]);
         return `已在 ${appName} 中打开：${value}`;
       }
       if (isLocalPath) {
         // Use macOS `open` for local paths — handles spaces reliably.
         // shell.openExternal requires encoded file:// URLs and fails silently on unencoded spaces.
-        await execAsync(`open "${safePath}"`);
+        await execFileAsync('open', [localFilePath]);
       } else {
         await shell.openExternal(value);
       }
@@ -1574,7 +1601,7 @@ end tell`;
       };
       const rawName = value.replace(/"/g, '');
       const appName = appNameMap[rawName.toLowerCase()] || rawName;
-      await execAsync(`open -a "${appName}"`);
+      await execFileAsync('open', ['-a', appName]);
       return `已打开应用：${value}`;
     }
   }
@@ -1718,10 +1745,13 @@ end tell`;
       return downloadWithBrowserWindow(url, destDir, filename || null);
     }
 
-    const inferredName = filename || decodeURIComponent(url.split('/').pop().split('?')[0]) || 'downloaded_file';
+    const rawName = filename || decodeURIComponent(url.split('/').pop().split('?')[0]) || 'downloaded_file';
+    // path.basename 去掉任何 ../ 目录穿越, 保证文件只落在 destDir 内
+    const inferredName = path.basename(rawName) || 'downloaded_file';
     const destPath = path.join(destDir, inferredName);
     try {
-      await execAsync(`curl -L -f -o "${destPath.replace(/"/g, '\\"')}" "${url.replace(/"/g, '\\"')}"`, { timeout: 60000 });
+      // execFile 数组传参, url/destPath 不经 shell → 无注入
+      await execFileAsync('curl', ['-L', '-f', '-o', destPath, url], { timeout: 60000 });
       const stats = fs.statSync(destPath);
       const head = Buffer.alloc(512);
       const fd = fs.openSync(destPath, 'r');
@@ -1819,7 +1849,14 @@ async function callAI(provider, apiKey, petName, history, userMessage, metasoKey
   let finished = false;
   let finalContent = '';
   let firstCall = true;
+  // 熔断: 限制工具调用轮数, 防止模型持续返回 tool_calls 造成无限循环 + 无限请求
+  const MAX_TOOL_ROUNDS = 6;
+  let rounds = 0;
   while (!finished) {
+    if (++rounds > MAX_TOOL_ROUNDS) {
+      console.warn('[AI] 工具调用超过', MAX_TOOL_ROUNDS, '轮, 强制结束');
+      return finalContent || '（处理超时：工具调用轮数过多，请换个问法重试）';
+    }
     const body = { model: ep.model, max_tokens: 4096, messages: chatMessages };
     if (useTools) body.tools = OPENAI_TOOLS;
     if (temperature !== null) body.temperature = temperature;
@@ -1835,13 +1872,20 @@ async function callAI(provider, apiKey, petName, history, userMessage, metasoKey
       throw new Error(`${res.status}: ${err}`);
     }
     const data = await res.json();
-    const choice = data.choices[0];
+    const choice = data.choices && data.choices[0];
+    if (!choice) throw new Error('AI 返回为空或格式异常');
 
     if (useTools && choice.finish_reason === 'tool_calls') {
       const toolCalls = choice.message.tool_calls || [];
       chatMessages = [...chatMessages, choice.message];
       for (const tc of toolCalls) {
-        const input = JSON.parse(tc.function.arguments);
+        // 模型给的 arguments 可能是非法 JSON, 解析失败时把错误回灌给模型让它自纠, 而非整轮崩溃
+        let input;
+        try { input = JSON.parse(tc.function.arguments); }
+        catch (e) {
+          chatMessages = [...chatMessages, { role: 'tool', tool_call_id: tc.id, content: `参数解析失败(非法 JSON): ${e.message}` }];
+          continue;
+        }
         const result = await runTool(tc.function.name, input, { metasoKey });
         chatMessages = [...chatMessages, { role: 'tool', tool_call_id: tc.id, content: result }];
       }
@@ -2490,9 +2534,21 @@ ipcMain.handle('scan-files', async () => {
   return results;
 });
 
+// 校验渲染进程传入的文件路径: 必须是字符串, 解析后必须落在某个允许的根目录内
+// (防目录穿越 / 任意路径操作 —— 渲染层若被注入也只能动白名单目录).
+function _pathWithin(filePath, roots) {
+  if (typeof filePath !== 'string' || !filePath) return null;
+  const abs = path.resolve(filePath);
+  return roots.some(r => abs === r || abs.startsWith(r + path.sep)) ? abs : null;
+}
+
 ipcMain.handle('delete-file', async (_, filePath) => {
+  // delete-file 只服务于 scan-files 的结果 (Downloads/Desktop), 据此限定可删除范围
+  const roots = [path.join(os.homedir(), 'Downloads'), path.join(os.homedir(), 'Desktop')];
+  const abs = _pathWithin(filePath, roots);
+  if (!abs) return { success: false, error: '仅允许删除 Downloads/Desktop 内的文件' };
   try {
-    await shell.trashItem(filePath);
+    await shell.trashItem(abs);
     state = store.addXP(state, 10);
     store.save(state);
     broadcastPetUpdate();
@@ -2503,7 +2559,9 @@ ipcMain.handle('delete-file', async (_, filePath) => {
 });
 
 ipcMain.handle('reveal-in-finder', (_, filePath) => {
-  shell.showItemInFolder(filePath);
+  const abs = _pathWithin(filePath, [os.homedir()]);
+  if (!abs) return { success: false, error: '路径不在允许范围内' };
+  shell.showItemInFolder(abs);
   return { success: true };
 });
 
@@ -2622,6 +2680,26 @@ ipcMain.handle('set-edge-patrol', (_, cfg) => {
   // 关掉时下一轮 _canPatrolNow 直接返回 false; 开启时若当前空闲会自然进入巡航
   _patrolIndex = -1;
   return { success: true, edgePatrol: state.edgePatrol };
+});
+
+// 复位: 让机体平滑飞回屏幕右下角的 home 位 (关闭巡航后归位用).
+// 目标点与启动初始位共用 homePetPosition, 但相对机体当前所在显示器计算, 兼容多屏.
+ipcMain.handle('reset-pet-position', async () => {
+  if (!petWindow || petWindow.isDestroyed()) return { success: false };
+  const display = screen.getDisplayMatching(petWindow.getBounds());
+  const { x: tx, y: ty } = homePetPosition(display);
+  // 标记为用户操作并打断巡航, 避免复位途中被巡航循环抢位
+  _lastUserMoveAt = Date.now();
+  _patrolIndex = -1;
+  // 复位用 Gerwalk 悬停姿态, 并清掉可能残留的巡航姿态
+  if (petWindow.webContents) {
+    petWindow.webContents.send('pet-update', { patrolMode: false, transformTo: 'gerwalk', bodyYaw: 'face' });
+  }
+  const cur = petWindow.getBounds();
+  await tweenWindowCancellable(cur.x, cur.y, tx, ty, 1200, () => false);
+  state.petPosition = { x: tx, y: ty };
+  store.save(state);
+  return { success: true, x: tx, y: ty };
 });
 
 // 让 panel 能手动触发一次休息提醒 (测试 / 立即生效)
@@ -2837,17 +2915,24 @@ ipcMain.handle('get-terminal-sessions', async () => {
 
 ipcMain.handle('send-terminal-input', async (_, { app, windowIndex, windowId, tabIndex, sessionId, text }) => {
   const ts = Date.now();
+  // 这些下标/ID 会被拼进 AppleScript/JXA 源码, 强制校验为非负整数, 杜绝脚本注入
+  const toIdx = (v) => { const n = Number(v); return Number.isInteger(n) && n >= 0 ? n : null; };
+  const wIdx = toIdx(windowIndex), tIdx = toIdx(tabIndex), sId = toIdx(sessionId);
+  const wId  = (windowId == null || windowId === '') ? null : toIdx(windowId);
+  if (typeof text !== 'string') return { error: '非法输入文本' };
   try {
     if (app === 'Terminal') {
+      // 需要 tabIndex + (windowId 或 windowIndex) 之一
+      if (tIdx == null || (wId == null && wIdx == null)) return { error: '非法窗口/标签参数' };
       // "do script" sends text + implicit Enter to a Terminal tab's stdin.
       // "write string" (old approach) raises -1700 on macOS Sequoia.
       const char = text.replace(/[\n\r]/g, '');
-      const windowRef = windowId ? `window id ${windowId}` : `window ${windowIndex}`;
+      const windowRef = wId != null ? `window id ${wId}` : `window ${wIdx}`;
       let script;
       if (char === '\t' || char === '\x1b') {
         // Tab / Esc: use System Events keystroke (briefly focuses Terminal)
         const keyCode = char === '\t' ? 48 : 53;
-        script = `tell application "Terminal"\n  activate\n  set targetTab to tab ${tabIndex} of ${windowRef}\n  set index of ${windowRef} to 1\nend tell\ntell application "System Events"\n  tell process "Terminal"\n    key code ${keyCode}\n  end tell\nend tell`;
+        script = `tell application "Terminal"\n  activate\n  set targetTab to tab ${tIdx} of ${windowRef}\n  set index of ${windowRef} to 1\nend tell\ntell application "System Events"\n  tell process "Terminal"\n    key code ${keyCode}\n  end tell\nend tell`;
       } else if (char === '') {
         // Enter key: do script "" is unreliable for Ink/full-screen apps (Claude Code etc.).
         // System Events Return (key code 36) is delivered directly to the focused process.
@@ -2855,16 +2940,18 @@ ipcMain.handle('send-terminal-input', async (_, { app, windowIndex, windowId, ta
       } else {
         // Regular text: do script sends TEXT + newline to stdin
         const safeStr = char.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-        script = `tell application "Terminal"\n  do script "${safeStr}" in tab ${tabIndex} of ${windowRef}\nend tell`;
+        script = `tell application "Terminal"\n  do script "${safeStr}" in tab ${tIdx} of ${windowRef}\nend tell`;
       }
       const tmpScript = path.join(os.tmpdir(), `term_send_${ts}.applescript`);
       fs.writeFileSync(tmpScript, script);
       await execAsync(`osascript "${tmpScript}"`, { timeout: 4000 });
       try { fs.unlinkSync(tmpScript); } catch(_) {}
     } else {
+      // iTerm 分支: 三个下标都必须是合法整数
+      if (wIdx == null || tIdx == null || sId == null) return { error: '非法窗口/标签/会话参数' };
       const tmpScript = path.join(os.tmpdir(), `term_send_${ts}.js`);
       const safeText = JSON.stringify(text);
-      const script = `const iTerm = Application('iTerm2'); iTerm.windows[${windowIndex - 1}].tabs[${tabIndex - 1}].sessions[${sessionId - 1}].write({ text: ${safeText} });`;
+      const script = `const iTerm = Application('iTerm2'); iTerm.windows[${wIdx - 1}].tabs[${tIdx - 1}].sessions[${sId - 1}].write({ text: ${safeText} });`;
       fs.writeFileSync(tmpScript, script);
       await execAsync(`osascript -l JavaScript "${tmpScript}"`, { timeout: 4000 });
       try { fs.unlinkSync(tmpScript); } catch(_) {}

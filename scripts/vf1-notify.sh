@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
-# zaku-notify.sh — DesktopPet 桌宠 Hook 通知脚本
+# vf1-notify.sh — VF-1 桌面机体 Hook 通知脚本
 
 set -euo pipefail
 
-PENDING_FLAG="/tmp/zaku_claude_pending"
-TASK_DONE_FLAG="/tmp/zaku_task_done"
+# flag 文件放在仅本人可读写的私有目录 (700), 不再用全局可写的 /tmp ——
+# 避免同机其它用户用可预测文件名做软链劫持. 路径从 $HOME 派生, 与 main.js 一致.
+RUN_DIR="${HOME}/.macross/run"
+mkdir -p "$RUN_DIR" 2>/dev/null && chmod 700 "$RUN_DIR" 2>/dev/null || true
+PENDING_FLAG="$RUN_DIR/vf1_claude_pending"
+TASK_DONE_FLAG="$RUN_DIR/vf1_task_done"
 TASK_DONE_MSG="目标已锁定，请指示"
 
 SUBCMD="${1:-}"
@@ -40,11 +44,11 @@ case "$SUBCMD" in
     # 读 stdin JSON 并把完整内容写到 debug log 帮助排查
     if command -v python3 &>/dev/null; then
       eval_result=$(python3 -c "
-import sys, json
+import sys, json, os
 try:
     data = json.load(sys.stdin)
-    # 把完整 JSON 写到 debug log
-    with open('/tmp/zaku_debug.log', 'a') as f:
+    # 把完整 JSON 写到 debug log (与 flag 同处私有目录)
+    with open(os.path.expanduser('~/.macross/run/vf1_debug.log'), 'a') as f:
         f.write(json.dumps(data, ensure_ascii=False) + '\n')
     tool = data.get('tool_name', '')
     pmode = data.get('permission_mode', '')

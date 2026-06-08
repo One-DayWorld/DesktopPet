@@ -29,9 +29,15 @@ function calcLevelFromXP(xp) {
   return level;
 }
 
+// data.json 含明文 API Key, 目录/文件都收紧到仅本人可读写 (0700 / 0600)
+function ensureDataDir() {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true, mode: 0o700 });
+  else { try { fs.chmodSync(DATA_DIR, 0o700); } catch (_) {} }
+}
+
 function load() {
   try {
-    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    ensureDataDir();
     if (!fs.existsSync(DATA_FILE)) return JSON.parse(JSON.stringify(DEFAULT_STATE));
     const raw = fs.readFileSync(DATA_FILE, 'utf8');
     const data = JSON.parse(raw);
@@ -64,10 +70,15 @@ function load() {
 
 function save(state) {
   try {
-    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.writeFileSync(DATA_FILE, JSON.stringify(state, null, 2), 'utf8');
+    ensureDataDir();
+    // 原子写: 先写临时文件再 rename, 避免写到一半崩溃/断电留下截断的 JSON 损坏整份配置
+    const tmp = DATA_FILE + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(state, null, 2), { encoding: 'utf8', mode: 0o600 });
+    fs.renameSync(tmp, DATA_FILE);
+    try { fs.chmodSync(DATA_FILE, 0o600); } catch (_) {}
   } catch (e) {
     console.error('Failed to save state:', e);
+    try { fs.unlinkSync(DATA_FILE + '.tmp'); } catch (_) {}
   }
 }
 

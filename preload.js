@@ -55,6 +55,7 @@ contextBridge.exposeInMainWorld('petAPI', {
   triggerBreakReminder: () => ipcRenderer.invoke('trigger-break-reminder'),
   getEdgePatrol: () => ipcRenderer.invoke('get-edge-patrol'),
   setEdgePatrol: (cfg) => ipcRenderer.invoke('set-edge-patrol', cfg),
+  resetPetPosition: () => ipcRenderer.invoke('reset-pet-position'),
   setIgnoreMouse: (ignore) => ipcRenderer.invoke('set-ignore-mouse', ignore),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   notifySpeechEnd: () => ipcRenderer.invoke('notify-speech-end'),

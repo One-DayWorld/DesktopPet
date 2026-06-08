@@ -2133,11 +2133,15 @@
     <div style="height:14px"></div>
     <div class="setting-section">边沿巡航</div>
     <div class="setting-row" style="margin-bottom:8px">
-      <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:12px; color:var(--text-md);">
-        <input type="checkbox" id="edge-patrol-enabled" onchange="saveEdgePatrol()" style="cursor:pointer">
-        启用待机边沿巡航
-      </label>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:12px; color:var(--text-md);">
+          <input type="checkbox" id="edge-patrol-enabled" onchange="saveEdgePatrol()" style="cursor:pointer">
+          启用待机边沿巡航
+        </label>
+        <button class="save-btn" style="padding:5px 12px; flex:0 0 auto;" onclick="resetPetPosition()">复位</button>
+      </div>
       <div class="setting-note" style="margin-top:6px;">空闲时 VF-1 沿屏幕四角顺时针缓慢飞行, 横边走 Fighter (机头对齐航向), 竖边走 Gerwalk (悬停)。被告警/拖动/休息提醒打断时自动让位</div>
+      <div class="setting-note" style="margin-top:4px;">复位: 关闭巡航后, 点击让机体飞回屏幕右下角停留</div>
     </div>
 
     <div style="height:14px"></div>
@@ -2948,19 +2952,31 @@ async function getSuggestions() {
     return;
   }
 
+  // AI 生成的 text 通过 data-* 属性传递 (经 escHtml 做属性转义), 不再拼进 onclick → 杜绝 JS 注入
   list.innerHTML = result.items.map((text, i) => {
     const numClass = i < 3 ? 'high' : i < 6 ? 'mid' : '';
     const fileFilter = /桌面/.test(text) ? 'Desktop' : /下载/.test(text) ? 'Downloads' : 'all';
     const isFileTopic = /文件|旧文件|大文件/.test(text) && /清理|整理|删除|移除/.test(text);
     const fileBtn = isFileTopic
-      ? `<button class="suggestion-file-btn" onclick="event.stopPropagation();openFileManager('${fileFilter}')">查看文件 →</button>`
+      ? `<button class="suggestion-file-btn" data-filter="${fileFilter}">查看文件 →</button>`
       : '';
-    return `<div class="suggestion-item" onclick="sendSuggestion('${escHtml(text).replace(/'/g, "\\'")}')">
+    return `<div class="suggestion-item" data-suggestion="${escHtml(text)}">
       <div class="suggestion-num ${numClass}">${i + 1}</div>
       <div class="suggestion-text">${escHtml(text)}${fileBtn ? '<br>' + fileBtn : ''}</div>
       <div class="suggestion-arrow">↗</div>
     </div>`;
   }).join('');
+
+  // 事件委托 (绑一次, innerHTML 重渲染后仍有效): 优先文件按钮, 否则整条触发 sendSuggestion
+  if (!list.dataset.delegated) {
+    list.dataset.delegated = '1';
+    list.addEventListener('click', (e) => {
+      const fileEl = e.target.closest('.suggestion-file-btn');
+      if (fileEl) { e.stopPropagation(); openFileManager(fileEl.dataset.filter || 'all'); return; }
+      const item = e.target.closest('.suggestion-item');
+      if (item) sendSuggestion(item.dataset.suggestion || '');
+    });
+  }
 }
 
 function sendSuggestion(text) {
@@ -3359,6 +3375,14 @@ async function saveEdgePatrol() {
     await window.petAPI.setEdgePatrol({ enabled });
     showToast(enabled ? '✓ 已启用边沿巡航' : '已关闭边沿巡航');
   } catch (e) { showToast('✗ 保存失败'); }
+}
+
+async function resetPetPosition() {
+  showToast('骷髅一号归位中…');
+  try {
+    const r = await window.petAPI.resetPetPosition();
+    showToast(r && r.success ? '✓ 已复位到右下角' : '✗ 复位失败');
+  } catch (e) { showToast('✗ 复位失败'); }
 }
 
 async function saveReminderList() {
