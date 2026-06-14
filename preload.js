@@ -9,13 +9,6 @@ contextBridge.exposeInMainWorld('petAPI', {
 
   chat: (message) => ipcRenderer.invoke('chat', message),
 
-  getReminders: () => ipcRenderer.invoke('get-reminders'),
-  addReminder: (text, dueDate) => ipcRenderer.invoke('add-reminder', text, dueDate),
-  completeReminder: (id) => ipcRenderer.invoke('complete-reminder', id),
-  deleteReminder: (id) => ipcRenderer.invoke('delete-reminder', id),
-  editReminder: (id, text, dueDate) => ipcRenderer.invoke('edit-reminder', id, text, dueDate),
-  getReminderLists: () => ipcRenderer.invoke('get-reminder-lists'),
-  setReminderList: (name) => ipcRenderer.invoke('set-reminder-list', name),
 
   scanFiles: () => ipcRenderer.invoke('scan-files'),
   deleteFile: (filePath) => ipcRenderer.invoke('delete-file', filePath),
@@ -46,7 +39,6 @@ contextBridge.exposeInMainWorld('petAPI', {
   checkAxTrusted: () => ipcRenderer.invoke('check-ax-trusted'),
   openAxSettings: () => ipcRenderer.invoke('open-ax-settings'),
 
-  getFinanceData: () => ipcRenderer.invoke('get-finance-data'),
 
   reportVoices: (voices) => ipcRenderer.invoke('report-voices', voices),
 

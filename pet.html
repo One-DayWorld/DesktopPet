@@ -1847,7 +1847,6 @@ async function init() {
     if (data.voiceLang === 'zh' || data.voiceLang === 'en') _voiceLang = data.voiceLang;
     if (data.pet) updateVisuals(data.pet);
     if (data.pet && data.pet.mood === 'excited') showBubble('任务完成！骷髅一号升级 ⚡', 2000);
-    if (data.reminderAlert) showBubble(data.reminderAlert, 6000);
     if (data.petSay) showBubble(data.petSay, 4000);
     if (data.speakText) speakVF1(data.speakText, !!data.speakPersist);
     // Fighter 不到 0 — 动画 time=0 是"地面停机"(起落架放下/舱盖打开),

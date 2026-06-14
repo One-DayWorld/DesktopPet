@@ -22,7 +22,7 @@
 
 - 🤖 **Claude Code radar** — the VF-1 watches your terminal. When Claude Code is waiting on a permission prompt, it flashes gold, pulses a target-lock HUD, and calls out over TTS. When your agent finishes, it announces *"mission complete."* No more babysitting a terminal in another window.
 - 🛸 **A real transformable mecha, not a sprite** — full **Fighter ↔ Gerwalk ↔ Battloid** morphing rendered live in Three.js. It cruises the edges of your screen, banks into turns, barrel-rolls, and hovers on glowing thrusters.
-- 🎛️ **A cockpit, not a tooltip** — click the model and a HUD-styled control panel slides out: LLM chat, market data, macOS Reminders, terminal session monitor, window switcher, and reusable AI workflows.
+- 🎛️ **A cockpit, not a tooltip** — click the model and a HUD-styled control panel slides out: LLM chat, a live terminal-session monitor, and reusable AI workflows.
 - 🧠 **Bring your own brain** — the pet is just the body. Plug in **Qwen, DeepSeek, OpenAI, or Anthropic** as the intelligence, plus optional live web search.
 - 🔒 **100% local** — no telemetry, no cloud sync. Keys and state live in a `0600` file in your home directory.
 
@@ -121,16 +121,13 @@ Click only registers on the model itself — transparent areas pass clicks throu
 
 ## 🎛️ Cockpit panel
 
-Click the VF-1 to open a HUD-styled, 7-tab control panel:
+Click the VF-1 to open a HUD-styled, 4-tab control panel:
 
 | Tab | Purpose |
 |---|---|
 | **CHAT** | LLM chat with quick-actions (weather, calendar, news, sports) + one-click launchers |
 | **WORKFLOW** | Save & one-click-run reusable AI prompts |
 | **YES BOT** | Live monitor of which terminal session is awaiting a Claude Code permission |
-| **WINDOWS** | List running apps/windows, click to focus |
-| **MRKT** | Real-time market data (indices, forex) |
-| **MISSION** | Two-column to-do manager, synced with macOS Reminders |
 | **CONFIG** | Pet name/avatar, break reminder, edge-patrol toggle + reset, AI provider, API keys |
 
 ---
@@ -156,11 +153,11 @@ Electron main process (`main.js`) drives two `BrowserWindow`s — a transparent 
 
 ```
 main.js ── IPC ──┬── pet.html      (Three.js VF-1: GLB loader, morph, patrol, maneuvers)
-   │             └── panel.html    (HUD 7-tab UI: chat, mission, config, live polling)
+   │             └── panel.html    (HUD 4-tab UI: chat, workflows, terminal monitor, config)
    ├── LLM clients (Qwen / DeepSeek / OpenAI / Anthropic)
    ├── Edge-patrol loop + break reminders
    ├── Claude Code flag-file watchers + hook auto-installer
-   └── AppleScript bridges (Reminders, terminal focus, window manager)
+   └── AppleScript/JXA bridges (terminal focus & input, app launchers)
 ```
 
 Notable bits: window transparency with hit-zone mouse pass-through; a single GLB animation track manually time-driven for the full morph; SpeechSynthesis with a `cancel()+resume()` workaround for Chromium's silent-pause bug. Full deep-dive in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) <!-- (optional: move the long technical section here) -->.
@@ -186,7 +183,6 @@ Everything is local — no telemetry, no cloud.
 | Data | Location |
 |---|---|
 | Pet state, chat history, API keys, settings | `~/.desktop-pet/data.json` (`0600`) |
-| To-dos | macOS native Reminders.app |
 | Claude Code hook script + flags | `~/.macross/` (`0700`) |
 | Claude Code hook config | `~/.claude/settings.json` (auto-injected, idempotent) |
 

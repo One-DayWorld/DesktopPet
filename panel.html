@@ -308,13 +308,6 @@
   #send-btn:active { transform: scale(0.91); }
   #send-btn:disabled { opacity: 0.28; cursor: default; box-shadow: none; }
 
-  /* ── Todo ── */
-  .todo-top-bar {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 9px;
-    flex-shrink: 0;
-  }
-  .todo-list-label { font-size: 11px; color: rgba(145, 205, 228, 0.9); letter-spacing: 0.03em; }
   .refresh-btn {
     background: rgba(0, 28, 52, 0.62);
     border: 1px solid rgba(0, 135, 172, 0.24);
@@ -334,182 +327,6 @@
   }
   @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   .refresh-btn.spinning { animation: spin 0.7s linear infinite; }
-
-  .todo-add-row { display: flex; gap: 7px; margin-bottom: 9px; flex-shrink: 0; }
-  .todo-input {
-    flex: 1; padding: 7px 12px;
-    background: rgba(0, 18, 38, 0.72);
-    border: 1px solid rgba(0, 145, 185, 0.22);
-    border-radius: 9px;
-    color: #c8e4f0;
-    font-size: 13px; outline: none; font-family: inherit;
-    transition: border-color 0.2s, box-shadow 0.2s;
-  }
-  .todo-input::placeholder { color: rgba(140, 195, 222, 0.62); }
-  .todo-input:focus {
-    border-color: rgba(0, 200, 235, 0.44);
-    box-shadow: 0 0 10px rgba(0, 170, 215, 0.12);
-  }
-  .add-todo-btn {
-    padding: 7px 13px;
-    background: rgba(0, 135, 178, 0.32);
-    border: 1px solid rgba(0, 200, 235, 0.32);
-    border-radius: 9px;
-    color: rgba(160, 225, 245, 0.88);
-    font-size: 12px; font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-    white-space: nowrap;
-    font-family: inherit;
-  }
-  .add-todo-btn:hover {
-    background: rgba(0, 158, 210, 0.42);
-    box-shadow: 0 0 10px rgba(0, 180, 225, 0.18);
-  }
-
-  .todo-date-row {
-    display: flex; align-items: center; gap: 5px;
-    padding: 4px 10px 6px; border-bottom: 1px solid rgba(0, 168, 218, 0.12);
-  }
-  .todo-date-label {
-    font-size: 10px; color: rgba(120, 185, 215, 0.6);
-    letter-spacing: 0.05em; white-space: nowrap; flex-shrink: 0;
-  }
-  .todo-date-input {
-    flex: 1; min-width: 0;
-    background: rgba(0, 12, 30, 0.55);
-    border: 1px solid rgba(0, 168, 218, 0.22);
-    border-radius: 5px; color: rgba(155, 222, 244, 0.88);
-    font-size: 11px; padding: 3px 6px;
-    font-family: 'SF Mono', monospace;
-    color-scheme: dark;
-  }
-  .todo-date-input:focus { outline: none; border-color: rgba(0, 195, 235, 0.45); }
-  .todo-date-clear {
-    background: none; border: none; color: rgba(120, 175, 210, 0.45);
-    font-size: 14px; cursor: pointer; padding: 0 2px; line-height: 1;
-    flex-shrink: 0;
-  }
-  .todo-date-clear:hover { color: rgba(200, 100, 80, 0.8); }
-
-  /* ── 芯片式 due-picker (用于 add + edit) ───────────────────── */
-  .due-picker {
-    display: flex; flex-direction: column; gap: 4px;
-    padding: 5px 10px 7px;
-    border-bottom: 1px solid rgba(0, 168, 218, 0.12);
-  }
-  .due-picker.compact { padding: 4px 0 0; border-bottom: none; }
-  .due-chips {
-    display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
-  }
-  .due-chip-label {
-    font-size: 9.5px; color: rgba(120, 185, 215, 0.55);
-    letter-spacing: 0.05em; white-space: nowrap;
-    flex-shrink: 0; min-width: 28px;
-  }
-  .due-chip {
-    padding: 2px 8px;
-    background: rgba(0, 18, 38, 0.55);
-    border: 1px solid rgba(0, 125, 165, 0.18);
-    border-radius: 10px;
-    color: rgba(145, 200, 225, 0.78);
-    font-size: 10.5px; font-family: inherit;
-    cursor: pointer; transition: all 0.13s;
-    line-height: 1.3;
-  }
-  .due-chip:hover { border-color: rgba(0, 168, 218, 0.4); color: rgba(165, 220, 240, 0.95); }
-  .due-chip.active {
-    background: rgba(0, 135, 182, 0.32);
-    border-color: rgba(0, 200, 235, 0.55);
-    color: #00d8ee;
-    box-shadow: 0 0 6px rgba(0, 180, 225, 0.2);
-  }
-  .due-chip.mode-btn { font-style: italic; opacity: 0.7; }
-  .due-exact-input {
-    width: 100%;
-    background: rgba(0, 12, 30, 0.55);
-    border: 1px solid rgba(0, 168, 218, 0.22);
-    border-radius: 5px; color: rgba(155, 222, 244, 0.88);
-    font-size: 11px; padding: 3px 6px;
-    font-family: 'SF Mono', monospace; color-scheme: dark;
-    margin-top: 3px;
-  }
-  .due-preview {
-    font-size: 10px; color: rgba(180, 150, 60, 0.85);
-    font-family: 'SF Mono', monospace; letter-spacing: 0.03em;
-    display: flex; align-items: center; gap: 5px; min-height: 14px;
-  }
-  .due-preview.empty { color: rgba(120, 175, 210, 0.4); font-style: italic; }
-  .due-preview-clear {
-    background: none; border: none; color: rgba(180, 150, 60, 0.65);
-    font-size: 12px; cursor: pointer; padding: 0 3px; line-height: 1;
-  }
-  .due-preview-clear:hover { color: rgba(255, 100, 80, 0.9); }
-  .todo-due {
-    font-size: 9.5px; color: rgba(180, 150, 60, 0.75);
-    margin-top: 2px; font-family: 'SF Mono', monospace;
-    letter-spacing: 0.03em;
-  }
-  .todo-due.overdue { color: rgba(255, 80, 60, 0.85); }
-
-  .todo-filters { display: flex; gap: 5px; margin-bottom: 7px; flex-shrink: 0; }
-  .filter-btn {
-    padding: 3px 10px;
-    background: rgba(0, 18, 38, 0.65);
-    border: 1px solid rgba(0, 125, 165, 0.2);
-    border-radius: 6px;
-    color: rgba(145, 200, 225, 0.85);
-    font-size: 11px; font-weight: 400;
-    cursor: pointer;
-    transition: all 0.15s;
-    font-family: inherit;
-  }
-  .filter-btn.active {
-    background: rgba(0, 135, 182, 0.28);
-    border-color: rgba(0, 200, 235, 0.42);
-    color: #00c8ec;
-    box-shadow: 0 0 8px rgba(0, 180, 225, 0.14);
-  }
-
-  .todo-stats { font-size: 10px; color: rgba(120, 178, 205, 0.85); text-align: right; margin-bottom: 5px; flex-shrink: 0; letter-spacing: 0.03em; }
-
-  .todo-item {
-    display: flex; align-items: center; gap: 8px;
-    padding: 9px 10px;
-    background: rgba(0, 20, 42, 0.72);
-    border: 1px solid rgba(0, 115, 155, 0.15);
-    border-radius: 9px;
-    margin-bottom: 5px;
-    transition: opacity 0.2s, border-color 0.2s;
-  }
-  .todo-item:hover { border-color: rgba(0, 165, 205, 0.24); }
-  .todo-item.done { opacity: 0.44; }
-  .todo-check {
-    width: 17px; height: 17px;
-    border: 1.5px solid rgba(0, 155, 195, 0.34);
-    border-radius: 50%;
-    cursor: pointer; flex-shrink: 0;
-    display: flex; align-items: center; justify-content: center;
-    transition: all 0.2s;
-  }
-  .todo-check:hover { border-color: #00c8ec; box-shadow: 0 0 6px rgba(0, 200, 235, 0.28); }
-  .todo-check.checked {
-    background: rgba(0, 175, 212, 0.35);
-    border-color: #00c8ec;
-    box-shadow: 0 0 8px rgba(0, 200, 235, 0.28);
-  }
-  .todo-check.checked::after { content: '✓'; color: #90dff5; font-size: 10px; }
-  .todo-text-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-  .todo-text { font-size: 12.5px; color: #cce8f5; line-height: 1.45; }
-  .todo-item.done .todo-text { text-decoration: line-through; color: rgba(95, 150, 175, 0.48); }
-  .todo-del { background: none; border: none; color: rgba(120, 175, 205, 0.75); cursor: pointer; font-size: 14px; padding: 2px 4px; transition: color 0.2s; font-family: inherit; }
-  .todo-del:hover { color: #ff5252; }
-  .todo-edit-btn { background: none; border: none; color: rgba(118, 175, 205, 0.75); cursor: pointer; font-size: 12px; padding: 2px 4px; transition: color 0.2s; font-family: inherit; }
-  .todo-edit-btn:hover { color: #00c8ec; }
-  .todo-edit-input { flex: 1; padding: 4px 8px; background: rgba(0, 28, 52, 0.72); border: 1px solid rgba(0, 200, 235, 0.38); border-radius: 6px; color: #c8e4f0; font-size: 12.5px; outline: none; font-family: inherit; min-width: 0; }
-  .todo-edit-save { background: rgba(0, 135, 178, 0.38); border: 1px solid rgba(0, 200, 235, 0.34); color: #98d8f2; border-radius: 5px; padding: 3px 7px; font-size: 11px; cursor: pointer; flex-shrink: 0; font-family: inherit; }
-  .todo-edit-cancel { background: rgba(0, 18, 38, 0.5); border: 1px solid rgba(0, 98, 138, 0.24); color: rgba(135, 192, 215, 0.68); border-radius: 5px; padding: 3px 7px; font-size: 11px; cursor: pointer; flex-shrink: 0; font-family: inherit; }
-  .todo-empty { text-align: center; color: rgba(140, 195, 225, 0.88); font-size: 12.5px; padding: 28px 0; line-height: 1.8; }
 
   /* ── Files ── */
   .scan-btn {
@@ -1217,74 +1034,11 @@
     color: var(--text-hi);
   }
 
-  /* ── Todo (MISSION) ── */
-  .todo-top-bar, .todo-add-row, .todo-date-row, .todo-filters { border-color: var(--border-faint); }
-  .todo-list-label { color: var(--text-md); }
-  .todo-date-label { color: var(--text-lo); }
-  .todo-date-input {
-    background: var(--bg-input); border-color: var(--border-soft); color: var(--text-hi);
-  }
-  .todo-date-input:focus { border-color: var(--border-accent); }
-  .due-picker { border-color: var(--border-faint); }
-  .due-chip-label { color: var(--text-lo); }
-  .due-chip {
-    background: var(--bg-card);
-    border-color: var(--border-soft);
-    color: var(--text-md);
-  }
-  .due-chip:hover { border-color: var(--border-medium); color: var(--text-hi); }
-  .due-chip.active {
-    background: rgba(110, 255, 200, 0.18);
-    border-color: var(--border-bright);
-    color: var(--accent-gold);
-    box-shadow: 0 0 6px var(--accent-dim);
-  }
-  .due-exact-input {
-    background: var(--bg-input); border-color: var(--border-soft); color: var(--text-hi);
-  }
-  .due-preview { color: var(--text-md); }
-  .due-preview.empty { color: var(--text-dim); }
-  .todo-due { color: var(--text-lo); }
-  .todo-due.overdue { color: var(--status-err); }
-  .todo-input {
-    background: var(--bg-input);
-    border: 1px solid var(--border-soft);
-    color: var(--text-hi);
-  }
-  .todo-input::placeholder { color: var(--text-dim); }
-  .todo-input:focus { border-color: var(--border-accent); }
-  .add-todo-btn, .refresh-btn {
+  .refresh-btn {
     background: rgba(110, 255, 200, 0.16);
     border-color: var(--border-medium);
     color: var(--accent-gold);
   }
-  .filter-btn {
-    color: var(--text-lo); border-color: var(--border-soft); background: var(--bg-card);
-  }
-  .filter-btn:hover { color: var(--text-md); border-color: var(--border-medium); }
-  .filter-btn.active {
-    background: rgba(110, 255, 200, 0.16);
-    border-color: var(--border-accent);
-    color: var(--accent-gold);
-    box-shadow: 0 0 6px var(--accent-dim);
-  }
-  .todo-item {
-    background: var(--bg-card);
-    border: 1px solid var(--border-faint);
-  }
-  .todo-item:hover {
-    border-color: var(--border-medium);
-    background: var(--bg-card-hover);
-    box-shadow: 0 2px 10px rgba(80, 50, 0, 0.18);
-  }
-  .todo-check {
-    border-color: var(--border-medium);
-    background: transparent;
-  }
-  .todo-check.checked { background: var(--accent-gold); border-color: var(--accent-gold); }
-  .todo-text { color: var(--text-hi); }
-  .todo-stats { color: var(--text-lo); }
-  .todo-empty { color: var(--text-dim); }
 
   /* ── Files / Suggestions ── */
   .section-header, .section-title, .file-section h3, .wf-header {
@@ -1444,39 +1198,7 @@
     box-shadow: 0 0 8px var(--accent-glow);
   }
 
-  /* MISSION 双栏: 左清单, 右新建 */
-  #pane-todo.active { padding: 12px 14px; }
-  .mission-grid {
-    display: grid;
-    grid-template-columns: 1fr 280px;
-    gap: 14px;
-    flex: 1; min-height: 0;
-  }
-  .mission-list-col {
-    display: flex; flex-direction: column;
-    min-height: 0; min-width: 0;
-  }
-  .mission-list-col #todo-list {
-    flex: 1; overflow-y: auto; min-height: 0;
-  }
-  .mission-add-col {
-    flex-shrink: 0;
-  }
-  .mission-add-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-soft);
-    border-radius: 10px;
-    padding: 12px 12px 14px;
-  }
-  .mission-card-title {
-    font-size: 10px;
-    color: var(--accent-gold);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    margin-bottom: 9px;
-  }
-
-  /* ══ HUD 风格容器 (MISSION tab 样板, 后续推广到其他 tab) ══════════════
+  /* ══ HUD 风格容器 (HUD frame 样板, 推广到各 tab) ══════════════
      原理:
        1) clip-path: polygon(...) 切 4 个 12px 斜角 → 八边形外形
        2) ::before 用 mask-composite 切出"环状描边", 在内圈打洞
@@ -1565,20 +1287,6 @@
   .hud-pill::before { left: -3px; }
   .hud-pill::after  { right: -3px; }
 
-  /* MISSION tab: 把 list-col 和 add-card 套上 HUD 框 */
-  .mission-list-col.hud-frame { padding: 24px 10px 12px; }
-  .mission-list-col.hud-frame #todo-list { margin-top: 4px; }
-  .mission-add-card.hud-frame {
-    background: var(--bg-card);  /* 覆盖原 .mission-add-card 的 bg */
-    border: none;                 /* 让 ::before 当边框 */
-    border-radius: 0;             /* clip-path 接管外形 */
-    padding: 24px 12px 14px;
-  }
-  .mission-add-card.hud-frame .mission-card-title {
-    /* HUD 模式下原标题让位给顶部 pill, 内部小标题降级 */
-    display: none;
-  }
-
   /* hud-frame 当作纵向 flex 容器, 让 #chat-messages 等可滚动子元素正常 fill */
   .hud-frame.flex-fill {
     display: flex;
@@ -1592,9 +1300,8 @@
     border-left: none !important;       /* 原本的左侧细线让位给 HUD 边 */
     padding: 26px 10px 12px;
   }
-  /* TERM / MRKT — 单框包整个 tab 内容 */
-  #pane-terminal > .hud-frame,
-  #pane-finance  > .hud-frame { padding: 24px 10px 12px; }
+  /* TERM — 单框包整个 tab 内容 */
+  #pane-terminal > .hud-frame { padding: 24px 10px 12px; }
   /* TERM 内部子标题/状态条 — 紧贴 pill 下方 */
   #pane-terminal > .hud-frame .term-header { margin-bottom: 6px; }
   /* WORKFLOW — 单框 (AI 智能建议已移到 CHAT 侧栏) */
@@ -1602,23 +1309,6 @@
   /* CONFIG — 设置项分两组 (PET / AI), 每组一个框 */
   #pane-settings > .hud-frame { padding: 22px 14px 14px; margin-bottom: 12px; }
   #pane-settings > .hud-frame:last-child { margin-bottom: 0; }
-  .mission-add-card .todo-add-row { margin-bottom: 8px; }
-  .mission-add-card .due-picker {
-    border-bottom: none !important;
-    padding: 0 !important;
-  }
-  .mission-add-hint {
-    font-size: 9.5px;
-    color: var(--text-dim);
-    margin-top: 8px;
-    line-height: 1.5;
-    letter-spacing: 0.02em;
-  }
-
-  /* 760px 下加大列表项可读区, 项目内 padding/字号略增 */
-  .todo-item { padding: 10px 12px; }
-  .todo-text { font-size: 13px; }
-  .todo-due { font-size: 10px; margin-top: 3px; }
 
   /* 通用: 让所有按钮悬停的辉光更暖 */
   .file-action-btn,
@@ -1782,39 +1472,6 @@
     color: rgba(90, 150, 175, 0.4); font-size: 10px; letter-spacing: 0.12em;
   }
 
-  /* ── Finance ── */
-  #pane-finance { gap: 6px; }
-  .fin-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 5px 9px;
-    background: var(--bg-card);
-    border: 1px solid var(--border-soft);
-    border-radius: 4px;
-    flex-shrink: 0;
-    font-size: 9px; letter-spacing: 0.1em;
-    color: var(--text-md);
-  }
-  .fin-time { font-size: 9px; color: var(--text-dim); font-family: 'SF Mono', monospace; }
-  .fin-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-faint);
-    border-radius: 9px;
-    padding: 9px 12px;
-    display: flex; align-items: center; justify-content: space-between;
-    flex-shrink: 0;
-    transition: border-color 0.2s, box-shadow 0.2s;
-  }
-  .fin-card:hover { border-color: var(--border-accent); box-shadow: 0 0 8px var(--accent-dim); }
-  .fin-name { font-size: 11px; font-weight: 600; color: var(--text-hi); letter-spacing: 0.02em; }
-  .fin-sub  { font-size: 9px; color: var(--text-lo); font-family: 'SF Mono', monospace; letter-spacing: 0.04em; margin-top: 2px; }
-  /* 价格主数字用 accent 青绿, 与品牌色统一; 涨/跌的红绿是行情通用语言, 故保留不动 */
-  .fin-price { font-size: 15px; font-weight: 700; color: var(--accent-gold); font-family: 'SF Mono', monospace; text-align: right; }
-  .fin-change { font-size: 10px; font-family: 'SF Mono', monospace; text-align: right; margin-top: 2px; }
-  .fin-change.up   { color: rgba(80, 220, 110, 0.9); }
-  .fin-change.dn   { color: rgba(255, 90,  65, 0.9); }
-  .fin-change.flat { color: var(--text-dim); }
-  .fin-loading { text-align: center; padding: 32px 10px; color: var(--text-lo); font-size: 12px; }
-  .fin-err { color: var(--status-err); font-size: 10px; text-align: right; }
 </style>
 </head>
 <body>
@@ -1853,8 +1510,6 @@
   <div class="tab active" data-tab="chat">CHAT</div>
   <div class="tab" data-tab="files">WORKFLOW</div>
   <div class="tab" data-tab="terminal">YES BOT<span class="tab-badge" id="term-badge"></span></div>
-  <div class="tab" data-tab="finance">MRKT</div>
-  <div class="tab" data-tab="todo">MISSION</div>
   <div class="tab" data-tab="settings">CONFIG</div>
 </div>
 
@@ -1891,40 +1546,6 @@
       <div class="qp-section-title">AI 智能建议</div>
       <button class="qp-btn" id="suggest-btn" onclick="getSuggestions()">✦ 分析电脑，获取建议</button>
       <div id="suggestion-list"></div>
-    </div>
-  </div>
-
-  <!-- Todo / Reminders -->
-  <div class="tab-pane" id="pane-todo">
-    <div class="mission-grid">
-      <!-- 左栏: 清单 + 筛选 -->
-      <div class="mission-list-col hud-frame">
-        <div class="hud-pill">MISSION QUEUE</div>
-        <div class="todo-top-bar">
-          <span class="todo-list-label">📋 <span id="current-list-name">提醒事项</span></span>
-          <button class="refresh-btn" id="refresh-btn" onclick="loadReminders()" title="刷新">↻</button>
-        </div>
-        <div class="todo-filters">
-          <button class="filter-btn" data-filter="all">全部</button>
-          <button class="filter-btn active" data-filter="pending">待完成</button>
-          <button class="filter-btn" data-filter="done">已完成</button>
-        </div>
-        <div class="todo-stats" id="todo-stats"></div>
-        <div id="todo-list"></div>
-      </div>
-      <!-- 右栏: 新建任务 -->
-      <div class="mission-add-col">
-        <div class="mission-add-card hud-frame">
-          <div class="hud-pill">NEW MISSION</div>
-          <div class="mission-card-title">新建任务</div>
-          <div class="todo-add-row">
-            <input class="todo-input" id="todo-input" placeholder="任务内容... (⌘↵ 录入)" />
-            <button class="add-todo-btn" id="add-todo-btn">↑</button>
-          </div>
-          <div class="due-picker" id="add-due-picker"></div>
-          <div class="mission-add-hint">提示: 双击列表中的任务可编辑文字与时间</div>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -1970,21 +1591,6 @@
   </div>
 
   <!-- Windows manager — 列出 macOS 当前所有可见应用 + 它们的窗口 -->
-
-  <!-- Finance -->
-  <div class="tab-pane" id="pane-finance">
-    <div class="hud-frame flex-fill">
-      <div class="hud-pill">MARKET DATA</div>
-      <div class="fin-header" style="background:transparent;border:none;padding:0 0 6px;">
-        <span style="font-size:9px;letter-spacing:0.12em;color:var(--text-lo)">◈ LIVE QUOTES ◈</span>
-        <span style="display:flex;align-items:center;gap:6px">
-          <span id="fin-time" class="fin-time">–</span>
-          <button class="refresh-btn" id="fin-refresh-btn" onclick="financeRefresh()" title="刷新数据">↻</button>
-        </span>
-      </div>
-      <div id="fin-grid" style="flex:1; overflow-y:auto; min-height:0;"><div class="fin-loading">◌ 点击标签页加载行情...</div></div>
-    </div>
-  </div>
 
   <!-- Settings -->
   <div class="tab-pane" id="pane-settings">
@@ -2064,17 +1670,6 @@
       </div>
       <div class="setting-note" style="margin-top:6px;">切换语言会同时改变告警/点击/欢迎/休息/任务完成的播报文案与 TTS 嗓音</div>
     </div>
-
-    <div style="height:14px"></div>
-    <div class="setting-section">提醒事项列表</div>
-    <div class="setting-row" style="margin-bottom:8px">
-      <div class="setting-label">读取的列表名称（留空则使用默认列表）</div>
-      <div style="display:flex; gap:7px;">
-        <input class="setting-input" id="reminder-list-input" type="text" placeholder="例如：工作、提醒事项" style="flex:1" />
-        <button class="save-btn" onclick="saveReminderList()">保存</button>
-      </div>
-    </div>
-    <div id="reminder-lists-hint" class="setting-note"></div>
 
     </div><!-- /PET CONFIG hud-frame -->
 
@@ -2192,10 +1787,6 @@
 
 <script>
 let state = null;
-let reminders = [];
-let renderedReminders = [];
-let reminderFilter = 'pending';
-let isLoadingReminders = false;
 let isChatting = false;
 let currentAvatar = '🐕';
 
@@ -2237,8 +1828,8 @@ async function applyLite() {
   });
   const ai = document.getElementById('ai-backend-frame');
   if (ai) ai.style.display = 'none';
-  // 默认激活的 CHAT 被隐藏了 → 切到第一个可见标签 (MISSION)
-  const def = document.querySelector('.tab[data-tab="todo"]');
+  // 默认激活的 CHAT 被隐藏了 → 切到第一个可见标签 (YES BOT)
+  const def = document.querySelector('.tab[data-tab="terminal"]');
   if (def) def.click();
 }
 
@@ -2248,10 +1839,6 @@ async function init() {
   currentAvatar = state.pet.avatar || '🐕';
   setAvatarContent(document.getElementById('pet-mini-avatar'), currentAvatar);
   updateStatus(state.pet, calcXPProgress(state.pet));
-
-  const listName = state.reminderList || '';
-  document.getElementById('current-list-name').textContent = listName || '提醒事项';
-  document.getElementById('reminder-list-input').value = listName;
 
   document.getElementById('pet-name-input').value = state.pet.name;
   document.getElementById('chat-input').placeholder = `和${state.pet.name}说点什么... (⌘↵ 发送)`;
@@ -2265,10 +1852,6 @@ async function init() {
     if (data.pet) updateStatus(data.pet, data.xpProgress);
     if (data.aiProvider) { state.aiProvider = data.aiProvider; renderProviderCards(data.aiProvider); }
     if (data.petVisible !== undefined) setPetVisibleBtn(!!data.petVisible);   // ⌘⌥H 切换时同步按钮文案
-    if (data.reminderList !== undefined) {
-      state.reminderList = data.reminderList;
-      document.getElementById('current-list-name').textContent = data.reminderList || '提醒事项';
-    }
   });
 }
 
@@ -2323,12 +1906,9 @@ document.querySelectorAll('.tab').forEach(tab => {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     tab.classList.add('active');
     document.getElementById('pane-' + tab.dataset.tab).classList.add('active');
-    if (tab.dataset.tab === 'todo' && reminders.length === 0) loadReminders();
-    if (tab.dataset.tab === 'settings') { initReminderLists(); loadBreakReminder(); loadEdgePatrol(); loadPetVisible(); loadVoiceLang(); }
+    if (tab.dataset.tab === 'settings') { loadBreakReminder(); loadEdgePatrol(); loadPetVisible(); loadVoiceLang(); }
     if (tab.dataset.tab === 'terminal') { termActive = true; termPollNow(); }
     else termActive = false;
-    if (tab.dataset.tab === 'finance') { financeTabActive = true; financeLoad(); }
-    else financeTabActive = false;
   });
 });
 
@@ -2460,417 +2040,6 @@ document.querySelectorAll('#chat-side .qp-btn').forEach(btn => {
     const input = document.getElementById('chat-input');
     input.value = prompt;
     sendChat();
-  });
-});
-
-// ── Reminders ──
-async function loadReminders() {
-  if (isLoadingReminders) return;
-  isLoadingReminders = true;
-  const btn = document.getElementById('refresh-btn');
-  if (btn) btn.classList.add('spinning');
-
-  const result = await window.petAPI.getReminders();
-  isLoadingReminders = false;
-  if (btn) btn.classList.remove('spinning');
-
-  if (result.error) {
-    document.getElementById('todo-list').innerHTML = `<div class="todo-empty">⚠️ 无法读取提醒事项<br><br>请在系统设置 → 隐私与安全性 → 自动化<br>中允许此应用访问"提醒事项"</div>`;
-    document.getElementById('todo-stats').textContent = '';
-    return;
-  }
-
-  reminders = result.reminders;
-  renderReminders();
-}
-
-function renderReminders() {
-  const filtered = reminders.filter(r => {
-    if (reminderFilter === 'pending') return !r.done;
-    if (reminderFilter === 'done') return r.done;
-    return true;
-  });
-
-  renderedReminders = filtered;
-
-  const total = reminders.length;
-  const done = reminders.filter(r => r.done).length;
-  document.getElementById('todo-stats').textContent = total ? `共 ${total} 项 · 已完成 ${done} 项` : '';
-
-  const list = document.getElementById('todo-list');
-  if (!filtered.length) {
-    list.innerHTML = `<div class="todo-empty">${reminderFilter === 'done' ? '还没有完成的任务' : '没有待办事项，来添加一个吧~'}</div>`;
-    return;
-  }
-
-  const now = new Date();
-  list.innerHTML = filtered.map((r, i) => {
-    let dueHtml = '';
-    if (r.dueDate) {
-      const d = new Date(r.dueDate);
-      const overdue = !r.done && d < now;
-      const label = d.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-      dueHtml = `<div class="todo-due ${overdue ? 'overdue' : ''}">⏱ ${label}${overdue ? ' 已超时' : ''}</div>`;
-    }
-    return `
-    <div class="todo-item ${r.done ? 'done' : ''}" id="ritem-${i}" data-text="${escHtml(r.text)}">
-      <div class="todo-check ${r.done ? 'checked' : ''}" onclick="completeReminder(${i})"></div>
-      <div class="todo-text-wrap">
-        <div class="todo-text" id="rtext-${i}">${escHtml(r.text)}</div>
-        ${dueHtml}
-      </div>
-      ${!r.done ? `<button class="todo-edit-btn" onclick="startEditReminder(${i})" title="编辑">✏</button>` : ''}
-      <button class="todo-del" onclick="deleteReminder(${i})">×</button>
-    </div>`;
-  }).join('');
-}
-
-// ── 芯片式 due-picker (add + edit 共用) ────────────────────────
-// dateChip: 0=今天, 1=明天, 2=后天, 'weekend'=最近周六, 'nextweek'=下周一
-// timeChip: 'HH:MM' 字符串
-// exactIso: 'YYYY-MM-DDTHH:MM' (datetime-local 原生值, 一旦设置则覆盖 chip)
-function chipToDate(chip) {
-  const d = new Date();
-  d.setSeconds(0, 0);
-  if (chip === 0 || chip === 1 || chip === 2) {
-    d.setDate(d.getDate() + Number(chip));
-  } else if (chip === 'weekend') {
-    const day = d.getDay();
-    const offset = day === 6 ? 0 : day === 0 ? 6 : 6 - day;
-    d.setDate(d.getDate() + offset);
-  } else if (chip === 'nextweek') {
-    const day = d.getDay();
-    const offset = ((1 - day) + 7) % 7 || 7;
-    d.setDate(d.getDate() + offset);
-  }
-  return d;
-}
-
-const TIME_CHIP_LABEL = { '09:00': '上午', '12:00': '中午', '15:00': '下午', '18:00': '傍晚', '20:00': '晚上' };
-const DATE_CHIP_LABEL = { 0: '今天', 1: '明天', 2: '后天', 'weekend': '周末', 'nextweek': '下周一' };
-
-// 把 picker 的当前选择折算成 ISO 字符串 (no-tz, like datetime-local 的格式), 没选返回 null
-function pickerToIso(state) {
-  if (state.exactIso) return state.exactIso;
-  if (state.dateChip == null) return null;
-  const d = chipToDate(state.dateChip);
-  const [hh, mm] = (state.timeChip || '09:00').split(':').map(Number);
-  d.setHours(hh, mm, 0, 0);
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
-}
-
-function isoToPickerState(iso) {
-  if (!iso) return { dateChip: null, timeChip: null, exactIso: null, exactVisible: false };
-  // 尝试还原成芯片组合: 看日期是不是今天/明天/后天/周末/下周一, 时间是不是 chip 时段
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return { dateChip: null, timeChip: null, exactIso: null, exactVisible: false };
-  const today = new Date(); today.setHours(0,0,0,0);
-  const target = new Date(d); target.setHours(0,0,0,0);
-  const diffDays = Math.round((target - today) / 86400000);
-  const hh = String(d.getHours()).padStart(2,'0'), mm = String(d.getMinutes()).padStart(2,'0');
-  const timeStr = `${hh}:${mm}`;
-  const timeChip = TIME_CHIP_LABEL[timeStr] ? timeStr : null;
-
-  let dateChip = null;
-  if ([0,1,2].includes(diffDays)) dateChip = diffDays;
-  else {
-    // weekend / nextweek 可还原?
-    const weekendDate = chipToDate('weekend'); weekendDate.setHours(0,0,0,0);
-    const nextWeekDate = chipToDate('nextweek'); nextWeekDate.setHours(0,0,0,0);
-    if (target.getTime() === weekendDate.getTime()) dateChip = 'weekend';
-    else if (target.getTime() === nextWeekDate.getTime()) dateChip = 'nextweek';
-  }
-
-  // 时间不在 chip 列表 → 用精确模式回写; 否则可以纯 chip 表达
-  const useExact = !timeChip || dateChip == null;
-  if (useExact) {
-    // 构造 datetime-local 值
-    const pad = n => String(n).padStart(2,'0');
-    const exactIso = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    return { dateChip, timeChip, exactIso, exactVisible: true };
-  }
-  return { dateChip, timeChip, exactIso: null, exactVisible: false };
-}
-
-function formatPreview(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return '';
-  const today = new Date(); today.setHours(0,0,0,0);
-  const target = new Date(d); target.setHours(0,0,0,0);
-  const diffDays = Math.round((target - today) / 86400000);
-  const dateLabel = diffDays === 0 ? '今天' : diffDays === 1 ? '明天' : diffDays === 2 ? '后天'
-    : d.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric', weekday: 'short' });
-  const hh = String(d.getHours()).padStart(2,'0'), mm = String(d.getMinutes()).padStart(2,'0');
-  return `${dateLabel} ${hh}:${mm}`;
-}
-
-// 给容器装一套芯片 picker. 返回一个 controller: { getIso(), setIso(iso) }
-function mountDuePicker(container, opts = {}) {
-  const compact = !!opts.compact;
-  if (compact) container.classList.add('compact');
-  let state = isoToPickerState(opts.initialIso || null);
-
-  function render() {
-    const dateChips = [0,1,2,'weekend','nextweek'].map(k => {
-      const active = state.dateChip === k && !state.exactIso ? 'active' : '';
-      return `<button type="button" class="due-chip ${active}" data-date="${k}">${DATE_CHIP_LABEL[k]}</button>`;
-    }).join('');
-    const timeChips = Object.entries(TIME_CHIP_LABEL).map(([k, label]) => {
-      const active = state.timeChip === k && !state.exactIso ? 'active' : '';
-      return `<button type="button" class="due-chip ${active}" data-time="${k}">${label}</button>`;
-    }).join('');
-    const exactBtnActive = state.exactVisible || state.exactIso ? 'active' : '';
-    const iso = pickerToIso(state);
-    const preview = iso ? formatPreview(iso) : '未设置截止';
-    const previewClass = iso ? '' : 'empty';
-    const exactInputHtml = state.exactVisible
-      ? `<input class="due-exact-input" type="datetime-local" value="${state.exactIso || ''}" />`
-      : '';
-
-    container.innerHTML = `
-      <div class="due-chips">
-        <span class="due-chip-label">日期</span>
-        ${dateChips}
-        <button type="button" class="due-chip mode-btn ${exactBtnActive}" data-mode="exact" title="精确日期/时间">精确…</button>
-      </div>
-      <div class="due-chips">
-        <span class="due-chip-label">时段</span>
-        ${timeChips}
-      </div>
-      ${exactInputHtml}
-      <div class="due-preview ${previewClass}">
-        <span>${iso ? '⏱ ' : ''}${preview}</span>
-        ${iso ? `<button type="button" class="due-preview-clear" title="清除">×</button>` : ''}
-      </div>
-    `;
-    wire();
-  }
-
-  function wire() {
-    container.querySelectorAll('[data-date]').forEach(b => b.addEventListener('click', () => {
-      const v = b.dataset.date;
-      const key = (v === 'weekend' || v === 'nextweek') ? v : Number(v);
-      state.dateChip = (state.dateChip === key) ? null : key;
-      // 切回 chip 模式
-      state.exactIso = null; state.exactVisible = false;
-      render();
-    }));
-    container.querySelectorAll('[data-time]').forEach(b => b.addEventListener('click', () => {
-      const v = b.dataset.time;
-      state.timeChip = state.timeChip === v ? null : v;
-      state.exactIso = null; state.exactVisible = false;
-      render();
-    }));
-    const modeBtn = container.querySelector('[data-mode="exact"]');
-    if (modeBtn) modeBtn.addEventListener('click', () => {
-      state.exactVisible = !state.exactVisible;
-      if (!state.exactVisible) state.exactIso = null;
-      else if (!state.exactIso) {
-        // 默认填当前 chip 折算的值, 没有就给一小时后整点
-        const fallback = pickerToIso(state) || (() => {
-          const d = new Date(); d.setMinutes(0, 0, 0); d.setHours(d.getHours() + 1);
-          const pad = n => String(n).padStart(2,'0');
-          return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-        })();
-        state.exactIso = fallback;
-      }
-      render();
-    });
-    const exactInput = container.querySelector('.due-exact-input');
-    if (exactInput) exactInput.addEventListener('input', () => {
-      state.exactIso = exactInput.value || null;
-      // 同步刷预览, 但保留 input 焦点; 重渲染会 blur, 所以只刷预览那块
-      const iso = pickerToIso(state);
-      const previewEl = container.querySelector('.due-preview');
-      if (previewEl) {
-        if (iso) {
-          previewEl.classList.remove('empty');
-          previewEl.innerHTML = `<span>⏱ ${formatPreview(iso)}</span><button type="button" class="due-preview-clear" title="清除">×</button>`;
-          previewEl.querySelector('.due-preview-clear').addEventListener('click', () => {
-            state = { dateChip: null, timeChip: null, exactIso: null, exactVisible: false };
-            render();
-          });
-        } else {
-          previewEl.classList.add('empty');
-          previewEl.innerHTML = `<span>未设置截止</span>`;
-        }
-      }
-    });
-    const clearBtn = container.querySelector('.due-preview-clear');
-    if (clearBtn) clearBtn.addEventListener('click', () => {
-      state = { dateChip: null, timeChip: null, exactIso: null, exactVisible: false };
-      render();
-    });
-  }
-
-  render();
-
-  return {
-    getIso: () => pickerToIso(state),
-    setIso: (iso) => { state = isoToPickerState(iso); render(); },
-    reset: () => { state = { dateChip: null, timeChip: null, exactIso: null, exactVisible: false }; render(); }
-  };
-}
-
-const addDuePicker = mountDuePicker(document.getElementById('add-due-picker'));
-
-document.getElementById('add-todo-btn').addEventListener('click', async () => {
-  const input = document.getElementById('todo-input');
-  const text = input.value.trim();
-  if (!text) return;
-  const dueDate = addDuePicker.getIso();
-  input.value = '';
-  addDuePicker.reset();
-  const result = await window.petAPI.addReminder(text, dueDate);
-  if (result.error) { showToast('添加失败：' + result.error); return; }
-  reminders.unshift({ id: result.id, text, done: false, dueDate: dueDate ? new Date(dueDate).toISOString() : null });
-  renderReminders();
-  showToast('+2 XP · 任务已录入');
-});
-
-document.getElementById('todo-input').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && e.metaKey) { e.preventDefault(); document.getElementById('add-todo-btn').click(); }
-});
-
-async function completeReminder(i) {
-  const r = renderedReminders[i];
-  if (!r || r.done) return;
-  const result = await window.petAPI.completeReminder(r.id);
-  if (result.error) { showToast('操作失败：' + result.error); return; }
-  const reminder = reminders.find(x => x.id === r.id);
-  if (reminder) reminder.done = true;
-  renderReminders();
-  showToast('+15 XP 完成任务！🎉');
-}
-
-async function deleteReminder(i) {
-  const r = renderedReminders[i];
-  if (!r) return;
-  const result = await window.petAPI.deleteReminder(r.id);
-  if (result.error) { showToast('删除失败：' + result.error); return; }
-  reminders = reminders.filter(x => x.id !== r.id);
-  renderReminders();
-}
-
-// 每个 edit 行有自己的 picker controller, 用 reminder.id 索引
-const _editPickers = new Map();
-// 记录 due 是否被修改过 — 没动则不传 dueDate (让后端不动时间), 否则传新值
-const _editDueTouched = new Set();
-
-function startEditReminder(i) {
-  const r = renderedReminders[i];
-  if (!r) return;
-  const item = document.getElementById('ritem-' + i);
-  const textEl = document.getElementById('rtext-' + i);
-  const dueEl = item.querySelector('.todo-due');
-  const editBtn = item.querySelector('.todo-edit-btn');
-
-  textEl.style.display = 'none';
-  if (dueEl) dueEl.style.display = 'none';
-  if (editBtn) editBtn.style.display = 'none';
-
-  // 改成竖排: 文本输入 + due-picker + 操作按钮一行
-  const wrap = textEl.parentNode; // .todo-text-wrap
-  const container = document.createElement('div');
-  container.id = 'edit-container-r-' + i;
-  container.style.cssText = 'display:flex; flex-direction:column; gap:5px; flex:1; min-width:0;';
-  container.innerHTML = `
-    <input class="todo-edit-input" id="edit-input-r-${i}" type="text" />
-    <div class="due-picker compact" id="edit-due-r-${i}"></div>
-    <div style="display:flex; gap:4px; justify-content:flex-end;">
-      <button class="todo-edit-save" onclick="saveEditReminder(${i})">✓ 保存</button>
-      <button class="todo-edit-cancel" onclick="cancelEditReminder(${i})">✕ 取消</button>
-    </div>
-  `;
-  wrap.appendChild(container);
-
-  const input = document.getElementById('edit-input-r-' + i);
-  input.value = r.text;
-  input.focus();
-  input.select();
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && e.metaKey) saveEditReminder(i);
-    if (e.key === 'Escape') cancelEditReminder(i);
-  });
-
-  // 把 reminder 的当前 dueDate 转回 picker 状态 (注意 r.dueDate 是 ISO 字符串, 含或不含 Z)
-  let initial = null;
-  if (r.dueDate) {
-    const d = new Date(r.dueDate);
-    if (!isNaN(d.getTime())) {
-      const pad = n => String(n).padStart(2,'0');
-      initial = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    }
-  }
-  const picker = mountDuePicker(document.getElementById('edit-due-r-' + i), { initialIso: initial, compact: true });
-  // 包一层捕获原始值, 用于判断是否被改动过
-  const originalIso = initial;
-  const wrappedGetIso = () => picker.getIso();
-  _editPickers.set(r.id, { picker, originalIso, getIso: wrappedGetIso });
-
-  // 监听 picker 容器变化 → 标记 touched (用 click 在 picker 内即视为 touched)
-  document.getElementById('edit-due-r-' + i).addEventListener('click', () => _editDueTouched.add(r.id), true);
-  document.getElementById('edit-due-r-' + i).addEventListener('input', () => _editDueTouched.add(r.id), true);
-}
-
-async function saveEditReminder(i) {
-  const r = renderedReminders[i];
-  if (!r) return;
-  const input = document.getElementById('edit-input-r-' + i);
-  if (!input) return;
-  const newText = input.value.trim();
-  if (!newText) return;
-
-  const pickerInfo = _editPickers.get(r.id);
-  let dueArg; // undefined = 不改, null = 清空, string = 设置
-  if (pickerInfo && _editDueTouched.has(r.id)) {
-    const newIso = pickerInfo.getIso();
-    if (newIso !== pickerInfo.originalIso) {
-      dueArg = newIso || null;
-    }
-  }
-
-  const result = await window.petAPI.editReminder(r.id, newText, dueArg);
-  if (result.error) { showToast('编辑失败：' + result.error); return; }
-
-  const reminder = reminders.find(x => x.id === r.id);
-  if (reminder) {
-    reminder.text = newText;
-    if (dueArg !== undefined) {
-      reminder.dueDate = dueArg ? new Date(dueArg).toISOString() : null;
-    }
-  }
-  _editPickers.delete(r.id);
-  _editDueTouched.delete(r.id);
-  renderReminders();
-}
-
-function cancelEditReminder(i) {
-  const r = renderedReminders[i];
-  const container = document.getElementById('edit-container-r-' + i);
-  if (container) container.remove();
-  const textEl = document.getElementById('rtext-' + i);
-  if (textEl) textEl.style.display = '';
-  const item = document.getElementById('ritem-' + i);
-  if (item) {
-    const editBtn = item.querySelector('.todo-edit-btn');
-    if (editBtn) editBtn.style.display = '';
-    const dueEl = item.querySelector('.todo-due');
-    if (dueEl) dueEl.style.display = '';
-  }
-  if (r) {
-    _editPickers.delete(r.id);
-    _editDueTouched.delete(r.id);
-  }
-}
-
-document.querySelectorAll('.filter-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    reminderFilter = btn.dataset.filter;
-    renderReminders();
   });
 });
 
@@ -3314,26 +2483,6 @@ async function resetPetPosition() {
     const r = await window.petAPI.resetPetPosition();
     showToast(r && r.success ? '✓ 已复位到右下角' : '✗ 复位失败');
   } catch (e) { showToast('✗ 复位失败'); }
-}
-
-async function saveReminderList() {
-  const name = document.getElementById('reminder-list-input').value.trim();
-  await window.petAPI.setReminderList(name);
-  state.reminderList = name;
-  document.getElementById('current-list-name').textContent = name || '提醒事项';
-  showToast('✓ 已保存，重新加载提醒');
-  reminders = [];
-  await loadReminders();
-}
-
-async function initReminderLists() {
-  const result = await window.petAPI.getReminderLists();
-  const hint = document.getElementById('reminder-lists-hint');
-  if (result.lists && result.lists.length > 0) {
-    hint.textContent = '可用列表：' + result.lists.join('、');
-  } else if (result.error) {
-    hint.textContent = '无法读取列表：请授权访问"提醒事项"';
-  }
 }
 
 async function saveKey(provider) {
@@ -3975,84 +3124,6 @@ document.getElementById('ax-dismiss').addEventListener('click', () => {
   _axDismissed = true;
   document.getElementById('ax-warning-banner').style.display = 'none';
 });
-
-// ── Finance ──
-let financeTabActive = false;
-let _financeLoaded   = false;
-let _financeTimer    = null;
-
-function financeLoad() {
-  if (!_financeLoaded) {
-    document.getElementById('fin-grid').innerHTML = '<div class="fin-loading">◌ 载入行情数据中...</div>';
-  }
-  financeRefresh();
-  if (!_financeTimer) {
-    _financeTimer = setInterval(() => { if (financeTabActive) financeRefresh(); }, 60000);
-  }
-}
-
-async function financeRefresh() {
-  const btn = document.getElementById('fin-refresh-btn');
-  if (btn) btn.classList.add('spinning');
-  try {
-    const data = await window.petAPI.getFinanceData();
-    renderFinanceData(data);
-    _financeLoaded = true;
-    const t = document.getElementById('fin-time');
-    if (t) {
-      const now = new Date();
-      t.textContent = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    }
-  } catch (e) {
-    if (!_financeLoaded) {
-      const g = document.getElementById('fin-grid');
-      if (g) g.innerHTML = `<div class="fin-loading" style="color:rgba(255,90,60,0.7)">⚠ 获取失败：${escHtml(e.message)}</div>`;
-    }
-  } finally {
-    if (btn) btn.classList.remove('spinning');
-  }
-}
-
-function _fmtNum(v, dec) {
-  const [int, frac] = Number(v).toFixed(dec).split('.');
-  return int.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (frac !== undefined ? '.' + frac : '');
-}
-
-function renderFinanceData(d) {
-  const g = document.getElementById('fin-grid');
-  if (!g) return;
-  const goldErr = d.gold_cny_per_gram?.error ?? null;
-  const rows = [
-    { name: '国际金价',    sub: 'XAU · CNY/克',     v: d.gold_cny_per_gram?.price, prev: d.gold_cny_per_gram?.prevClose, dec: 2, err: goldErr },
-    { name: '上证指数',    sub: 'SSE · 000001.SS',   v: d.shanghai?.price, prev: d.shanghai?.prevClose, dec: 2, err: d.shanghai?.error },
-    { name: '日经 225',    sub: 'Nikkei · ^N225',    v: d.nikkei?.price,   prev: d.nikkei?.prevClose,   dec: 2, err: d.nikkei?.error },
-    { name: '道琼斯',      sub: 'DJIA · ^DJI',       v: d.djia?.price,     prev: d.djia?.prevClose,     dec: 2, err: d.djia?.error },
-    { name: '美元 / 日元', sub: 'USD/JPY',           v: d.usdjpy?.price,   prev: d.usdjpy?.prevClose,   dec: 3, err: d.usdjpy?.error },
-    { name: '美元 / 人民币',sub:'USD/CNY',           v: d.usdcny?.price,   prev: d.usdcny?.prevClose,   dec: 4, err: d.usdcny?.error },
-  ];
-  g.innerHTML = rows.map(r => {
-    const hasPrice = r.v != null && !isNaN(r.v) && !r.err;
-    let rightHtml;
-    if (!hasPrice) {
-      const errLabel = r.err ? escHtml(r.err.slice(0, 35)) : '暂无数据';
-      rightHtml = `<div class="fin-err" title="${escHtml(r.err||'')}">${errLabel}</div>`;
-    } else {
-      let changeHtml = '';
-      if (r.prev != null && r.prev > 0 && !isNaN(r.prev)) {
-        const chg = r.v - r.prev;
-        const pct = chg / r.prev * 100;
-        const sign = chg >= 0 ? '+' : '';
-        const cls  = chg > 1e-8 ? 'up' : chg < -1e-8 ? 'dn' : 'flat';
-        changeHtml = `<div class="fin-change ${cls}">${sign}${_fmtNum(chg, r.dec)} (${sign}${pct.toFixed(2)}%)</div>`;
-      }
-      rightHtml = `<div class="fin-price">${_fmtNum(r.v, r.dec)}</div>${changeHtml}`;
-    }
-    return `<div class="fin-card">
-      <div><div class="fin-name">${r.name}</div><div class="fin-sub">${r.sub}</div></div>
-      <div>${rightHtml}</div>
-    </div>`;
-  }).join('');
-}
 
 init();
 </script>

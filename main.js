@@ -14,7 +14,6 @@ const Anthropic = require('@anthropic-ai/sdk');   // Anthropic 后台走官方 S
 let petWindow = null;
 let panelWindow = null;
 let state = store.load();
-const notifiedReminders = new Set();
 
 // 精简版标志: 构建时由 electron-builder 的 extraMetadata.vf1Lite 注入 package.json;
 // 开发运行 (npm start) 时该字段不存在 → 完整版.
@@ -186,72 +185,6 @@ function createPanelWindow() {
   // 让 show() 静默失败 (window 标记 visible 但未实际渲染). pet 那边能用是因为它从不 hide,
   // 而 panel 有 hide/show 切换, 状态机更脆弱.
   panelWindow.loadFile('panel.html');
-}
-
-async function checkReminderAlerts() {
-  if (!petWindow || petWindow.isDestroyed()) return;
-  try {
-    const listTarget = reminderListTarget(state);
-    const script = `tell application "Reminders"
-  set output to ""
-  set theList to ${listTarget}
-  repeat with r in (reminders in theList)
-    if completed of r is false then
-      try
-        set d to due date of r
-        if d is not missing value then
-          set rId to id of r
-          set rName to name of r
-          set y to (year of d) as string
-          set mo to ((month of d) as integer) as string
-          if (length of mo) = 1 then set mo to "0" & mo
-          set dy to (day of d) as string
-          if (length of dy) = 1 then set dy to "0" & dy
-          set hr to (hours of d) as string
-          if (length of hr) = 1 then set hr to "0" & hr
-          set mn to (minutes of d) as string
-          if (length of mn) = 1 then set mn to "0" & mn
-          set rDue to y & "-" & mo & "-" & dy & "T" & hr & ":" & mn & ":00"
-          set output to output & rId & "|||" & rName & "|||" & rDue & "\\n"
-        end if
-      end try
-    end if
-  end repeat
-  return output
-end tell`;
-    const raw = await runAppleScript(script);
-    const now = Date.now();
-    const thirtyMin = 30 * 60 * 1000;
-    const twoHours = 2 * 60 * 60 * 1000;
-
-    for (const line of raw.split('\n')) {
-      if (!line.includes('|||')) continue;
-      const parts = line.split('|||');
-      const id = parts[0], name = parts[1], dueStr = parts[2];
-      if (!dueStr) continue;
-      const due = new Date(dueStr).getTime();
-      if (isNaN(due)) continue;
-
-      const diff = due - now;
-      let alertMsg = null;
-
-      if (diff > 0 && diff <= thirtyMin) {
-        const mins = Math.ceil(diff / 60000);
-        alertMsg = `⏰ "${name}" 还有${mins}分钟到期！`;
-      } else if (diff < 0 && diff >= -twoHours) {
-        alertMsg = `⚠️ "${name}" 已逾期，快去处理！`;
-      }
-
-      if (!alertMsg) continue;
-
-      const alertWindow = diff > 0 ? thirtyMin : twoHours;
-      const dedupKey = `${id}-${Math.floor(due / alertWindow)}`;
-      if (notifiedReminders.has(dedupKey)) continue;
-      notifiedReminders.add(dedupKey);
-
-      petWindow.webContents.send('pet-update', { reminderAlert: alertMsg, pet: state.pet });
-    }
-  } catch (_) {}
 }
 
 // ── Claude Code 权限等待检测（通过 hook 写入的 flag 文件）────────────────
@@ -818,8 +751,6 @@ app.whenReady().then(() => {
 
   setInterval(() => { checkClaudePendingFlag().catch(() => {}); }, 800);   // 检测 Claude Code 权限等待
   setInterval(() => { checkTaskDoneFlag().catch(() => {}); }, 1000);       // 检测任务完成播报
-  setTimeout(checkReminderAlerts, 30 * 1000);
-  setInterval(checkReminderAlerts, 5 * 60 * 1000);
 
   // 休息提醒: 每分钟检查一次, 到点了让机体飞到屏幕中央播报
   setInterval(() => { checkBreakReminder().catch(() => {}); }, 60 * 1000);
@@ -871,47 +802,6 @@ async function runAppleScript(script, args = []) {
   } finally {
     try { fs.unlinkSync(tmpFile); } catch (_) {}
   }
-}
-
-function reminderListTarget(s) {
-  const name = (s.reminderList || '').trim();
-  return name ? `list "${escAppleScript(name)}"` : 'default list';
-}
-
-async function fetchRemindersData() {
-  const listTarget = reminderListTarget(state);
-  const script = `tell application "Reminders"
-  set output to ""
-  set theList to ${listTarget}
-  repeat with r in (reminders in theList)
-    set rId to id of r
-    set rName to name of r
-    set rDone to completed of r as string
-    set rDue to ""
-    try
-      set d to due date of r
-      if d is not missing value then
-        set y to (year of d) as string
-        set mo to ((month of d) as integer) as string
-        if (length of mo) = 1 then set mo to "0" & mo
-        set dy to (day of d) as string
-        if (length of dy) = 1 then set dy to "0" & dy
-        set hr to (hours of d) as string
-        if (length of hr) = 1 then set hr to "0" & hr
-        set mn to (minutes of d) as string
-        if (length of mn) = 1 then set mn to "0" & mn
-        set rDue to y & "-" & mo & "-" & dy & "T" & hr & ":" & mn & ":00"
-      end if
-    end try
-    set output to output & rId & "|||" & rName & "|||" & rDone & "|||" & rDue & "\n"
-  end repeat
-  return output
-end tell`;
-  const raw = await runAppleScript(script);
-  return raw.split('\n').filter(l => l.includes('|||')).map(line => {
-    const parts = line.split('|||');
-    return { id: parts[0], text: parts[1], done: parts[2] === 'true', dueDate: parts[3] || null };
-  });
 }
 
 // ── IPC Handlers ─────────────────────────────────────────
@@ -1125,21 +1015,6 @@ const CLAUDE_TOOLS = [
     }
   },
   {
-    name: 'get_reminders',
-    description: '读取用户macOS提醒事项列表，返回所有提醒（含截止日期和完成状态）。用户询问提醒/待办事项时调用此工具',
-    input_schema: {
-      type: 'object',
-      properties: {
-        filter: {
-          type: 'string',
-          enum: ['all', 'pending', 'completed'],
-          description: '筛选：all=全部，pending=未完成，completed=已完成。默认all'
-        }
-      },
-      required: []
-    }
-  },
-  {
     name: 'manage_files',
     description: '管理用户本地文件：列出目录内容（含子目录）、复制文件、将文件移入废纸篓、或重命名/移动文件。支持Downloads、Desktop及任意用户目录',
     input_schema: {
@@ -1254,24 +1129,6 @@ const OPENAI_TOOLS = [
           }
         },
         required: ['action', 'value']
-      }
-    }
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'get_reminders',
-      description: '读取用户macOS提醒事项列表，返回所有提醒（含截止日期和完成状态）。用户询问提醒/待办事项时调用此工具',
-      parameters: {
-        type: 'object',
-        properties: {
-          filter: {
-            type: 'string',
-            enum: ['all', 'pending', 'completed'],
-            description: '筛选：all=全部，pending=未完成，completed=已完成。默认all'
-          }
-        },
-        required: []
       }
     }
   },
@@ -1603,24 +1460,6 @@ end run`;
       return `已打开应用：${value}`;
     }
   }
-  if (name === 'get_reminders') {
-    try {
-      const filter = input.filter || 'all';
-      const items = await fetchRemindersData();
-      const filtered = filter === 'pending' ? items.filter(r => !r.done)
-                     : filter === 'completed' ? items.filter(r => r.done)
-                     : items;
-      if (!filtered.length) return filter === 'pending' ? '没有未完成的提醒事项' : filter === 'completed' ? '没有已完成的提醒事项' : '提醒事项列表为空';
-      const lines = filtered.map(r => {
-        const status = r.done ? '[已完成]' : '[未完成]';
-        const due = r.dueDate ? `  截止：${r.dueDate.replace('T', ' ').slice(0, 16)}` : '';
-        return `• ${r.text}${due}  ${status}`;
-      });
-      return lines.join('\n');
-    } catch (e) {
-      return `读取提醒事项失败：${e.message}`;
-    }
-  }
   if (name === 'manage_files') {
     const { action, directory, filter, paths: filePaths } = input;
     const shortcutDirs = {
@@ -1862,7 +1701,6 @@ async function callAI(provider, apiKey, petName, history, userMessage, metasoKey
   - 第一次搜索结果里没有用户问的具体数字, **必须追加一次更精确的搜索**(改 query 加更多上下文); 仍找不到就如实说"未查到具体数据"
   - **主动补全赛事上下文**: 用户问某联赛"最新新闻/最新消息"时, 必须同时搜索"[联赛] 总决赛/季后赛 ${new Date(now - 86400000).toISOString().slice(0,10)}"——当前可能有重大赛事进行中, 不能只搜泛化关键词而漏掉昨天的比赛结果
 - 用户要求打开网址/应用/软件时（明确说"打开/启动/运行"，且不是在询问内容信息）：调用 execute_action；【严禁】在用户询问平台内容/节目/赛事排期时调用 execute_action，即使搜索结果不理想也绝对不能打开网站兜底
-- 用户询问提醒事项/待办/todo时：必须立即调用 get_reminders 工具——此工具直接读取用户Mac本地的提醒事项，一定能获取到数据，绝对不能说"无法访问"或"没有权限"，调用后根据返回数据和今天日期回答
 - 用户要求删除/清理/整理Downloads或Desktop文件时：必须调用 manage_files 工具——先用action=list列出文件，展示给用户确认，用户同意后再用action=delete执行删除（移入废纸篓），绝对不能说"无法操作文件"
 - 用户要求下载文件时：调用 download_file 工具，directory 填 downloads/desktop 或绝对路径；若工具返回"下载超时或未检测到新文件"，说明页面已打开但需要用户手动点击一次下载按钮，用户完成后告诉我文件名，再用 manage_files action=rename 移动/重命名
 - 用户要求重命名文件时：调用 manage_files action=rename，需要提供完整路径和新文件名
@@ -2025,126 +1863,6 @@ ipcMain.handle('chat', async (_, message) => {
   }
 });
 
-ipcMain.handle('get-reminders', async () => {
-  try {
-    const reminders = await fetchRemindersData();
-    return { reminders };
-  } catch (e) {
-    return { error: e.message };
-  }
-});
-
-ipcMain.handle('add-reminder', async (_, text, dueDate) => {
-  try {
-    const listTarget = reminderListTarget(state);
-    const safeName = escAppleScript(text);
-    let dueLine = '';
-    if (dueDate) {
-      const d = new Date(dueDate);
-      const mo = d.getMonth() + 1, dy = d.getDate(), yr = d.getFullYear();
-      const hh = String(d.getHours()).padStart(2, '0'), mm = String(d.getMinutes()).padStart(2, '0');
-      dueLine = `\n  set due date of newR to date "${mo}/${dy}/${yr} ${hh}:${mm}:00"`;
-    }
-    const script = `tell application "Reminders"
-  set theList to ${listTarget}
-  set newR to make new reminder at end of theList with properties {name: "${safeName}"}${dueLine}
-  return id of newR
-end tell`;
-    const newId = await runAppleScript(script);
-    state = store.addXP(state, 2);
-    store.save(state);
-    broadcastPetUpdate();
-    return { id: newId.trim(), xp: state.pet.xp, level: state.pet.level };
-  } catch (e) {
-    return { error: e.message };
-  }
-});
-
-ipcMain.handle('complete-reminder', async (_, id) => {
-  try {
-    const safeId = escAppleScript(id);
-    const script = `tell application "Reminders"
-  set r to reminder id "${safeId}"
-  set completed of r to true
-end tell`;
-    await runAppleScript(script);
-    state = store.addXP(state, 15);
-    store.save(state);
-    state.pet.mood = 'excited';
-    broadcastPetUpdate();
-    setTimeout(() => { state.pet.mood = 'happy'; broadcastPetUpdate(); }, 4000);
-    return { xp: state.pet.xp, level: state.pet.level };
-  } catch (e) {
-    return { error: e.message };
-  }
-});
-
-ipcMain.handle('delete-reminder', async (_, id) => {
-  try {
-    const safeId = escAppleScript(id);
-    const script = `tell application "Reminders"
-  set r to reminder id "${safeId}"
-  delete r
-end tell`;
-    await runAppleScript(script);
-    return { success: true };
-  } catch (e) {
-    return { error: e.message };
-  }
-});
-
-// dueDate 语义: undefined = 不改时间, null = 清空, 字符串(ISO/datetime-local) = 设置
-ipcMain.handle('edit-reminder', async (_, id, text, dueDate) => {
-  try {
-    const safeId = escAppleScript(id);
-    const safeName = escAppleScript(text);
-    let dueLine = '';
-    if (dueDate === null) {
-      // AppleScript 里清空 due date: 设为 missing value
-      dueLine = `\n  set due date of r to missing value`;
-    } else if (typeof dueDate === 'string' && dueDate) {
-      const d = new Date(dueDate);
-      if (!isNaN(d.getTime())) {
-        const mo = d.getMonth() + 1, dy = d.getDate(), yr = d.getFullYear();
-        const hh = String(d.getHours()).padStart(2, '0'), mm = String(d.getMinutes()).padStart(2, '0');
-        dueLine = `\n  set due date of r to date "${mo}/${dy}/${yr} ${hh}:${mm}:00"`;
-      }
-    }
-    const script = `tell application "Reminders"
-  set r to reminder id "${safeId}"
-  set name of r to "${safeName}"${dueLine}
-end tell`;
-    await runAppleScript(script);
-    return { success: true };
-  } catch (e) {
-    return { error: e.message };
-  }
-});
-
-ipcMain.handle('get-reminder-lists', async () => {
-  try {
-    const script = `tell application "Reminders"
-  set output to ""
-  repeat with l in every list
-    set output to output & (name of l) & "\n"
-  end repeat
-  return output
-end tell`;
-    const raw = await runAppleScript(script);
-    const lists = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-    return { lists };
-  } catch (e) {
-    return { error: e.message };
-  }
-});
-
-ipcMain.handle('set-reminder-list', (_, listName) => {
-  state.reminderList = listName;
-  store.save(state);
-  broadcastPetUpdate();
-  return { success: true };
-});
-
 async function gatherSystemInfo() {
   const info = {};
   const now = Date.now();
@@ -2245,24 +1963,6 @@ async function gatherSystemInfo() {
         const { stdout } = await execAsync(`${brewBin} outdated --quiet 2>/dev/null`, { timeout: 6000 });
         info.brewOutdated = stdout.trim().split('\n').filter(Boolean).slice(0, 15);
       } catch { info.brewOutdated = []; }
-    })(),
-
-    // Reminders
-    (async () => {
-      try {
-        const reminders = await fetchRemindersData();
-        const today = new Date().toDateString();
-        const overdue = reminders.filter(r => !r.done && r.dueDate && new Date(r.dueDate) < new Date());
-        const dueToday = reminders.filter(r => !r.done && r.dueDate && new Date(r.dueDate).toDateString() === today);
-        info.reminders = {
-          total: reminders.length,
-          pending: reminders.filter(r => !r.done).length,
-          overdue: overdue.length,
-          overdueItems: overdue.slice(0, 5).map(r => r.text),
-          dueToday: dueToday.length,
-          dueTodayItems: dueToday.slice(0, 5).map(r => r.text)
-        };
-      } catch {}
     })(),
 
     // Currently running GUI apps (what the user is actually doing right now)
@@ -2498,8 +2198,7 @@ ipcMain.handle('get-ai-suggestions', async () => {
 3. 5 条**必须横跨多个领域**：不许 5 条都属于同一类（不许 5 条都是文件清理 / 都是项目推进 / 都是休息提醒）
 4. 不要前言、不要总结、不要解释自己在做什么
 5. 不许虚构快照里没有的数据
-6. 不要提"提醒事项 (Reminders / 待办)"相关建议（用户另一页能看）
-7. 系统维护类（清磁盘 / 清缓存 / 升级 brew）整体最多 1 条，且仅在快照里有明确触发条件时才提
+6. 系统维护类（清磁盘 / 清缓存 / 升级 brew）整体最多 1 条，且仅在快照里有明确触发条件时才提
 
 【价值标准】"具体 + 可立即行动 + 与当前状态强相关"打分，选最值的 5 条。范围**完全不限**：项目、文件、人际、学习、健康、长期目标、灵感、财务、生活体验、环境……都可以。
 
@@ -2513,7 +2212,7 @@ ipcMain.handle('get-ai-suggestions', async () => {
     const userPrompt = `【此刻快照】
 ${infoText}
 
-按以上规则，输出 5 条建议。记住：每条必须引用快照里的具体数据点；5 条要横跨多类；不许提 Reminders；系统维护至多 1 条。`;
+按以上规则，输出 5 条建议。记住：每条必须引用快照里的具体数据点；5 条要横跨多类；系统维护至多 1 条。`;
 
     const metasoKey = (state.apiKeys || {}).metaso || '';
     const raw = await callAI(provider, apiKey, state.pet.name, [], userPrompt, metasoKey, {
@@ -3048,215 +2747,8 @@ ipcMain.handle('send-terminal-input', async (_, { app, windowIndex, windowId, ta
   }
 });
 
-const _FIN_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
-
-ipcMain.handle('get-finance-data', async () => {
-  const results = {};
-  const hdrs     = { 'User-Agent': _FIN_UA, 'Accept': 'application/json', 'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8' };
-  const sinaHdrs = { ...hdrs, 'Referer': 'https://finance.sina.com.cn/' };
-
-  await Promise.allSettled([
-
-    // ── 汇率: USD/CNY + USD/JPY via ExchangeRate-API ─────────────────────────
-    (async () => {
-      const r = await net.fetch('https://open.er-api.com/v6/latest/USD', { headers: hdrs });
-      if (!r.ok) throw new Error(`ExRate HTTP ${r.status}`);
-      const d = await r.json();
-      if (d.result !== 'success') throw new Error('ExRate: ' + (d['error-type'] || 'error'));
-      if (d.rates.CNY) results.usdcny = { price: d.rates.CNY, prevClose: null };
-      if (d.rates.JPY) results.usdjpy = { price: d.rates.JPY, prevClose: null };
-    })(),
-
-    // ── 国际金价: 东方财富 SHFE AU0 → 新浪 nf_AU0/Au99.99 ─────────────────
-    (async () => {
-      // 1. 东方财富 (fltt=2 返回浮点价格，单位 CNY/克)
-      let emRaw = '';
-      try {
-        const r = await net.fetch(
-          'https://push2.eastmoney.com/api/qt/stock/get?secid=113.AU0&fltt=2&fields=f43,f60,f58',
-          { headers: hdrs }
-        );
-        if (r.ok) {
-          emRaw = await r.text();
-          const d = JSON.parse(emRaw);
-          const price = d.data?.f43;
-          if (price >= 400 && price <= 3000) {
-            results.gold_cny_per_gram = { price, prevClose: d.data.f60 || null };
-            return;
-          }
-        }
-      } catch (_) {}
-
-      // 2. 新浪 Au99.99 + nf_AU0
-      const r2 = await net.fetch('https://hq.sinajs.cn/list=Au99.99,nf_AU0', { headers: sinaHdrs });
-      if (!r2.ok) throw new Error(`Sina/Gold HTTP ${r2.status} | EM: ${emRaw.slice(0, 60)}`);
-      const raw2 = await r2.text();
-      const blocks = [...raw2.matchAll(/hq_str_[^=\s"]+\s*=\s*"([^"]*)"/g)];
-      let price = null, prev = null;
-      for (const b of blocks) {
-        for (const f of b[1].split(',')) {
-          const v = parseFloat(f);
-          if (v >= 400 && v <= 3000) { if (!price) price = v; else if (!prev && Math.abs(v-price)/price < 0.05) { prev = v; break; } }
-        }
-        if (price) break;
-      }
-      if (!price) throw new Error(`金价三源失败. EM:${emRaw.slice(0,80)} Sina:${raw2.slice(0,80)}`);
-      results.gold_cny_per_gram = { price, prevClose: prev };
-    })(),
-
-    // ── 上证指数: 新浪财经 ────────────────────────────────────────────────────
-    (async () => {
-      const r = await net.fetch('https://hq.sinajs.cn/list=s_sh000001', { headers: sinaHdrs });
-      if (!r.ok) throw new Error(`Sina/SSE HTTP ${r.status}`);
-      const text = await r.text();
-      const m = text.match(/hq_str_s_sh000001="([^"]*)"/);
-      if (!m?.[1]) throw new Error('Sina/SSE: 空数据');
-      const p = m[1].split(',');
-      // 简版格式: [0]名称 [1]当前 [2]涨跌 [3]涨跌幅 [4]成交量 [5]成交额
-      const price = parseFloat(p[1]);
-      const change = parseFloat(p[2]);
-      if (isNaN(price)) throw new Error('Sina/SSE: 无效价格');
-      results.shanghai = { price, prevClose: isNaN(change) ? null : +(price - change).toFixed(2) };
-    })(),
-
-    // ── 日经225: 东方财富搜索→动态secid → 腾讯 → 新浪 ─────────────────────
-    (async () => {
-      // 1. 东方财富搜索 API：动态查找日经225的真实 secid，再拉价格
-      try {
-        const sr = await net.fetch(
-          'https://searchapi.eastmoney.com/api/suggest/get?input=%E6%97%A5%E7%BB%8F225&type=14&count=5&token=D43BF722C8E33BDC906FB84D85E326E8',
-          { headers: hdrs }
-        );
-        if (sr.ok) {
-          const sd = await sr.json();
-          for (const item of (sd.QuotationCodeTable?.Data || [])) {
-            const secid = `${item.MktNum}.${item.Code}`;
-            const pr = await net.fetch(
-              `https://push2.eastmoney.com/api/qt/stock/get?secid=${secid}&fltt=2&fields=f43,f60,f58`,
-              { headers: hdrs }
-            );
-            if (pr.ok) {
-              const pd = await pr.json();
-              const price = pd.data?.f43;
-              if (typeof price === 'number' && price > 10000) {
-                results.nikkei = { price, prevClose: pd.data?.f60 || null };
-                return;
-              }
-            }
-          }
-        }
-      } catch (_) {}
-
-      // 2. 腾讯财经：r_hkHSI 确认可用，日经尝试多种代码
-      let tencentRaw = '';
-      try {
-        const NIKKEI_CODES = ['r_jpNKX','r_jpNKXC','r_jpNI225','r_jpNK225','r_jpNKY','r_NKXX','r_NKXC'];
-        const r = await net.fetch(
-          `https://qt.gtimg.cn/q=${[...NIKKEI_CODES, 'r_hkHSI'].join(',')}`,
-          { headers: { ...hdrs, 'Referer': 'https://finance.qq.com/' } }
-        );
-        if (r.ok) {
-          tencentRaw = await r.text();
-          for (const code of NIKKEI_CODES) {
-            const m = tencentRaw.match(new RegExp(`v_${code}="([^"]+)"`));
-            if (!m?.[1]) continue;
-            const f = m[1].split('~');
-            const price = parseFloat(f[3]);
-            if (price > 10000) {
-              results.nikkei = { price, prevClose: parseFloat(f[4]) || null };
-              return;
-            }
-          }
-        }
-      } catch (e) { tencentRaw = String(e); }
-
-      // 3. 新浪 int_n225（仅日本市场交易时段有数据）
-      try {
-        const r = await net.fetch('https://hq.sinajs.cn/list=int_n225', { headers: sinaHdrs });
-        if (r.ok) {
-          const text = await r.text();
-          const m = text.match(/hq_str_int_n225\s*=\s*"([^"]+)"/);
-          if (m) {
-            for (const f of m[1].split(',')) {
-              const v = parseFloat(f);
-              if (v > 10000) { results.nikkei = { price: v, prevClose: null }; return; }
-            }
-          }
-        }
-      } catch (_) {}
-
-      // 4. 网易财经
-      let neRaw = '';
-      try {
-        const r = await net.fetch('https://api.money.126.net/data/feed/NI225,money.api', {
-          headers: { ...hdrs, 'Referer': 'https://money.163.com/' }
-        });
-        if (r.ok) {
-          neRaw = await r.text();
-          const m = neRaw.match(/\(({[\s\S]+})\)/);
-          if (m) {
-            const q = JSON.parse(m[1]).NI225;
-            if (q?.price > 10000) { results.nikkei = { price: q.price, prevClose: q.yestclose || null }; return; }
-          }
-        }
-      } catch (e) { neRaw = String(e); }
-
-      results.nikkei = { error: `EM搜索/腾讯均失败 T:${tencentRaw.slice(0,50)} NE:${neRaw.slice(0,30)}` };
-    })(),
-
-    // ── 道琼斯工业指数: 腾讯 r_usDJI → 新浪 int_dji ─────────────────────────
-    (async () => {
-      // 腾讯财经：r_us 前缀 + DJI（Bloomberg代码），与 r_hkHSI 同一格式
-      try {
-        const r = await net.fetch('https://qt.gtimg.cn/q=r_usDJI', {
-          headers: { ...hdrs, 'Referer': 'https://finance.qq.com/' }
-        });
-        if (r.ok) {
-          const text = await r.text();
-          const m = text.match(/v_r_usDJI="([^"]+)"/);
-          if (m?.[1]) {
-            const f = m[1].split('~');
-            const price = parseFloat(f[3]);
-            if (price > 1000) { results.djia = { price, prevClose: parseFloat(f[4]) || null }; return; }
-          }
-        }
-      } catch (_) {}
-
-      // 新浪 int_dji（仅美国市场交易时段有数据）
-      try {
-        const r = await net.fetch('https://hq.sinajs.cn/list=int_dji', { headers: sinaHdrs });
-        if (r.ok) {
-          const text = await r.text();
-          const m = text.match(/hq_str_int_dji\s*=\s*"([^"]+)"/);
-          if (m) {
-            for (const f of m[1].split(',')) {
-              const v = parseFloat(f);
-              if (v > 1000) { results.djia = { price: v, prevClose: null }; return; }
-            }
-          }
-        }
-      } catch (_) {}
-
-      results.djia = { error: '道指数据不可用' };
-    })(),
-
-  ]);
-
-  if (!results.gold_cny_per_gram) {
-    results.gold_cny_per_gram = { error: '金价数据不可用' };
-  }
-  if (!results.djia) {
-    results.djia = { error: '道指未返回' };
-  }
-  if (!results.nikkei) {
-    results.nikkei = { error: 'Nikkei: 数据未返回' };
-  }
-
-  return results;
-});
-
 function broadcastPetUpdate() {
-  const payload = { pet: state.pet, xpProgress: store.getXPProgress(state), aiProvider: state.aiProvider, reminderList: state.reminderList };
+  const payload = { pet: state.pet, xpProgress: store.getXPProgress(state), aiProvider: state.aiProvider };
   if (petWindow && !petWindow.isDestroyed()) petWindow.webContents.send('pet-update', payload);
   if (panelWindow && !panelWindow.isDestroyed()) panelWindow.webContents.send('pet-update', payload);
 }

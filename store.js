@@ -13,7 +13,6 @@ const DEFAULT_STATE = {
   aiProvider: 'qwen',
   apiKeys: { qwen: '', deepseek: '', openai: '', anthropic: '', metaso: '' },
   petPosition: { x: 100, y: 100 },
-  reminderList: '',
   workflows: [],
   alertSoundEnabled: true,
   breakReminder: { enabled: true, intervalMin: 60 },

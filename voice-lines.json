@@ -6,25 +6,25 @@
   },
   "emo": {
     "zh": [
-      "主人辛苦了",
+      "Ace辛苦了",
       "听命",
       "准备就绪",
       "骷髅一号待命中",
       "请下达指令",
       "收到，立即变形",
       "骷髅中队，出击",
-      "为主人作战是我的使命",
+      "为Ace作战是我的使命",
       "与驾驶员并肩作战"
     ],
     "en": [
-      "At your service, master.",
+      "At your service, Ace.",
       "Orders received.",
       "Standing by, ready.",
       "Skull One on standby.",
       "Awaiting your command.",
       "Roger. Transforming now.",
       "Skull Squadron, launch!",
-      "Fighting for my master is my mission.",
+      "Fighting for Ace is my mission.",
       "Fighting at your side, pilot."
     ]
   },
@@ -48,18 +48,18 @@
     "zh": [
       "已经持续作战一段时间了，请站起来活动下身体",
       "建议起身走动两分钟，缓解疲劳",
-      "骷髅一号监测到主人长时间未动，请起身做做拉伸",
-      "主人辛苦了，离开屏幕休息几分钟吧"
+      "骷髅一号监测到Ace长时间未动，请起身做做拉伸",
+      "Ace辛苦了，离开屏幕休息几分钟吧"
     ],
     "en": [
       "You've been in combat a while. Stand up and move around.",
       "Recommend a two-minute walk to ease fatigue.",
       "Skull One detects prolonged inactivity. Please stand and stretch.",
-      "Good work, master. Step away from the screen for a few minutes."
+      "Good work, Ace. Step away from the screen for a few minutes."
     ]
   },
   "taskDone": {
-    "zh": "主人，任务已完成",
-    "en": "Master, mission complete"
+    "zh": "Ace，任务已完成",
+    "en": "Ace, mission complete"
   }
 }
