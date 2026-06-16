@@ -20,7 +20,7 @@
 
 ## ✨ Why you'll want this
 
-- 🤖 **Claude Code radar** — the VF-1 watches your terminal. When Claude Code is waiting on a permission prompt, it flashes gold, pulses a target-lock HUD, and calls out over TTS. When your agent finishes, it announces *"mission complete."* No more babysitting a terminal in another window.
+- 🤖 **Agent radar** — the VF-1 watches your **Claude Code** *and* **OpenCode** sessions. The moment an agent needs your permission or finishes a turn, it flashes gold, pulses a target-lock HUD, and calls out over TTS — while the **YES BOT** panel mirrors each waiting session as a live status card. No more babysitting a terminal in another window.
 - 🛸 **A real transformable mecha, not a sprite** — full **Fighter ↔ Gerwalk ↔ Battloid** morphing rendered live in Three.js. It cruises the edges of your screen, banks into turns, barrel-rolls, and hovers on glowing thrusters.
 - 🎛️ **A cockpit, not a tooltip** — click the model and a HUD-styled control panel slides out: LLM chat, a live terminal-session monitor, and reusable AI workflows.
 - 🧠 **Bring your own brain** — the pet is just the body. Plug in **Qwen, DeepSeek, OpenAI, or Anthropic** as the intelligence, plus optional live web search.
@@ -78,7 +78,7 @@ Claude Code asks for permission
         ↓
 vf1-notify.sh writes a flag file (with the tty path)
         ↓
-Macross polls every 800ms → gold eyes + target-lock HUD + voice loop
+Macross's flag-watcher fires → gold eyes + target-lock HUD + voice loop
         ↓
 You click the VF-1 → it brings the matching terminal window to the front
         ↓
@@ -88,6 +88,8 @@ Claude finishes → Stop hook fires → VF-1 announces "mission complete"
 **Zero manual setup.** On every launch, Macross idempotently installs its hook script to `~/.macross/` and wires the `PermissionRequest` / `PostToolUse` / `PermissionDenied` / `Stop` hooks into `~/.claude/settings.json`. Internal tools (`TaskCreate`, `LSP`, …) and `bypassPermissions` mode are whitelisted so you only get alerted when it actually matters.
 
 **Terminals:** Terminal.app & iTerm2 (full support); WezTerm / Warp / Alacritty / Hyper fall back to focusing Terminal.app.
+
+**OpenCode, too:** Macross polls OpenCode's local session DB (`~/.local/share/opencode/opencode.db`). When a turn finishes (`step-finish` / `stop`) and it's waiting on you, it raises the same alert + a status card in YES BOT. Since OpenCode exposes no permission-vs-done distinction in its DB, it shows a single "waiting for reply" state — whereas Claude Code's hooks let it split into separate *permission* and *task-done* cards.
 
 ---
 
@@ -108,8 +110,9 @@ When idle, the VF-1 cruises your four screen corners:
 
 | Trigger | Behavior |
 |---|---|
-| Claude Code permission prompt | Eyes flash gold, target-lock HUD, voice every 30s |
-| Claude Code task done | Voice announce + persistent bubble until clicked |
+| Claude Code permission prompt | Eyes flash gold, target-lock HUD, voice every 30s + **red** card in YES BOT |
+| Claude Code task done | Voice announce + persistent bubble until clicked + **purple** card in YES BOT |
+| OpenCode turn finished | Voice announce + **blue** card in YES BOT |
 | Click while task-done active | Brings the matching terminal window to front |
 | Break-reminder timer | Flies to screen center, speaks the reminder, returns home |
 | Lid close / system sleep | Timers pause; counters reset on wake to avoid burst-firing |
@@ -127,7 +130,7 @@ Click the VF-1 to open a HUD-styled, 4-tab control panel:
 |---|---|
 | **CHAT** | LLM chat with quick-actions (weather, calendar, news, sports) + one-click launchers |
 | **WORKFLOW** | Save & one-click-run reusable AI prompts |
-| **YES BOT** | Live monitor of which terminal session is awaiting a Claude Code permission |
+| **YES BOT** | Live status cards for Claude Code (permission / done) and OpenCode (done) sessions awaiting your reply |
 | **CONFIG** | Pet name/avatar, break reminder, edge-patrol toggle + reset, AI provider, API keys |
 
 ---
@@ -157,6 +160,7 @@ main.js ── IPC ──┬── pet.html      (Three.js VF-1: GLB loader, mor
    ├── LLM clients (Qwen / DeepSeek / OpenAI / Anthropic)
    ├── Edge-patrol loop + break reminders
    ├── Claude Code flag-file watchers + hook auto-installer
+   ├── OpenCode session-DB poller (SQLite, step-finish detection)
    └── AppleScript/JXA bridges (terminal focus & input, app launchers)
 ```
 

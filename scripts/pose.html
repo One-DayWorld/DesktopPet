@@ -49,7 +49,7 @@ const ready = new Promise((res, rej) => {
       if (morphAction) {
         morphAction.setLoop(THREE.LoopOnce); morphAction.clampWhenFinished = true;
         morphAction.play(); morphAction.paused = true;
-        morphAction.time = morphAction.getClip().duration * 1.0;  // Battloid 完全态
+        morphAction.time = morphAction.getClip().duration * 0.90;  // 停在肩炮放下可见的一刻 (= pet.html BREAK_BATTLOID_FRAC)
         mixer.update(0);
       }
     }
@@ -64,7 +64,7 @@ window.__pose = (yawDeg, pitch) => {
   model.rotation.y = Math.PI + yawDeg * Math.PI / 180;
   modelGroup.rotation.x = pitch;
   modelGroup.rotation.y = 0; modelGroup.rotation.z = 0;
-  modelGroup.position.y = -(sizeY * 0.10);   // pet.html 的 baseDown (Battloid morphComp=0)
+  modelGroup.position.y = 0.815 * sizeY;   // pet.html Battloid 居中上移 (见 pet.html battloidLift)
   renderer.render(scene, camera);
 };
 </script>

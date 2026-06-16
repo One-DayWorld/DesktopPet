@@ -274,7 +274,9 @@ async function runBreakAnimation() {
   const DRAMATIC_SPEED = 0.2;     // 0.8 距离 / 0.2 = 4.0s
   // Fighter 端 = 0.2 (跳过起落架/舱盖开合段); Gerwalk = 0.7 (完全 Gerwalk)
   const PARTIAL_MORPH_MS = 1700;  // Gerwalk(0.7) ↔ Fighter(0.2) @0.32 = 1.56s + 140ms 余量
-  const DRAMATIC_MORPH_MS = 4100; // Fighter(0.2) ↔ Battloid(1.0) @0.2 = 4.0s + 100ms 余量
+  const DRAMATIC_MORPH_MS = 4100; // Fighter(0.2) ↔ Battloid(0.90) @0.2 = 3.5s + 余量(末尾在放下姿态多定格一下)
+  const YAW_SETTLE_MS = 300;      // 飞回前先把机头转到位再起飞 (pet.html yaw lerp 4.0rad/s, 最大转角 ~45° ≈ 200ms + 余量)
+  const BREAK_BUBBLE_MS = 3000;   // 中央播报气泡时长: 比默认 4000ms 提前 1s 收掉, 赶在人形长到最高顶到气泡之前清掉, 避免重叠 (变形与播报仍同时进行, 不加停顿)
 
   // 飞行方向(X 分量) → 决定机头朝向
   const dxOut = targetX - startX;
@@ -288,9 +290,10 @@ async function runBreakAnimation() {
   // 2. 飞向屏幕中央 (0.8s)
   await tweenWindow(startX, startY, targetX, targetY, 800);
 
-  // 3. 中央: 切到慢速度 + 斜 45° (3/4 视角, 避免正面俯身难看) + 同时开始变形 Battloid 和语音播报
+  // 3. 中央: 切到慢速度 + 转正面 + 同时开始变形 Battloid 和语音播报
+  //    气泡比默认 4s 提前收掉(见 BREAK_BUBBLE_MS), 赶在人形长到最高、顶到上方气泡之前清掉, 避免重叠.
   _speechEnded = false;
-  send({ morphSpeed: DRAMATIC_SPEED, bodyYaw: 'break-center', transformTo: 'battloid', speakText: msg });
+  send({ morphSpeed: DRAMATIC_SPEED, bodyYaw: 'break-center', transformTo: 'battloid', speakText: msg, speakBubbleMs: BREAK_BUBBLE_MS });
 
   // 4. 变形完成 → 放大成"全屏弹幕舞台"(机体居中, 整窗鼠标穿透) → 发射飞弹 → 等语音/保底 → 停火 → 收回
   await sleep(DRAMATIC_MORPH_MS);
@@ -315,12 +318,15 @@ async function runBreakAnimation() {
   send({ fireArena: false });
 
   // 5. 中央: Battloid → Fighter (仍用慢速; breakMode 保持开, 俯仰恒定不在中央突变)
-  //    注意: 不在此处转机头 — 否则人形会原地"斜向侧转正", 难看. 转向放到飞回时(被位移掩盖).
+  //    不在变形过程中转机头 — 人形原地"斜向侧转正"很难看. 等变回飞机后(下一步)再转.
   send({ transformTo: 'fighter' });
   await sleep(DRAMATIC_MORPH_MS);
 
-  // 6. 飞回原位 (0.8s) — 起飞瞬间才把机头转向飞回方向, 转向被平移掩盖
+  // 6. 先在中央把机头转到飞回方向并等它转到位, 再起飞 (此时已是飞机, 原地转向不难看).
+  //    若边转边飞, 飞回前段会"机尾朝飞行方向"倒着飞 —— tween 是 ease-out, 起步最快,
+  //    朝向必须在起飞前就对齐, 否则起步那段位移最大、错位最明显.
   send({ bodyYaw: yawFlyBack });
+  await sleep(YAW_SETTLE_MS);
   await tweenWindow(targetX, targetY, startX, startY, 800);
   state.petPosition = { x: startX, y: startY };
   store.save(state);
@@ -380,6 +386,7 @@ function _canPatrolNow() {
   if (!_patrolEnabled()) return false;
   if (_breakInProgress) return false;
   if (_claudeFlagActive) return false;
+  if (_ocAlertActive) return false;
   if (_taskDoneSession) return false;
   if (Date.now() - _lastUserMoveAt < PATROL_USER_GRACE_MS) return false;
   if (!petWindow || petWindow.isDestroyed()) return false;
@@ -570,10 +577,15 @@ async function checkTaskDoneFlag() {
       taskDoneAvailable: !!_taskDoneSession,
     });
   }
+  if (panelWindow && !panelWindow.isDestroyed()) {
+    panelWindow.webContents.send('pet-update', { taskDoneAvailable: true });
+  }
 }
 // 任务完成后未消费的 terminal session — 单击机体会跳过去, 跳完清空
 let _taskDoneSession = null;
 let _claudeFlagActive = false;
+let _ocAlertActive = false;   // OpenCode step-finish 等待用户回复
+let _ocLastPartId = null;     // 上次看到的 part.id (检测新事件用)
 
 // 找需要确认的终端窗口. 优先按 PermissionRequest hook 写入 flag 的 tty 精确匹配,
 // 找不到再 fallback 到"最前的终端窗口". 没找到返回 null.
@@ -673,7 +685,7 @@ async function findFrontTerminalSession(ttyOverride) {
 // flag 出现的时间戳 (debounce 用). 只有 flag 持续存在 ≥ FLAG_DEBOUNCE_MS 才视为"驾驶员真的需要确认".
 // 防止 PermissionRequest 触发后用户秒批 (PostToolUse 立即清 flag) 的瞬时误响.
 let _flagAppearedAt = 0;
-const FLAG_DEBOUNCE_MS = 1500;
+const FLAG_DEBOUNCE_MS = 400;
 
 async function checkClaudePendingFlag() {
   const active = fs.existsSync(CLAUDE_PENDING_FLAG);
@@ -707,6 +719,62 @@ async function checkClaudePendingFlag() {
     _termAlertSession = null;
     if (petWindow   && !petWindow.isDestroyed())   petWindow.webContents.send('pet-update', { termAlert: false });
     if (panelWindow && !panelWindow.isDestroyed()) panelWindow.webContents.send('pet-update', { termAlert: false });
+  }
+}
+
+// ── OpenCode 活动监控 ────────────────────────────────────────────────────────
+// 通过轮询 opencode.db 的 part 表检测任务完成事件 (step-finish reason:stop).
+// 不依赖 ACP HTTP 服务器 (v1.17.7 TUI 模式不对外暴露端口).
+const OC_DB = path.join(os.homedir(), '.local', 'share', 'opencode', 'opencode.db');
+
+async function checkOpenCodeActivity() {
+  // DB 不存在 → opencode 未使用过, 静默清空残留状态
+  let dbExists = false;
+  try { fs.accessSync(OC_DB); dbExists = true; } catch (_) {}
+  if (!dbExists) {
+    if (_ocAlertActive) {
+      _ocAlertActive = false;
+      if (petWindow   && !petWindow.isDestroyed())   petWindow.webContents.send('pet-update', { ocAlert: false });
+      if (panelWindow && !panelWindow.isDestroyed()) panelWindow.webContents.send('pet-update', { ocAlert: false });
+    }
+    return;
+  }
+
+  try {
+    // 取最新 5 条 part, 同时 JOIN session 获取标题 (一次查询, 避免二次 SQL 拼接)
+    const sql = "SELECT p.id, p.session_id, p.data, COALESCE(s.title,'') AS title FROM part p LEFT JOIN session s ON s.id=p.session_id ORDER BY p.time_created DESC LIMIT 5";
+    const { stdout } = await execAsync(`sqlite3 -json "${OC_DB}" "${sql}"`, { timeout: 3000 });
+
+    let parts;
+    try { parts = JSON.parse(stdout.trim() || '[]'); } catch (_) { return; }
+    if (!parts.length) return;
+
+    const top = parts[0];
+    if (top.id === _ocLastPartId) return;   // 无变化
+    _ocLastPartId = top.id;
+
+    let topData;
+    try { topData = typeof top.data === 'string' ? JSON.parse(top.data) : top.data; } catch (_) { return; }
+
+    if (topData.type === 'step-finish' && topData.reason === 'stop') {
+      // 模型完成一轮回复, 正在等待用户输入
+      if (!_ocAlertActive) {
+        _ocAlertActive = true;
+        const msg = _voiceStr('taskDone');
+        if (petWindow   && !petWindow.isDestroyed())   petWindow.webContents.send('pet-update', { speakText: msg, speakPersist: false, ocAlert: true });
+        if (panelWindow && !panelWindow.isDestroyed()) panelWindow.webContents.send('pet-update', { ocAlert: true, ocTitle: top.title || top.session_id });
+      }
+    } else if (topData.type !== 'step-finish') {
+      // step-start / text / tool → OpenCode 正在运行, 清掉告警
+      if (_ocAlertActive) {
+        _ocAlertActive = false;
+        if (petWindow   && !petWindow.isDestroyed())   petWindow.webContents.send('pet-update', { ocAlert: false });
+        if (panelWindow && !panelWindow.isDestroyed()) panelWindow.webContents.send('pet-update', { ocAlert: false });
+      }
+    }
+    // step-finish reason:tool-calls → 即将调用工具, 保持当前状态
+  } catch (_) {
+    // sqlite3 不可用 / DB 被锁 / 格式错误 — 静默跳过
   }
 }
 
@@ -749,8 +817,9 @@ app.whenReady().then(() => {
   try { if (fs.existsSync(VF1_DONE_FLAG)) fs.unlinkSync(VF1_DONE_FLAG); } catch (_) {}
   try { if (fs.existsSync(CLAUDE_PENDING_FLAG)) fs.unlinkSync(CLAUDE_PENDING_FLAG); } catch (_) {}
 
-  setInterval(() => { checkClaudePendingFlag().catch(() => {}); }, 800);   // 检测 Claude Code 权限等待
-  setInterval(() => { checkTaskDoneFlag().catch(() => {}); }, 1000);       // 检测任务完成播报
+  setInterval(() => { checkClaudePendingFlag().catch(() => {}); }, 800);    // 检测 Claude Code 权限等待
+  setInterval(() => { checkTaskDoneFlag().catch(() => {}); }, 1000);        // 检测任务完成播报
+  setInterval(() => { checkOpenCodeActivity().catch(() => {}); }, 2000);   // 检测 OpenCode 活动
 
   // 休息提醒: 每分钟检查一次, 到点了让机体飞到屏幕中央播报
   setInterval(() => { checkBreakReminder().catch(() => {}); }, 60 * 1000);
@@ -2557,9 +2626,8 @@ end tell`;
     await runAppleScript(scr);
     if (consumedTaskDone) {
       _taskDoneSession = null;
-      if (petWindow && !petWindow.isDestroyed()) {
-        petWindow.webContents.send('pet-update', { taskDoneAvailable: false });
-      }
+      if (petWindow   && !petWindow.isDestroyed()) petWindow.webContents.send('pet-update', { taskDoneAvailable: false });
+      if (panelWindow && !panelWindow.isDestroyed()) panelWindow.webContents.send('pet-update', { taskDoneAvailable: false });
     }
     // 点击并跳转到终端 = 用户已去确认; 立即解除待授权告警 (删 pending flag + 复位状态 + 广播),
     // 不再等真正的确认动作, 也避免 800ms 轮询把告警重新点亮

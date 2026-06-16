@@ -1852,6 +1852,12 @@ async function init() {
     if (data.pet) updateStatus(data.pet, data.xpProgress);
     if (data.aiProvider) { state.aiProvider = data.aiProvider; renderProviderCards(data.aiProvider); }
     if (data.petVisible !== undefined) setPetVisibleBtn(!!data.petVisible);   // ⌘⌥H 切换时同步按钮文案
+    // Claude Code 权限告警 → 更新 YES BOT badge (TERM_SCAN_DISABLED 时 termPoll 不更新 badge, 此处兜底)
+    if (data.termAlert !== undefined) _termIpcAlert(!!data.termAlert);
+    // Claude Code 任务完成 (Stop 事件)
+    if (data.taskDoneAvailable !== undefined) _ccDoneIpcAlert(!!data.taskDoneAvailable);
+    // OpenCode 任务完成告警
+    if (data.ocAlert !== undefined) _ocIpcAlert(!!data.ocAlert, data.ocTitle || '');
   });
 }
 
@@ -2672,7 +2678,142 @@ function renderTable(lines) {
 const TERM_SCAN_DISABLED = true;
 let termActive = false;
 let _termDiag = false;
-let _termAlertActive = false;   // 同步眼睛颜色用         // diagnostic view: show all sessions with raw content
+let _termAlertActive = false;   // Claude Code 权限请求告警状态 (IPC 驱动)
+let _ccDoneAlert = false;       // Claude Code 任务完成等待回复状态
+let _ocAlertPanel = false;      // OpenCode 告警状态
+let _ocAlertTitle = '';         // OpenCode 当前会话标题
+
+// 通用 badge/dot 更新 — 取三个告警的 OR
+function _updateTermBadge() {
+  const active = _termAlertActive || _ccDoneAlert || _ocAlertPanel;
+  const badge = document.getElementById('term-badge');
+  const dot   = document.getElementById('term-status-dot');
+  if (!badge || !dot) return;
+  badge.classList.toggle('active', active);
+  dot.classList.toggle('alert', active);
+}
+
+// 处理来自 main.js 的 termAlert IPC (Claude Code)
+function _termIpcAlert(active) {
+  if (active === _termAlertActive) return;
+  _termAlertActive = active;
+  _updateTermBadge();
+  _renderCcCard();
+  if (termActive && !active) {
+    const statusEl = document.getElementById('term-status-text');
+    if (statusEl && statusEl.textContent.startsWith('Claude Code')) statusEl.textContent = '监控中';
+  }
+}
+
+// 在 #term-sessions-container 顶部渲染(或移除) Claude Code 状态卡片
+function _renderCcCard() {
+  const container = document.getElementById('term-sessions-container');
+  if (!container) return;
+  const existing = container.querySelector('.cc-status-card');
+  if (!_termAlertActive) {
+    if (existing) existing.remove();
+    return;
+  }
+  const html = `<div class="cc-status-card term-session-card" style="border-color:rgba(255,80,80,0.45);box-shadow:0 0 14px rgba(255,50,50,0.12)">
+    <div class="term-card-header" style="background:rgba(255,60,60,0.10);border-bottom-color:rgba(255,80,80,0.25);color:rgba(255,150,150,0.9)">
+      <span>CLAUDE CODE</span>
+      <span class="term-alert-tag" style="background:rgba(255,60,60,0.25);border-color:rgba(255,80,80,0.45);color:#ff8080">待确认 · 等待回复</span>
+    </div>
+    <div class="term-prompt-preview" style="color:rgba(255,180,180,0.8)">[ permission request ] Claude Code 请求权限确认，等待您在终端中回复。</div>
+  </div>`;
+  if (existing) {
+    existing.outerHTML = html;
+  } else {
+    const idleMsg = container.querySelector('.term-idle-msg');
+    if (idleMsg) idleMsg.remove();
+    container.insertAdjacentHTML('afterbegin', html);
+  }
+  if (termActive) {
+    document.getElementById('term-status-text').textContent = 'Claude Code 待确认 ⚠';
+  }
+}
+
+// 处理来自 main.js 的 ocAlert IPC (OpenCode)
+function _ocIpcAlert(active, title) {
+  _ocAlertPanel = active;
+  if (active) _ocAlertTitle = title;
+  _updateTermBadge();
+  _renderOcCard();
+  if (termActive && !active) {
+    const statusEl = document.getElementById('term-status-text');
+    if (statusEl && statusEl.textContent.startsWith('OpenCode')) statusEl.textContent = '监控中';
+  }
+}
+
+// 处理来自 main.js 的 taskDoneAvailable IPC (Claude Code 任务完成)
+function _ccDoneIpcAlert(active) {
+  if (active === _ccDoneAlert) return;
+  _ccDoneAlert = active;
+  _updateTermBadge();
+  _renderCcDoneCard();
+  if (termActive && !active) {
+    const statusEl = document.getElementById('term-status-text');
+    if (statusEl && statusEl.textContent.startsWith('Claude Code')) statusEl.textContent = '监控中';
+  }
+}
+
+// 在 #term-sessions-container 渲染(或移除) Claude Code 任务完成卡片
+function _renderCcDoneCard() {
+  const container = document.getElementById('term-sessions-container');
+  if (!container) return;
+  const existing = container.querySelector('.cc-done-card');
+  if (!_ccDoneAlert) {
+    if (existing) existing.remove();
+    return;
+  }
+  const html = `<div class="cc-done-card term-session-card" style="border-color:rgba(180,120,255,0.45);box-shadow:0 0 14px rgba(150,80,255,0.12)">
+    <div class="term-card-header" style="background:rgba(120,60,220,0.10);border-bottom-color:rgba(180,120,255,0.25);color:rgba(200,160,255,0.9)">
+      <span>CLAUDE CODE</span>
+      <span class="term-alert-tag" style="background:rgba(140,80,255,0.25);border-color:rgba(180,120,255,0.45);color:#c8a0ff">已完成 · 等待回复</span>
+    </div>
+    <div class="term-prompt-preview" style="color:rgba(210,180,255,0.8)">[ stop ] 模型已完成本轮输出，等待您在 Claude Code 中继续输入。</div>
+  </div>`;
+  if (existing) {
+    existing.outerHTML = html;
+  } else {
+    const idleMsg = container.querySelector('.term-idle-msg');
+    if (idleMsg) idleMsg.remove();
+    container.insertAdjacentHTML('afterbegin', html);
+  }
+  if (termActive) {
+    document.getElementById('term-status-text').textContent = 'Claude Code 已完成 · 等待回复';
+  }
+}
+
+// 在 #term-sessions-container 顶部渲染(或移除) OpenCode 状态卡片
+function _renderOcCard() {
+  const container = document.getElementById('term-sessions-container');
+  if (!container) return;
+  const existing = container.querySelector('.oc-status-card');
+  if (!_ocAlertPanel) {
+    if (existing) existing.remove();
+    return;
+  }
+  const title = _ocAlertTitle || 'OpenCode 会话';
+  const html = `<div class="oc-status-card term-session-card" style="border-color:rgba(80,200,255,0.45);box-shadow:0 0 14px rgba(40,180,255,0.12)">
+    <div class="term-card-header" style="background:rgba(40,160,255,0.10);border-bottom-color:rgba(80,200,255,0.25);color:rgba(120,210,255,0.9)">
+      <span>OPENCODE · ${escHtml(title)}</span>
+      <span class="term-alert-tag" style="background:rgba(40,160,255,0.25);border-color:rgba(80,200,255,0.45);color:#80d8ff">已完成 · 等待回复</span>
+    </div>
+    <div class="term-prompt-preview" style="color:rgba(150,220,255,0.8)">[ step-finish ] 模型已完成本轮输出，等待您在 OpenCode 中继续输入。</div>
+  </div>`;
+  if (existing) {
+    existing.outerHTML = html;
+  } else {
+    const idleMsg = container.querySelector('.term-idle-msg');
+    if (idleMsg) idleMsg.remove();
+    container.insertAdjacentHTML('afterbegin', html);
+  }
+  if (termActive) {
+    document.getElementById('term-status-text').textContent = 'OpenCode 已完成 · 等待回复';
+  }
+}
+
 let _termAlertHeadKey = null;   // 当前点击目标的 session key, 序集变化时驱动 IPC 刷新
 let _termAllSessions = [];     // cached sessions for diag mode
 let _termPromptSessions = [];
@@ -2800,14 +2941,11 @@ async function termPoll() {
   // 全局短路: 关闭终端文字扫描 (方案 A — 改用 PermissionRequest hook)
   // 仍然清掉本地告警状态, 防止已 latch 的告警卡住雷达
   if (TERM_SCAN_DISABLED) {
-    if (_termAlertActive) {
-      _termAlertActive = false;
-      _termAlertHeadKey = null;
-      _termLatchedPrompts.clear();
-      _termContentCache.clear();
-      _termNotifiedPrompts.clear();
-      window.petAPI.setTermAlert(false, null);
-    }
+    // 扫屏已禁用，告警状态由 IPC (_termIpcAlert/_ocIpcAlert) 管理，不在此处干预
+    _termAlertHeadKey = null;
+    _termLatchedPrompts.clear();
+    _termContentCache.clear();
+    _termNotifiedPrompts.clear();
     return;
   }
   const result = await window.petAPI.getTerminalSessions();

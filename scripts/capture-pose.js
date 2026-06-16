@@ -6,7 +6,7 @@ const fs = require('fs');
 
 const W = 280, H = 404;
 const POSES = [
-  { label: 'FINAL_y30_break', yaw: 30, pitch: -0.06 },   // 最终选定: 斜30° + 略挺胸
+  { label: 'FINAL_front_break', yaw: 0, pitch: -0.06 },   // 最终选定: 正面 + 略挺胸 + 肩炮放下
 ];
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
