@@ -1832,8 +1832,23 @@ async function callAnthropic({ apiKey, model, systemPrompt, recentHistory, userM
   }
 }
 
+// 从最新往前收对话, 累计内容字符数到 budget 为止; 至少保留最近 1 轮(2 条), 不被预算砍光.
+// 取代过去的 history.slice(-10): 短聊能留几十轮, 长角色扮演也能把开头定的规则保进上下文, 避免"前说后忘".
+function pickRecentHistory(history, budget) {
+  const picked = [];
+  let used = 0;
+  for (let i = history.length - 1; i >= 0; i--) {
+    const m = history[i];
+    const len = (m && m.content ? String(m.content).length : 0);
+    if (picked.length >= 2 && used + len > budget) break;
+    picked.push({ role: m.role, content: m.content });
+    used += len;
+  }
+  return picked.reverse();
+}
+
 async function callAI(provider, apiKey, petName, history, userMessage, metasoKey = '', opts = {}) {
-  const { systemOverride = null, noTools = false, temperature = null, forceTool = null, profileInject = '', persona = '' } = opts;
+  const { systemOverride = null, noTools = false, temperature = null, forceTool = null, profileInject = '', persona = '', sessionRules = '' } = opts;
   const now = new Date();
   const today = now.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
   const yesterday = new Date(now - 86400000).toLocaleDateString('zh-CN', { year: 'numeric', month: 'numeric', day: 'numeric' });
@@ -1871,9 +1886,20 @@ ${personaText}
     ? `你是搭载在用户 Mac 电脑上的本地 AI 助手, 性格与说话方式见下方【性格人设】。今天是${today}。`
     : `你是${unitName}，联合宇宙军骷髅中队主力可变形战机, 搭载于用户的 Mac 电脑上执行本地作战任务。今天是${today}。`;
 
+  // 本场规则块: 钉在系统提示最顶端, 每轮必发、不参与"丢老消息"淘汰 → 无论聊多长都不会忘.
+  // 措辞强调"严格遵守、不得曲解变通找漏洞", 直接压制角色扮演里钻规则空子的倾向.
+  const rulesText = String(sessionRules || '').trim();
+  const rulesBlock = rulesText
+    ? `【本场规则——用户设定, 最高约束, 每一轮都必须严格遵守】
+${rulesText}
+（这是用户为本场对话定下的硬性规则。你必须逐条严格遵守, 不得曲解、变通、找漏洞或假装没看到; 即使聊很久也始终生效。仅当与下方反幻觉/工具/底层AI身份铁律冲突时, 才以那些铁律为准。）
+
+`
+    : '';
+
   const defaultSystemPrompt = `${openingLine}
 
-${identityBlock}
+${rulesBlock}${identityBlock}
 
 ${toneBlock}
 
@@ -1903,7 +1929,9 @@ ${toneBlock}
 - 只回答用户实际问的问题，不要主动补充无关信息`;
   // Chat 主路径注入用户画像 (profileInject); systemOverride (顾问/提炼) 走自己的, 不受影响
   const systemPrompt = systemOverride || (defaultSystemPrompt + (profileInject ? '\n\n' + profileInject : ''));
-  const recentHistory = history.slice(-10).map(m => ({ role: m.role, content: m.content }));
+  // 近期对话: 不再死砍 10 条(=5 个来回), 否则长角色扮演里"开头定的规则"会被挤出窗口 → 前说后忘.
+  // 改为从最新往前按字符预算尽量多带, 至少保最近 1 轮; 24000 字对 qwen/openai/anthropic 上下文绰绰有余, DeepSeek 64k 也安全.
+  const recentHistory = pickRecentHistory(history, 24000);
   const useTools = !noTools;
 
   // Anthropic 非 OpenAI 兼容, 走官方 SDK 单独分支
@@ -2234,6 +2262,26 @@ ipcMain.handle('chat', async (_, message) => {
   }
 
   try {
+    // ── 本场规则命令: /规则 <文本> 设定 | /规则 查看 | /规则 清除 ── (不调用 AI, 直接回执)
+    const ruleCmd = String(message || '').trim().match(/^\/(?:规则|rule)(?:\s+([\s\S]*))?$/i);
+    if (ruleCmd) {
+      const arg = (ruleCmd[1] || '').trim();
+      if (!arg) {
+        const cur = state.sessionRules || '';
+        return { reply: cur
+          ? `📌 本场规则（每轮强制遵守，不会被对话长度挤掉）：\n\n${cur}\n\n——修改：「/规则 新内容」　清除：「/规则 清除」`
+          : '当前没有设定本场规则。\n用「/规则 你的规则…」设定后，无论聊多长我都不会忘。', xp: state.pet.xp, level: state.pet.level };
+      }
+      if (/^(清除|清空|取消|clear|reset|none)$/i.test(arg)) {
+        state.sessionRules = '';
+        store.save(state);
+        return { reply: '✅ 本场规则已清除。', xp: state.pet.xp, level: state.pet.level };
+      }
+      state.sessionRules = arg.slice(0, 2000);
+      store.save(state);
+      return { reply: `📌 本场规则已置顶，之后每一轮我都会先遵守它、不会被聊天长度挤掉：\n\n${state.sessionRules}`, xp: state.pet.xp, level: state.pet.level };
+    }
+
     const metasoKey = (state.apiKeys || {}).metaso || '';
     // 命中实时关键词 → 双重保险:
     //   ① 在用户消息前 prepend 强制指令 (仅本轮, 不污染历史)
@@ -2256,6 +2304,7 @@ ipcMain.handle('chat', async (_, message) => {
     }
     // 注入长期画像 (按羁绊等级分层); 提炼/告警/语音不受影响
     callOpts.persona = state.persona || '';
+    callOpts.sessionRules = state.sessionRules || '';   // 本场规则置顶, 永不被挤出上下文
     try {
       callOpts.profileInject = buildProfileInject(memory.loadProfile(), state.pet.level || 1, !!callOpts.persona);
     } catch (_) {}
@@ -2265,7 +2314,8 @@ ipcMain.handle('chat', async (_, message) => {
     state.chatHistory = state.chatHistory || [];
     state.chatHistory.push({ role: 'user', content: message });
     state.chatHistory.push({ role: 'assistant', content: reply });
-    if (state.chatHistory.length > 40) state.chatHistory = state.chatHistory.slice(-40);
+    // 存档上限放宽到 120 条(=60 个来回): 给上面按字符预算选近期对话留足回溯空间; 完整原文另由 appendChatArchive 归档.
+    if (state.chatHistory.length > 120) state.chatHistory = state.chatHistory.slice(-120);
 
     // 原始层归档(完整, 不砍) + 提炼缓冲; 缓冲满 10 轮触发后台提炼(保底)
     memory.appendChatArchive(message, reply);
@@ -2879,6 +2929,15 @@ ipcMain.handle('set-persona', (_, text) => {
   state.persona = String(text || '').trim().slice(0, 2000);
   store.save(state);
   return { success: true, persona: state.persona };
+});
+
+ipcMain.handle('get-session-rules', () => state.sessionRules || '');
+
+ipcMain.handle('set-session-rules', (_, text) => {
+  // trim + 限长, 与 persona 同等约束; 这段会钉在 system prompt 顶部每轮强制遵守
+  state.sessionRules = String(text || '').trim().slice(0, 2000);
+  store.save(state);
+  return { success: true, sessionRules: state.sessionRules };
 });
 
 // 复位: 让机体平滑飞回屏幕右下角的 home 位 (关闭巡航后归位用).

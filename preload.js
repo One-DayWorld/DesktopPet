@@ -64,6 +64,8 @@ contextBridge.exposeInMainWorld('petAPI', {
   setVoiceLang: (lang) => ipcRenderer.invoke('set-voice-lang', lang),
   getPersona: () => ipcRenderer.invoke('get-persona'),
   setPersona: (text) => ipcRenderer.invoke('set-persona', text),
+  getSessionRules: () => ipcRenderer.invoke('get-session-rules'),
+  setSessionRules: (text) => ipcRenderer.invoke('set-session-rules', text),
   resetPetPosition: () => ipcRenderer.invoke('reset-pet-position'),
   setIgnoreMouse: (ignore) => ipcRenderer.invoke('set-ignore-mouse', ignore),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),

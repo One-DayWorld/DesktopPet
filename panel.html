@@ -1756,6 +1756,20 @@
       </div>
     </div>
 
+    <div class="hud-frame mem-collapsed" id="rules-frame">
+      <div class="hud-pill">RULES · 本场规则</div>
+      <div class="memory-bond" role="button" tabindex="0" onclick="toggleRulesCollapse()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleRulesCollapse()}">
+        <span>本场规则（置顶）</span>
+        <span class="mem-caret" id="rules-caret">🔒 点击展开</span>
+      </div>
+      <div class="mem-collapse">
+        <div class="setting-note" style="margin-bottom:10px">写下本场对话的硬性规则（如游戏/扮演的约束）。它会被钉在最前面，<b>每一轮都强制遵守，无论聊多长都不会被挤掉、不会忘</b>。也可在聊天框直接输入「/规则 你的规则…」快速设定，「/规则 清除」取消。留空＝无规则。</div>
+        <textarea class="persona-input" id="rules-input" placeholder="例：你只能用你身上的物品，不能用其他东西；我若在10分钟内挣脱就算我赢。严格按规则走，不许找漏洞变通。"></textarea>
+        <button class="save-btn" onclick="saveSessionRules()">保存规则</button>
+        <div class="setting-success" id="rules-success">✓ 已保存</div>
+      </div>
+    </div>
+
     <div class="hud-frame" id="ai-backend-frame">
       <div class="hud-pill">AI BACKEND</div>
     <div class="setting-section">AI 后台</div>
@@ -1977,7 +1991,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     tab.classList.add('active');
     document.getElementById('pane-' + tab.dataset.tab).classList.add('active');
-    if (tab.dataset.tab === 'settings') { loadBreakReminder(); loadEdgePatrol(); loadPetVisible(); loadVoiceLang(); renderMemoryPanel(); loadPersona(); }
+    if (tab.dataset.tab === 'settings') { loadBreakReminder(); loadEdgePatrol(); loadPetVisible(); loadVoiceLang(); renderMemoryPanel(); loadPersona(); loadSessionRules(); }
     if (tab.dataset.tab === 'terminal') { termActive = true; termPollNow(); }
     else termActive = false;
   });
@@ -2242,6 +2256,36 @@ async function savePersona() {
     const msg = document.getElementById('persona-success');
     if (msg) { msg.style.display = 'block'; setTimeout(() => { msg.style.display = 'none'; }, 2000); }
   } catch (e) { console.log('[PERSONA] save failed', e); }
+}
+
+// ── 本场规则 (RULES) ── 与 persona 同款折叠/读写; 这段会钉在 system prompt 顶部每轮强制遵守
+function toggleRulesCollapse() {
+  const frame = document.getElementById('rules-frame');
+  const caret = document.getElementById('rules-caret');
+  const collapsed = frame.classList.toggle('mem-collapsed');
+  if (caret) caret.textContent = collapsed ? '🔒 点击展开' : '🔓 点击收起';
+}
+
+async function loadSessionRules() {
+  const frame = document.getElementById('rules-frame');
+  const caret = document.getElementById('rules-caret');
+  if (frame) frame.classList.add('mem-collapsed');
+  if (caret) caret.textContent = '🔒 点击展开';
+  const inp = document.getElementById('rules-input');
+  if (!inp) return;
+  try { inp.value = await window.petAPI.getSessionRules() || ''; }
+  catch (e) { console.log('[RULES] load failed', e); }
+}
+
+async function saveSessionRules() {
+  const inp = document.getElementById('rules-input');
+  if (!inp) return;
+  try {
+    const res = await window.petAPI.setSessionRules(inp.value);
+    inp.value = (res && res.sessionRules) || '';
+    const msg = document.getElementById('rules-success');
+    if (msg) { msg.style.display = 'block'; setTimeout(() => { msg.style.display = 'none'; }, 2000); }
+  } catch (e) { console.log('[RULES] save failed', e); }
 }
 
 function memCancelEdit() {

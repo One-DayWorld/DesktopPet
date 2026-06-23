@@ -19,7 +19,8 @@ const DEFAULT_STATE = {
   breakReminder: { enabled: true, intervalMin: 60 },
   edgePatrol:    { enabled: true },
   voiceLang:     'zh',           // 语音台词语言: 'zh' 中文 / 'en' 英文
-  persona:       ''              // 自定义性格人设(空=默认军事腔骷髅一号); 非空时聊天里完全接管语气/自称/称呼
+  persona:       '',             // 自定义性格人设(空=默认军事腔骷髅一号); 非空时聊天里完全接管语气/自称/称呼
+  sessionRules:  ''              // 本场规则(空=无); 非空时钉在 system prompt 顶部, 每轮强制遵守, 永不被对话长度挤掉
 };
 
 function calcLevelFromXP(xp) {
