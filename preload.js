@@ -9,6 +9,15 @@ contextBridge.exposeInMainWorld('petAPI', {
 
   chat: (message) => ipcRenderer.invoke('chat', message),
 
+  // 文章投喂 (记忆系统)
+  pickArticleFile: () => ipcRenderer.invoke('pick-article-file'),
+  ingestArticleUrl: (url) => ipcRenderer.invoke('ingest-article-url', url),
+
+  // 记忆面板
+  getMemoryProfile: () => ipcRenderer.invoke('get-memory-profile'),
+  updateMemoryProfile: (profile) => ipcRenderer.invoke('update-memory-profile', profile),
+  clearMemory: () => ipcRenderer.invoke('clear-memory'),
+
 
   scanFiles: () => ipcRenderer.invoke('scan-files'),
   deleteFile: (filePath) => ipcRenderer.invoke('delete-file', filePath),
@@ -53,6 +62,8 @@ contextBridge.exposeInMainWorld('petAPI', {
   getVoiceLines: () => ipcRenderer.invoke('get-voice-lines'),
   getVoiceLang: () => ipcRenderer.invoke('get-voice-lang'),
   setVoiceLang: (lang) => ipcRenderer.invoke('set-voice-lang', lang),
+  getPersona: () => ipcRenderer.invoke('get-persona'),
+  setPersona: (text) => ipcRenderer.invoke('set-persona', text),
   resetPetPosition: () => ipcRenderer.invoke('reset-pet-position'),
   setIgnoreMouse: (ignore) => ipcRenderer.invoke('set-ignore-mouse', ignore),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),

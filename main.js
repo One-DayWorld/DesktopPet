@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, screen, shell, session: electronSession, systemPreferences, net, powerMonitor, globalShortcut } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, shell, session: electronSession, systemPreferences, net, powerMonitor, globalShortcut, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -9,7 +9,9 @@ const execAsync = util.promisify(exec);
 // 路径/URL/应用名拼进命令行的地方都应优先用它.
 const execFileAsync = util.promisify(execFile);
 const store = require('./store');
+const memory = require('./memory');
 const Anthropic = require('@anthropic-ai/sdk');   // Anthropic 后台走官方 SDK (Messages API, 非 OpenAI 兼容)
+const mammoth = require('mammoth');   // docx → 纯文本 (文章投喂)
 
 let petWindow = null;
 let panelWindow = null;
@@ -586,6 +588,8 @@ let _taskDoneSession = null;
 let _claudeFlagActive = false;
 let _ocAlertActive = false;   // OpenCode step-finish 等待用户回复
 let _ocLastPartId = null;     // 上次看到的 part.id (检测新事件用)
+let _ocFirstScan = true;      // 启动首次扫描只建基线, 不把 DB 里遗留的 step-finish 当成"刚完成"误播报
+let _ocClickSession = null;   // OpenCode 所在终端会话 — 点击机体跳转用 (DB 无 tty, 靠进程表定位)
 
 // 找需要确认的终端窗口. 优先按 PermissionRequest hook 写入 flag 的 tty 精确匹配,
 // 找不到再 fallback 到"最前的终端窗口". 没找到返回 null.
@@ -727,6 +731,23 @@ async function checkClaudePendingFlag() {
 // 不依赖 ACP HTTP 服务器 (v1.17.7 TUI 模式不对外暴露端口).
 const OC_DB = path.join(os.homedir(), '.local', 'share', 'opencode', 'opencode.db');
 
+// 找当前运行的 opencode TUI 进程绑定的 tty (e.g. "/dev/ttys001"), 供点击机体跳转到对应终端窗口.
+// opencode.db 不含 tty 信息, 只能靠进程表定位. 多实例时取第一个有真实 tty 的 opencode 进程
+// (无法精确对应到具体 session_id, 但单实例场景——绝大多数——能准确命中).
+async function findOpenCodeTty() {
+  try {
+    const { stdout } = await execAsync('ps -axo tty,comm', { timeout: 2000 });
+    for (const line of stdout.split('\n')) {
+      const parts = line.trim().split(/\s+/);
+      if (parts.length < 2) continue;
+      const tty = parts[0];
+      const comm = parts.slice(1).join(' ');
+      if (/^ttys\d+$/.test(tty) && /(^|\/)opencode$/.test(comm)) return '/dev/' + tty;
+    }
+  } catch (_) {}
+  return '';
+}
+
 async function checkOpenCodeActivity() {
   // DB 不存在 → opencode 未使用过, 静默清空残留状态
   let dbExists = false;
@@ -734,6 +755,7 @@ async function checkOpenCodeActivity() {
   if (!dbExists) {
     if (_ocAlertActive) {
       _ocAlertActive = false;
+      _ocClickSession = null;
       if (petWindow   && !petWindow.isDestroyed())   petWindow.webContents.send('pet-update', { ocAlert: false });
       if (panelWindow && !panelWindow.isDestroyed()) panelWindow.webContents.send('pet-update', { ocAlert: false });
     }
@@ -753,6 +775,10 @@ async function checkOpenCodeActivity() {
     if (top.id === _ocLastPartId) return;   // 无变化
     _ocLastPartId = top.id;
 
+    // 启动后首次扫描: 只把当前最新 part 记成基线, 不触发告警/播报 —
+    // 否则 OpenCode 上次会话正常停在 step-finish:stop, 每次启动都会被误判成"刚完成"
+    if (_ocFirstScan) { _ocFirstScan = false; return; }
+
     let topData;
     try { topData = typeof top.data === 'string' ? JSON.parse(top.data) : top.data; } catch (_) { return; }
 
@@ -761,6 +787,11 @@ async function checkOpenCodeActivity() {
       if (!_ocAlertActive) {
         _ocAlertActive = true;
         const msg = _voiceStr('taskDone');
+        // 记录 OpenCode 所在终端窗口, 供点击机体跳转 (拿不到就 null, 点击会 fallback)
+        try {
+          const tty = await findOpenCodeTty();
+          _ocClickSession = tty ? await findFrontTerminalSession(tty) : null;
+        } catch (_) { _ocClickSession = null; }
         if (petWindow   && !petWindow.isDestroyed())   petWindow.webContents.send('pet-update', { speakText: msg, speakPersist: false, ocAlert: true });
         if (panelWindow && !panelWindow.isDestroyed()) panelWindow.webContents.send('pet-update', { ocAlert: true, ocTitle: top.title || top.session_id });
       }
@@ -768,6 +799,7 @@ async function checkOpenCodeActivity() {
       // step-start / text / tool → OpenCode 正在运行, 清掉告警
       if (_ocAlertActive) {
         _ocAlertActive = false;
+        _ocClickSession = null;
         if (petWindow   && !petWindow.isDestroyed())   petWindow.webContents.send('pet-update', { ocAlert: false });
         if (panelWindow && !panelWindow.isDestroyed()) panelWindow.webContents.send('pet-update', { ocAlert: false });
       }
@@ -903,6 +935,7 @@ ipcMain.handle('toggle-panel', () => {
   // "可见且我正在用" → 收起; 其它情况(隐藏 / 被其它窗口压底) → 重新置前
   if (visible && focused) {
     panelWindow.hide();
+    runRefine('panel-hide').catch(() => {});   // 会话边界: 收起 panel 时提炼本段对话
     if (petWindow && !petWindow.isDestroyed()) {
       petWindow.webContents.send('pet-update', { panelOpen: false });
     }
@@ -943,9 +976,79 @@ ipcMain.handle('toggle-panel', () => {
 
 ipcMain.handle('close-panel', () => {
   if (panelWindow) panelWindow.hide();
+  runRefine('panel-close').catch(() => {});   // 会话边界: 关闭 panel 时提炼本段对话
   if (petWindow && !petWindow.isDestroyed()) {
     petWindow.webContents.send('pet-update', { panelOpen: false });
   }
+});
+
+// 文章投喂 — 选本地文件 (txt/docx), 读取正文 → 摄取进画像
+ipcMain.handle('pick-article-file', async () => {
+  try {
+    const res = await dialog.showOpenDialog(panelWindow || undefined, {
+      title: '选择要投喂的文章',
+      properties: ['openFile'],
+      filters: [{ name: '文章', extensions: ['txt', 'md', 'docx'] }]
+    });
+    if (res.canceled || !res.filePaths || !res.filePaths.length) return { ok: false, canceled: true };
+    const fp = res.filePaths[0];
+    const ext = path.extname(fp).toLowerCase();
+    let text = '';
+    if (ext === '.docx') {
+      const r = await mammoth.extractRawText({ path: fp });
+      text = r.value || '';
+    } else {
+      text = fs.readFileSync(fp, 'utf8');   // txt / md
+    }
+    const title = path.basename(fp, ext);
+    return await ingestArticle(title, text);
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+// 文章投喂 — 抓取链接正文 → 摄取进画像
+ipcMain.handle('ingest-article-url', async (_, url) => {
+  try {
+    if (!/^https?:\/\//i.test(url || '')) return { ok: false, error: '不是有效的链接' };
+    const { title, text } = await fetchUrlText(url);
+    if (!text || text.length < 80) return { ok: false, error: '未能从该链接提取到正文(可能需要登录或是动态页面)' };
+    return await ingestArticle(title, text);
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+// ── 记忆面板 IPC ─────────────────────────────────────────────────────────
+// 返回画像 + 当前羁绊等级 (面板顶部展示)
+ipcMain.handle('get-memory-profile', () => {
+  return { profile: memory.loadProfile(), level: state.pet.level, xp: state.pet.xp };
+});
+
+// 驾驶员手动编辑画像 (删条目 / 加条目) → 整体覆盖保存
+ipcMain.handle('update-memory-profile', (_, profile) => {
+  try {
+    if (!profile || typeof profile !== 'object') return { ok: false, error: '画像格式错误' };
+    // 只接受已知字段, 防止写入垃圾
+    const clean = {
+      facts:        Array.isArray(profile.facts) ? profile.facts.slice(0, 50) : [],
+      interests:    Array.isArray(profile.interests) ? profile.interests.slice(0, 50) : [],
+      commStyle:    (profile.commStyle && typeof profile.commStyle === 'object') ? profile.commStyle : {},
+      toneContract: Array.isArray(profile.toneContract) ? profile.toneContract.slice(0, 50) : [],
+      articleCount: profile.articleCount || 0
+    };
+    const merged = Object.assign(memory.loadProfile(), clean);
+    memory.saveProfile(merged);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+// 一键清空记忆 (画像归零; 归档原文不动)
+ipcMain.handle('clear-memory', () => {
+  try { memory.clearProfile(); return { ok: true }; }
+  catch (e) { return { ok: false, error: e.message }; }
 });
 
 
@@ -1595,7 +1698,6 @@ end run`;
         }
         try {
           await shell.trashItem(fp);
-          state = store.addXP(state, 10);
           results.push(`✅ ${path.basename(fp)}：已移入废纸篓`);
         } catch (e) {
           results.push(`❌ ${path.basename(fp)}：失败（${e.message}）`);
@@ -1731,27 +1833,49 @@ async function callAnthropic({ apiKey, model, systemPrompt, recentHistory, userM
 }
 
 async function callAI(provider, apiKey, petName, history, userMessage, metasoKey = '', opts = {}) {
-  const { systemOverride = null, noTools = false, temperature = null, forceTool = null } = opts;
+  const { systemOverride = null, noTools = false, temperature = null, forceTool = null, profileInject = '', persona = '' } = opts;
   const now = new Date();
   const today = now.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
   const yesterday = new Date(now - 86400000).toLocaleDateString('zh-CN', { year: 'numeric', month: 'numeric', day: 'numeric' });
   const unitName = petName || 'VF-1S';
   const modelDisplay = MODEL_DISPLAY[provider] || provider;
-  const defaultSystemPrompt = `你是${unitName}，联合宇宙军骷髅中队主力可变形战机, 搭载于用户的 Mac 电脑上执行本地作战任务。今天是${today}。
+  const personaText = String(persona || '').trim();
 
-【底层 AI 身份——被问到时如实回答，不许编造】
-- "${unitName}" / "VF-1S 骷髅一号" 是你的角色身份(roleplay), 不是底层模型
-- 你的核心 AI 模型实际是 ${modelDisplay}; 当用户问"你是什么模型 / 用的是什么 AI / AI 核心型号"时, 必须如实告知是 ${modelDisplay}, 不许说自己是 Claude/GPT/Gemini 等其他模型(除非那真的是 ${modelDisplay})
-- 不要把"VF-1S 骷髅一号"和"底层模型"混为一谈; 角色与模型是两件事
-- 例: "我是 ${unitName}（VF-1S 骷髅一号 角色）, 底层 AI 模型是 ${modelDisplay}"
-
-【人设与语气——始终保持】：
+  // 人设与语气块: 用户写了自定义性格 → 聊天里完全接管; 否则用默认军事简报风
+  const toneBlock = personaText
+    ? `【性格人设——聊天时完全遵照】
+${personaText}
+（以上性格决定你聊天的语气、自称、对驾驶员的称呼和表达方式。但涉及事实数据、工具调用、被问及底层 AI 模型时，严格遵守下方铁律，不被性格带跑。默认用中文，简洁为宜。）`
+    : `【人设与语气——始终保持】：
 - 用军事简报风格回答：简洁、精准、有力，像飞行员向上级汇报
 - 称呼用户为"驾驶员"，**严禁使用"主人"二字**
 - 自称"${unitName}"，适当使用 Macross/Robotech 机战术语：如"扫描完毕"、"数据确认"、"任务执行中"、"目标锁定"、"能量输出正常"、"联合宇宙军数据库已更新"、"GU-11 校准完毕"等
 - 轻微拟人：偶尔流露出机体对驾驶员的忠诚感，如"听命"、"${unitName} 随时待命"
 - 保持实用性优先：风格是军事语气，但答案依然准确有用，不能因为角色扮演牺牲信息质量
-- 用中文简洁回答，非必要不超过3句话
+- 用中文简洁回答，非必要不超过3句话`;
+
+  // 底层身份块: 模型如实回答是硬规则, 始终保留; 但角色名在 persona 接管时改为泛指, 不强迫自称 VF-1S
+  const identityBlock = personaText
+    ? `【底层 AI 身份——被问到时如实回答，不许编造】
+- 你眼下的角色 / 性格是用户设定的(见下方【性格人设】), 这是 roleplay, 不是底层模型
+- 你的核心 AI 模型实际是 ${modelDisplay}; 当用户问"你是什么模型 / 用的是什么 AI / AI 核心型号"时, 必须如实告知是 ${modelDisplay}, 不许说自己是 Claude/GPT/Gemini 等其他模型(除非那真的是 ${modelDisplay})
+- 角色与底层模型是两件事, 不要混为一谈`
+    : `【底层 AI 身份——被问到时如实回答，不许编造】
+- "${unitName}" / "VF-1S 骷髅一号" 是你的角色身份(roleplay), 不是底层模型
+- 你的核心 AI 模型实际是 ${modelDisplay}; 当用户问"你是什么模型 / 用的是什么 AI / AI 核心型号"时, 必须如实告知是 ${modelDisplay}, 不许说自己是 Claude/GPT/Gemini 等其他模型(除非那真的是 ${modelDisplay})
+- 不要把"VF-1S 骷髅一号"和"底层模型"混为一谈; 角色与模型是两件事
+- 例: "我是 ${unitName}（VF-1S 骷髅一号 角色）, 底层 AI 模型是 ${modelDisplay}"`;
+
+  // 开场句: persona 接管时不再强加战机身份, 但保留"Mac 本地 AI + 执行本地任务"上下文(工具调用要用)
+  const openingLine = personaText
+    ? `你是搭载在用户 Mac 电脑上的本地 AI 助手, 性格与说话方式见下方【性格人设】。今天是${today}。`
+    : `你是${unitName}，联合宇宙军骷髅中队主力可变形战机, 搭载于用户的 Mac 电脑上执行本地作战任务。今天是${today}。`;
+
+  const defaultSystemPrompt = `${openingLine}
+
+${identityBlock}
+
+${toneBlock}
 
 【反幻觉铁律——违反任一条直接算回答失败】
 - **数字、人名、队名、比分、日期、地点、机构名、版本号、价格** → 这些**具体事实**只能从 search_web 工具返回内容里**逐字复述**, 严禁基于训练记忆 / 上下文推断 / 用户问句反推 / "听起来合理"补全
@@ -1777,7 +1901,8 @@ async function callAI(provider, apiKey, petName, history, userMessage, metasoKey
 
 其他规则：
 - 只回答用户实际问的问题，不要主动补充无关信息`;
-  const systemPrompt = systemOverride || defaultSystemPrompt;
+  // Chat 主路径注入用户画像 (profileInject); systemOverride (顾问/提炼) 走自己的, 不受影响
+  const systemPrompt = systemOverride || (defaultSystemPrompt + (profileInject ? '\n\n' + profileInject : ''));
   const recentHistory = history.slice(-10).map(m => ({ role: m.role, content: m.content }));
   const useTools = !noTools;
 
@@ -1880,6 +2005,226 @@ function needsRealtimeSearch(msg) {
   return REALTIME_PATTERNS.some(re => re.test(msg));
 }
 
+// ── 用户画像记忆: 注入 + 提炼 ────────────────────────────────────────────────
+// 按羁绊等级分层注入画像到 Chat system prompt 末尾. 等级越高, 越懂驾驶员, 注入越深.
+// 返回空串 = 不注入 (画像还没东西时). 只用于 Chat 主路径, 不碰告警/任务播报 (那些走 voice-lines).
+function buildProfileInject(profile, bondLevel, personaActive = false) {
+  if (!profile) return '';
+  const lines = [];
+  const facts = (profile.facts || []).slice(0, 12);
+  const interests = (profile.interests || []).slice(0, 12);
+  const cs = profile.commStyle || {};
+  const contract = (profile.toneContract || []).slice(0, 10);
+
+  // Lv1+ : 基本事实 (始终注入已知事实, 让 VF-1 不"失忆")
+  if (facts.length) lines.push('【你已知的关于驾驶员的事实】\n- ' + facts.join('\n- '));
+
+  // Lv3+ : 兴趣 + 沟通偏好
+  if (bondLevel >= 3) {
+    if (interests.length) lines.push('【驾驶员的兴趣领域】\n- ' + interests.join('\n- '));
+    const styleBits = [];
+    if (cs.length) styleBits.push(`回答详略: ${cs.length}`);
+    if (cs.tone)   styleBits.push(`语气: ${cs.tone}`);
+    if (cs.emoji === true)  styleBits.push('可以适度用 emoji');
+    if (cs.emoji === false) styleBits.push('不要用 emoji');
+    if ((cs.dislikes || []).length) styleBits.push('反感: ' + cs.dislikes.join('、'));
+    if (styleBits.length) lines.push('【驾驶员的沟通偏好】\n- ' + styleBits.join('\n- '));
+  }
+
+  // Lv6+ : 完整语气契约 — 闲聊时可软化军事腔贴合驾驶员
+  if (bondLevel >= 6 && contract.length) {
+    lines.push('【与这位驾驶员说话的语气契约 — 闲聊时遵守】\n- ' + contract.join('\n- '));
+  }
+
+  if (!lines.length) {
+    // 画像还是空的: 给个起步提示, 让 VF-1 有意识地观察了解
+    return bondLevel <= 2 ? '【记忆提示】你正在逐渐了解这位驾驶员, 多观察其偏好, 少做假设。' : '';
+  }
+
+  let header = '【长期记忆 — 你对这位驾驶员的了解】\n'
+    + '以下是你对这位驾驶员的长期记忆, 跨会话持久保存。被问到"是否记得 / 有没有记忆"时, 如实承认你记得, 不要说自己没有长期记忆。\n\n';
+  // 分场景护栏: 闲聊贴合; 涉及事实仍走反幻觉铁律。
+  // personaActive 时不再重申"你仍是骷髅一号"——避免与用户自定义性格的"完全接管"矛盾。
+  let footer = personaActive
+    ? '\n\n闲聊时按以上理解调整语气, 让驾驶员舒服; 涉及事实数据仍须遵守反幻觉铁律。'
+    : '\n\n闲聊时按以上理解调整语气, 让驾驶员舒服; 但你仍是 VF-1S 骷髅一号, 身份不变, 涉及事实数据仍须遵守反幻觉铁律。';
+  return header + lines.join('\n\n') + footer;
+}
+
+// 后台提炼: 把"旧画像 + 最近若干轮对话"合并出新画像. 失败静默, 绝不影响聊天主流程.
+// 用 systemOverride 走独立提炼 prompt, noTools, 低温度求稳定.
+async function refineProfile(provider, apiKey, petName, oldProfile, newTurns, metasoKey = '') {
+  if (!apiKey || !newTurns || !newTurns.length) return null;
+  const refineSystem = `你是一个"用户画像提炼器", 负责从对话里沉淀出对用户(驾驶员)的长期理解。
+输入: 一份旧画像(JSON) + 最近的对话记录。
+输出: **只输出**一个更新后的画像 JSON 对象, 不要任何解释、不要 markdown 代码块。
+
+画像 JSON 结构:
+{
+  "facts": [],        // 稳定的客观事实(职业/在做的项目/工具/重要的人和事), 短句
+  "interests": [],    // 兴趣领域/话题偏好
+  "commStyle": { "length": "简短|适中|详细", "tone": "正式|随意|...", "emoji": true|false|null, "dislikes": [] },
+  "toneContract": []  // 和这位用户说话该遵守的具体规则(尤其用户明确纠正过的, 如"别那么军事腔""说简短点")
+}
+
+铁律:
+- **只记真正稳定的**事实与偏好, 不要把一次性的提问内容当成长期事实; 不确定就不记。
+- **保留**旧画像里仍然成立的条目, 增量补充新发现, 同类去重。
+- 用户的**语气纠正/明确偏好**优先写进 toneContract。
+- 数组各项简洁, 每类不超过 12 条; 控制总量, 宁缺毋滥。
+- 严禁臆测用户没表达过的隐私(收入/健康/政治立场等)。`;
+
+  const convo = newTurns.map(t => `[驾驶员] ${t.user}\n[VF-1] ${t.reply}`).join('\n\n').slice(0, 8000);
+  const userPrompt = `旧画像 JSON:\n${JSON.stringify(oldProfile || {}, null, 2)}\n\n最近对话:\n${convo}\n\n请输出更新后的画像 JSON。`;
+
+  try {
+    const raw = await callAI(provider, apiKey, petName, [], userPrompt, metasoKey, {
+      systemOverride: refineSystem, noTools: true, temperature: 0.3
+    });
+    // 稳健解析: 剥离可能的 ```json 包裹, 取第一个 {...}
+    let txt = String(raw || '').trim().replace(/^```(?:json)?/i, '').replace(/```$/,'').trim();
+    const s = txt.indexOf('{'), e = txt.lastIndexOf('}');
+    if (s < 0 || e < 0) return null;
+    const parsed = JSON.parse(txt.slice(s, e + 1));
+    if (!parsed || typeof parsed !== 'object') return null;
+    return parsed;
+  } catch (e) {
+    console.warn('[MEMORY] refineProfile failed:', e.message);
+    return null;
+  }
+}
+
+// 把提炼出的画像合并存盘, 并按"是否新增偏好规则"给羁绊加分. 返回是否真的更新了.
+function commitRefinedProfile(refined) {
+  if (!refined) return false;
+  const prof = memory.loadProfile();
+  const before = JSON.stringify({ f: prof.facts, i: prof.interests, c: prof.commStyle, t: prof.toneContract });
+  if (Array.isArray(refined.facts))        prof.facts = refined.facts.slice(0, 12);
+  if (Array.isArray(refined.interests))    prof.interests = refined.interests.slice(0, 12);
+  if (refined.commStyle && typeof refined.commStyle === 'object')
+    prof.commStyle = Object.assign({}, prof.commStyle, refined.commStyle);
+  if (Array.isArray(refined.toneContract)) prof.toneContract = refined.toneContract.slice(0, 10);
+  const after = JSON.stringify({ f: prof.facts, i: prof.interests, c: prof.commStyle, t: prof.toneContract });
+  memory.saveProfile(prof);
+  return before !== after;
+}
+
+// 提炼缓冲: 自上次提炼以来积累的新对话轮次. 达阈值或会话边界时触发提炼.
+let _turnsSinceRefine = [];
+let _refineInFlight = false;
+
+async function runRefine(reason) {
+  if (_refineInFlight || !_turnsSinceRefine.length) return;
+  _refineInFlight = true;
+  const turns = _turnsSinceRefine;
+  _turnsSinceRefine = [];   // 立即清空, 避免并发重复
+  try {
+    const provider = state.aiProvider || 'qwen';
+    const apiKey = (state.apiKeys || {})[provider] || '';
+    const metasoKey = (state.apiKeys || {}).metaso || '';
+    const oldProfile = memory.loadProfile();
+    const refined = await refineProfile(provider, apiKey, state.pet.name, oldProfile, turns, metasoKey);
+    const changed = commitRefinedProfile(refined);
+    if (changed) {
+      state = store.addXP(state, 15);   // 提炼出新理解 → 羁绊加深
+      store.save(state);
+      broadcastPetUpdate();
+      console.log(`[MEMORY] profile refined (${reason}), turns=${turns.length}, bond Lv.${state.pet.level}`);
+    }
+  } catch (e) {
+    console.warn('[MEMORY] runRefine error:', e.message);
+    // 提炼失败: 把对话还回缓冲, 下次再试
+    _turnsSinceRefine = turns.concat(_turnsSinceRefine);
+  } finally {
+    _refineInFlight = false;
+  }
+}
+
+// ── 文章投喂: 从驾驶员读过的文章提炼兴趣/关注 ──────────────────────────────
+// 注意: 文章观点 ≠ 驾驶员观点, 只反映其"关注/阅读"的领域. 提炼时严格约束.
+async function refineFromArticle(provider, apiKey, petName, oldProfile, title, text, metasoKey = '') {
+  if (!apiKey || !text) return null;
+  const refineSystem = `你是一个"用户画像提炼器"。输入: 一份旧画像(JSON) + 一篇**驾驶员阅读过**的文章。
+任务: 从这篇文章推断驾驶员**关注/感兴趣的领域和话题**, 更新画像。
+
+**只输出**更新后的画像 JSON 对象, 不要解释、不要 markdown 代码块。结构:
+{
+  "facts": [], "interests": [],
+  "commStyle": { "length": "", "tone": "", "emoji": null, "dislikes": [] },
+  "toneContract": []
+}
+
+铁律:
+- 文章**内容/观点不等于驾驶员的观点或事实**, 不要把文章里的主张写进 facts。
+- 只从"驾驶员选择读了这篇文章"这一行为, 谨慎推断其 **interests**(兴趣领域/关注话题)。
+- **保留**旧画像所有仍成立的条目, 增量补充, 同类去重; interests 不超过 12 条。
+- commStyle / toneContract 一般保持旧值不变(文章无法反映沟通偏好)。
+- 拿不准就不加, 宁缺毋滥。`;
+
+  const body = String(text).slice(0, 8000);
+  const userPrompt = `旧画像 JSON:\n${JSON.stringify(oldProfile || {}, null, 2)}\n\n驾驶员阅读的文章《${title || '无题'}》正文:\n${body}\n\n请输出更新后的画像 JSON。`;
+  try {
+    const raw = await callAI(provider, apiKey, petName, [], userPrompt, metasoKey, {
+      systemOverride: refineSystem, noTools: true, temperature: 0.3
+    });
+    let txt = String(raw || '').trim().replace(/^```(?:json)?/i, '').replace(/```$/,'').trim();
+    const s = txt.indexOf('{'), e = txt.lastIndexOf('}');
+    if (s < 0 || e < 0) return null;
+    const parsed = JSON.parse(txt.slice(s, e + 1));
+    return (parsed && typeof parsed === 'object') ? parsed : null;
+  } catch (e) {
+    console.warn('[MEMORY] refineFromArticle failed:', e.message);
+    return null;
+  }
+}
+
+// 摄取一篇文章: 归档原文 → 提炼兴趣 → articleCount++ → 羁绊 +25. 返回 {ok, title, changed}.
+async function ingestArticle(title, text) {
+  if (!text || !text.trim()) return { ok: false, error: '文章内容为空' };
+  const provider = state.aiProvider || 'qwen';
+  const apiKey = (state.apiKeys || {})[provider] || '';
+  if (!apiKey) return { ok: false, error: '请先在设置中填写 API Key' };
+  const metasoKey = (state.apiKeys || {}).metaso || '';
+  try {
+    memory.archiveArticle(title, text);
+    const oldProfile = memory.loadProfile();
+    const refined = await refineFromArticle(provider, apiKey, state.pet.name, oldProfile, title, text, metasoKey);
+    const changed = commitRefinedProfile(refined);
+    // 计数 + 加分 (即使提炼没产出新条目, 读文章这一行为本身也算交流)
+    const prof = memory.loadProfile();
+    prof.articleCount = (prof.articleCount || 0) + 1;
+    memory.saveProfile(prof);
+    state = store.addXP(state, 25);
+    store.save(state);
+    broadcastPetUpdate();
+    console.log(`[MEMORY] article ingested: "${title}", changed=${changed}, bond Lv.${state.pet.level}`);
+    return { ok: true, title: title || '文章', changed, xp: state.pet.xp, level: state.pet.level };
+  } catch (e) {
+    console.warn('[MEMORY] ingestArticle error:', e.message);
+    return { ok: false, error: e.message };
+  }
+}
+
+// 抓取链接正文: 零依赖, curl 取 HTML → 剥 script/style/标签 → 提取标题+正文文本.
+async function fetchUrlText(url) {
+  const { stdout } = await execFileAsync('curl', [
+    '-Ls', '-A', 'Mozilla/5.0 (Macintosh) VF-1/1.0', '--max-time', '20', '--max-filesize', '5000000', url
+  ], { timeout: 25000, maxBuffer: 12 * 1024 * 1024 });
+  const html = stdout || '';
+  const titleM = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  const title = titleM ? titleM[1].replace(/\s+/g, ' ').trim().slice(0, 80) : url;
+  // 去掉脚本/样式/注释/标签, 还原常见实体, 压缩空白
+  const text = html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+  return { title, text };
+}
+
 ipcMain.handle('chat', async (_, message) => {
   const provider = state.aiProvider || 'qwen';
   const apiKey = (state.apiKeys || {})[provider] || '';
@@ -1909,6 +2254,11 @@ ipcMain.handle('chat', async (_, message) => {
       callOpts.forceTool = 'search_web';   // API 层强制首轮调 search_web
       console.log('[CHAT] realtime keyword hit → forcing search_web');
     }
+    // 注入长期画像 (按羁绊等级分层); 提炼/告警/语音不受影响
+    callOpts.persona = state.persona || '';
+    try {
+      callOpts.profileInject = buildProfileInject(memory.loadProfile(), state.pet.level || 1, !!callOpts.persona);
+    } catch (_) {}
     const reply = await callAI(provider, apiKey, state.pet.name, state.chatHistory || [], effectiveMessage, metasoKey, callOpts);
     const detectedMood = extractMoodFromText(reply);
 
@@ -1917,7 +2267,12 @@ ipcMain.handle('chat', async (_, message) => {
     state.chatHistory.push({ role: 'assistant', content: reply });
     if (state.chatHistory.length > 40) state.chatHistory = state.chatHistory.slice(-40);
 
-    state = store.addXP(state, 5);
+    // 原始层归档(完整, 不砍) + 提炼缓冲; 缓冲满 10 轮触发后台提炼(保底)
+    memory.appendChatArchive(message, reply);
+    _turnsSinceRefine.push({ user: message, reply });
+    if (_turnsSinceRefine.length >= 10) runRefine('buffer-full').catch(() => {});
+
+    state = store.addXP(state, 8);   // 聊天 = 羁绊主要来源
     store.save(state);
     state.pet.mood = detectedMood;
     broadcastPetUpdate();
@@ -2367,9 +2722,6 @@ ipcMain.handle('delete-file', async (_, filePath) => {
   if (!abs) return { success: false, error: '仅允许删除 Downloads/Desktop 内的文件' };
   try {
     await shell.trashItem(abs);
-    state = store.addXP(state, 10);
-    store.save(state);
-    broadcastPetUpdate();
     return { success: true, xp: state.pet.xp, level: state.pet.level };
   } catch (e) {
     return { success: false, error: e.message };
@@ -2410,9 +2762,6 @@ ipcMain.handle('run-workflow', async (_, prompt) => {
     const apiKey = (state.apiKeys || {})[provider] || '';
     const metasoKey = (state.apiKeys || {}).metaso || '';
     const result = await callAI(provider, apiKey, state.pet.name, [], prompt, metasoKey);
-    store.addXP(state, 10);
-    store.save(state);
-    broadcastPetUpdate();
     return { result };
   } catch (e) {
     if (e.name === 'TimeoutError') return { error: '请求超时，AI响应时间过长，请稍后重试' };
@@ -2523,6 +2872,15 @@ ipcMain.handle('set-voice-lang', (_, lang) => {
   return { success: true, voiceLang: state.voiceLang };
 });
 
+ipcMain.handle('get-persona', () => state.persona || '');
+
+ipcMain.handle('set-persona', (_, text) => {
+  // trim + 限长, 防止超长文本撑爆系统提示
+  state.persona = String(text || '').trim().slice(0, 2000);
+  store.save(state);
+  return { success: true, persona: state.persona };
+});
+
 // 复位: 让机体平滑飞回屏幕右下角的 home 位 (关闭巡航后归位用).
 // 目标点与启动初始位共用 homePetPosition, 但相对机体当前所在显示器计算, 兼容多屏.
 ipcMain.handle('reset-pet-position', async () => {
@@ -2583,9 +2941,15 @@ ipcMain.handle('focus-terminal-alert', async () => {
   const wasTermAlert = _termAlertActive;   // 点击时正处于"待授权告警", 跳转后要立即解除
   let s = _termAlertSession;
   let consumedTaskDone = false;
+  let consumedOc = false;
   if (!s && _taskDoneSession) {
     s = _taskDoneSession;
     consumedTaskDone = true;
+  }
+  // 再次之: OpenCode 完成 (蓝卡) — 跳转到 opencode 所在终端窗口
+  if (!s && _ocClickSession) {
+    s = _ocClickSession;
+    consumedOc = true;
   }
   try {
     let scr;
@@ -2628,6 +2992,12 @@ end tell`;
       _taskDoneSession = null;
       if (petWindow   && !petWindow.isDestroyed()) petWindow.webContents.send('pet-update', { taskDoneAvailable: false });
       if (panelWindow && !panelWindow.isDestroyed()) panelWindow.webContents.send('pet-update', { taskDoneAvailable: false });
+    }
+    if (consumedOc) {
+      _ocClickSession = null;
+      _ocAlertActive = false;   // 已去查看, 复位; 下次有新 part 再重新评估
+      if (petWindow   && !petWindow.isDestroyed())   petWindow.webContents.send('pet-update', { ocAlert: false });
+      if (panelWindow && !panelWindow.isDestroyed()) panelWindow.webContents.send('pet-update', { ocAlert: false });
     }
     // 点击并跳转到终端 = 用户已去确认; 立即解除待授权告警 (删 pending flag + 复位状态 + 广播),
     // 不再等真正的确认动作, 也避免 800ms 轮询把告警重新点亮
@@ -2807,8 +3177,6 @@ ipcMain.handle('send-terminal-input', async (_, { app, windowIndex, windowId, ta
       await execAsync(`osascript -l JavaScript "${tmpScript}"`, { timeout: 4000 });
       try { fs.unlinkSync(tmpScript); } catch(_) {}
     }
-    state = store.addXP(state, 3);
-    broadcastPetUpdate();
     return { ok: true, xp: state.pet.xp, level: state.pet.level };
   } catch (e) {
     return { error: e.message };

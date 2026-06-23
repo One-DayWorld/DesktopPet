@@ -308,6 +308,26 @@
   #send-btn:active { transform: scale(0.91); }
   #send-btn:disabled { opacity: 0.28; cursor: default; box-shadow: none; }
 
+  #attach-btn {
+    width: 34px; height: 34px;
+    background: rgba(0, 20, 40, 0.6);
+    border: 1px solid rgba(0, 155, 195, 0.28);
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    color: rgba(150, 205, 230, 0.8);
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  #attach-btn:hover {
+    border-color: rgba(0, 200, 235, 0.5);
+    color: #d0ecf8;
+    box-shadow: 0 0 12px rgba(0, 170, 215, 0.25);
+  }
+  #attach-btn:active { transform: scale(0.91); }
+  #attach-btn:disabled { opacity: 0.32; cursor: default; }
+
   .refresh-btn {
     background: rgba(0, 28, 52, 0.62);
     border: 1px solid rgba(0, 135, 172, 0.24);
@@ -578,6 +598,72 @@
   .setting-note { font-size: 10.5px; color: rgba(130, 188, 215, 0.85); margin-top: 4px; line-height: 1.5; }
   .setting-section { font-size: 10px; font-weight: 600; color: rgba(0, 205, 245, 0.92); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; margin-top: 4px; }
   .setting-success { color: #00e5a0; font-size: 11.5px; margin-top: 4px; display: none; }
+
+  /* ── 记忆面板 ── */
+  .memory-bond {
+    font-size: 12px; font-weight: 600; color: var(--accent-gold, #ffd070);
+    letter-spacing: 0.04em; margin-bottom: 8px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    cursor: pointer; user-select: none; outline: none;
+  }
+  .memory-bond:hover { color: #ffe39a; }
+  .mem-caret {
+    font-size: 10px; font-weight: 600; color: rgba(0, 205, 245, 0.8);
+    letter-spacing: 0.06em; flex: 0 0 auto;
+  }
+  /* 折叠态: 藏起内容, 只留标题行, 防止旁人窥见 (memory / persona 共用) */
+  .mem-collapse { overflow: hidden; }
+  .hud-frame.mem-collapsed .mem-collapse { display: none; }
+  .hud-frame.mem-collapsed .memory-bond { margin-bottom: 0; }
+  .persona-input {
+    width: 100%; box-sizing: border-box; min-height: 96px; resize: vertical;
+    background: rgba(0, 18, 40, 0.6); border: 1px solid rgba(0, 145, 185, 0.28);
+    border-radius: 6px; padding: 8px 10px; margin-bottom: 10px;
+    font-size: 12px; color: #c8e4f0; line-height: 1.5; font-family: inherit;
+  }
+  .persona-input:focus { outline: none; border-color: rgba(0, 205, 245, 0.6); }
+  .mem-group { margin-bottom: 12px; }
+  .mem-group-title {
+    font-size: 10px; font-weight: 600; color: rgba(0, 205, 245, 0.85);
+    letter-spacing: 0.08em; margin-bottom: 6px;
+  }
+  .mem-item {
+    display: flex; align-items: flex-start; gap: 6px;
+    background: rgba(0, 18, 40, 0.6); border: 1px solid rgba(0, 145, 185, 0.18);
+    border-radius: 6px; padding: 5px 8px; margin-bottom: 5px;
+    font-size: 11.5px; color: #c8e4f0; line-height: 1.45;
+  }
+  .mem-item span { flex: 1; word-break: break-word; }
+  .mem-del {
+    flex-shrink: 0; cursor: pointer; color: rgba(255, 130, 130, 0.6);
+    font-size: 12px; line-height: 1; padding: 1px 3px; border-radius: 3px;
+    background: none; border: none; transition: color 0.15s;
+  }
+  .mem-del:hover { color: #ff7070; }
+  .mem-edit {
+    flex-shrink: 0; cursor: pointer; color: rgba(120, 200, 235, 0.6);
+    font-size: 12px; line-height: 1; padding: 1px 3px; border-radius: 3px;
+    background: none; border: none; transition: color 0.15s;
+  }
+  .mem-edit:hover { color: #7cd8f0; }
+  .mem-readonly {
+    font-size: 11px; color: rgba(150, 200, 225, 0.7); line-height: 1.6;
+    background: rgba(0, 14, 32, 0.5); border-radius: 6px; padding: 6px 9px;
+  }
+  .mem-add-row { display: flex; gap: 6px; margin-top: 4px; }
+  .mem-add-input {
+    flex: 1; padding: 5px 9px; background: rgba(0, 12, 30, 0.7);
+    border: 1px solid rgba(0, 155, 195, 0.22); border-radius: 6px;
+    color: #c8e4f0; font-size: 11.5px; outline: none; font-family: inherit;
+  }
+  .mem-add-input:focus { border-color: rgba(0, 200, 235, 0.45); }
+  .mem-add-btn {
+    flex-shrink: 0; padding: 4px 11px; border-radius: 6px; cursor: pointer;
+    background: rgba(0, 155, 200, 0.2); border: 1px solid rgba(0, 200, 235, 0.35);
+    color: #88d8f0; font-size: 14px; line-height: 1; transition: all 0.15s;
+  }
+  .mem-add-btn:hover { background: rgba(0, 155, 200, 0.35); }
+  .mem-empty { font-size: 10.5px; color: rgba(110, 165, 190, 0.5); font-style: italic; }
 
   .provider-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 13px; }
   .provider-card {
@@ -1371,37 +1457,6 @@
     line-height: 1; transition: color 0.15s;
   }
   .axw-dismiss:hover { color: #ff8a55; }
-  /* Weapon strip */
-  .weapon-strip {
-    display: flex; gap: 4px; margin-top: 5px; flex-wrap: wrap;
-  }
-  .weapon-chip {
-    font-size: 9.5px; padding: 1px 5px; border-radius: 3px;
-    font-family: 'SF Mono', monospace; letter-spacing: 0.04em;
-    border: 1px solid transparent; transition: all 0.25s;
-    user-select: none;
-  }
-  /* 武器 chip 跟随 cockpit 青绿主题: locked=暗灰绿, unlocked=主题青绿, active=红橙(交战态保留)*/
-  .weapon-chip.locked {
-    background: rgba(14, 30, 24, 0.6);
-    border-color: rgba(110, 255, 200, 0.12);
-    color: rgba(95, 185, 140, 0.45);
-  }
-  .weapon-chip.unlocked {
-    background: rgba(110, 255, 200, 0.12);
-    border-color: rgba(160, 255, 205, 0.45);
-    color: var(--accent-gold);
-  }
-  .weapon-chip.active {
-    background: rgba(180,30,0,0.3);
-    border-color: rgba(255,60,30,0.55);
-    color: rgba(255,140,80,0.95);
-    animation: chipPulse 1.6s ease-in-out infinite;
-  }
-  @keyframes chipPulse {
-    0%, 100% { box-shadow: 0 0 4px rgba(255,60,30,0.3); }
-    50% { box-shadow: 0 0 10px rgba(255,80,40,0.6); }
-  }
 
   /* ── Terminal Monitor ── */
   #pane-terminal { gap: 8px; }
@@ -1485,12 +1540,11 @@
 <div id="pet-status">
   <div class="pet-mini-avatar" id="pet-mini-avatar">🐕</div>
   <div class="pet-info">
-    <div class="pet-name-level" id="status-name">骷髅一号 · Lv.1</div>
+    <div class="pet-name-level" id="status-name">骷髅一号 · 羁绊Lv.1 新驾驶员</div>
     <div class="xp-bar-wrap">
       <div class="xp-bar-bg"><div class="xp-bar-fill" id="xp-bar" style="width:0%"></div></div>
-      <div class="xp-text" id="xp-text">0 / 100 XP</div>
+      <div class="xp-text" id="xp-text">羁绊 0 / 40</div>
     </div>
-    <div id="weapon-strip" class="weapon-strip"></div>
   </div>
   <div class="mood-icon" id="mood-icon">😊</div>
 </div>
@@ -1521,6 +1575,7 @@
       <div class="hud-pill">CHAT CONSOLE</div>
       <div id="chat-messages"></div>
       <div id="chat-input-area">
+        <button id="attach-btn" title="投喂文章 (txt/docx/链接) — 让骷髅一号更懂你" onclick="attachArticle()">📎</button>
         <textarea id="chat-input" placeholder="和骷髅一号说点什么... (⌘↵ 发送)" rows="1"></textarea>
         <button id="send-btn" title="发送 (⌘↵)">↑</button>
       </div>
@@ -1673,6 +1728,34 @@
 
     </div><!-- /PET CONFIG hud-frame -->
 
+    <div class="hud-frame mem-collapsed" id="memory-frame">
+      <div class="hud-pill">MEMORY · 记忆</div>
+      <div id="memory-bond" class="memory-bond" role="button" tabindex="0" onclick="toggleMemoryCollapse()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleMemoryCollapse()}">
+        <span id="memory-bond-text">羁绊 Lv.1 · 新驾驶员</span>
+        <span class="mem-caret" id="memory-caret">🔒 点击展开</span>
+      </div>
+      <div id="memory-collapse" class="mem-collapse">
+        <div class="setting-note" style="margin-bottom:10px">骷髅一号通过聊天和你投喂的文章逐渐了解你。以下是它记住的一切——你可随时删除单条或全部清空。</div>
+        <div id="memory-body"><div class="setting-note">加载中...</div></div>
+        <button class="save-btn" id="memory-clear-btn" style="margin-top:12px;background:rgba(200,45,45,0.16);border-color:rgba(220,70,70,0.4);color:#ff9999" onclick="clearMemoryConfirm()">🗑 清空全部记忆</button>
+        <div class="setting-success" id="memory-cleared-msg">✓ 记忆已清空</div>
+      </div>
+    </div>
+
+    <div class="hud-frame mem-collapsed" id="persona-frame">
+      <div class="hud-pill">PERSONA · 性格</div>
+      <div class="memory-bond" role="button" tabindex="0" onclick="togglePersonaCollapse()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();togglePersonaCollapse()}">
+        <span>自定义性格人设</span>
+        <span class="mem-caret" id="persona-caret">🔒 点击展开</span>
+      </div>
+      <div class="mem-collapse">
+        <div class="setting-note" style="margin-bottom:10px">写一段性格描述，聊天时骷髅一号会完全照此说话（语气 / 自称 / 怎么称呼你）。留空＝默认军事简报风。语音播报、反幻觉与工具能力不受影响。</div>
+        <textarea class="persona-input" id="persona-input" placeholder="例：高冷女王风的女性 AI，说话简短克制，带点居高临下的慵懒，偶尔毒舌但其实在意你。自称『本王』，称你『你』而不是『驾驶员』。"></textarea>
+        <button class="save-btn" onclick="savePersona()">保存性格</button>
+        <div class="setting-success" id="persona-success">✓ 已保存</div>
+      </div>
+    </div>
+
     <div class="hud-frame" id="ai-backend-frame">
       <div class="hud-pill">AI BACKEND</div>
     <div class="setting-section">AI 后台</div>
@@ -1754,7 +1837,7 @@
     </div><!-- /AI BACKEND hud-frame -->
 
     <div style="height:10px"></div>
-    <div class="setting-note" style="text-align:center;color:rgba(78,148,175,0.38)">聊天+5XP · 完成任务+15XP · 添加任务+2XP · 清理文件+10XP</div>
+    <div class="setting-note" style="text-align:center;color:rgba(78,148,175,0.38)">羁绊只靠交流增长 · 聊天+8 · 投喂文章+25 · 提炼出新理解+15</div>
     <div style="height:16px"></div>
   </div>
 
@@ -1801,7 +1884,7 @@ function setAvatarContent(el, avatar) {
 }
 
 const moodMap = { happy: '😊', excited: '🎉', thinking: '🤔', sleeping: '😴', neutral: '😐' };
-const XP_THRESHOLDS = [0, 100, 300, 600, 1000, 1500, 2200, 3100, 4300, 6000];
+const XP_THRESHOLDS = [0, 40, 100, 200, 350, 550, 800, 1100, 1500, 2000];   // 羁绊阈值, 与 store.js 同步
 
 function calcXPProgress(pet) {
   const xp = pet.xp || 0;
@@ -1861,11 +1944,18 @@ async function init() {
   });
 }
 
+// 羁绊等级称谓: 越高越懂你
+function bondTitle(level) {
+  if (level >= 6) return '默契';
+  if (level >= 3) return '熟识';
+  return '新驾驶员';
+}
+
 function updateStatus(pet, xpProgress) {
   if (!pet) return;
   state = state || {};
   state.pet = pet;
-  document.getElementById('status-name').textContent = `${pet.name} · Lv.${pet.level}`;
+  document.getElementById('status-name').textContent = `${pet.name} · 羁绊Lv.${pet.level} ${bondTitle(pet.level)}`;
   document.getElementById('mood-icon').textContent = moodMap[pet.mood] || '😊';
   document.getElementById('panel-title').textContent = `◈ ${pet.name} UNIT ◈`;
   document.getElementById('chat-input').placeholder = `[CHAT] 向 ${pet.name} 发送指令... (⌘↵)`;
@@ -1876,33 +1966,8 @@ function updateStatus(pet, xpProgress) {
 
   if (xpProgress) {
     document.getElementById('xp-bar').style.width = xpProgress.percent + '%';
-    document.getElementById('xp-text').textContent = `${xpProgress.current} / ${xpProgress.needed} XP`;
+    document.getElementById('xp-text').textContent = `羁绊 ${xpProgress.current} / ${xpProgress.needed}`;
   }
-
-  renderWeaponStrip(pet.level);
-}
-
-function renderWeaponStrip(level) {
-  const strip = document.getElementById('weapon-strip');
-  if (!strip) return;
-  const weapons = [
-    { lv: 3,  icon: '🚀', label: 'AMM-1 反舰导弹',  activeAt: null },
-    { lv: 5,  icon: '🛡️', label: 'Super Pack 燃料舱', activeAt: 6 },
-    { lv: 7,  icon: '🔫', label: 'GU-11 机炮',      activeAt: 8 },
-    { lv: 9,  icon: '⚡', label: 'Reaction Missile', activeAt: 10 },
-    { lv: 10, icon: '💀', label: '骷髅中队队长',     activeAt: 10 },
-  ];
-  strip.innerHTML = weapons.map(w => {
-    let cls, display;
-    if (level >= w.lv) {
-      cls = (w.activeAt && level >= w.activeAt) ? 'active' : 'unlocked';
-      display = `${w.icon} ${w.label}`;
-    } else {
-      cls = 'locked';
-      display = `▪ Lv${w.lv}`;
-    }
-    return `<span class="weapon-chip ${cls}">${display}</span>`;
-  }).join('');
 }
 
 // ── Tabs ──
@@ -1912,7 +1977,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     tab.classList.add('active');
     document.getElementById('pane-' + tab.dataset.tab).classList.add('active');
-    if (tab.dataset.tab === 'settings') { loadBreakReminder(); loadEdgePatrol(); loadPetVisible(); loadVoiceLang(); }
+    if (tab.dataset.tab === 'settings') { loadBreakReminder(); loadEdgePatrol(); loadPetVisible(); loadVoiceLang(); renderMemoryPanel(); loadPersona(); }
     if (tab.dataset.tab === 'terminal') { termActive = true; termPollNow(); }
     else termActive = false;
   });
@@ -2002,6 +2067,15 @@ async function sendChat() {
   const text = input.value.trim();
   if (!text) return;
 
+  // 纯链接 → 文章投喂 (而非聊天); 链接夹在句子里仍当普通聊天
+  if (/^https?:\/\/\S+$/i.test(text)) {
+    input.value = '';
+    input.style.height = 'auto';
+    addUserMessage(text);
+    await ingestUrlFlow(text);
+    return;
+  }
+
   input.value = '';
   input.style.height = 'auto';
   addUserMessage(text);
@@ -2019,13 +2093,211 @@ async function sendChat() {
   } else {
     addPetMessage(result.reply);
     if (result.level > (state.pet?.level || 1)) {
-      setTimeout(() => addPetMessage(`⚡ 系统升级完成——${state.pet.name} 已进化至 Lv.${result.level}，战斗力提升！`), 500);
+      setTimeout(() => addPetMessage(`💠 羁绊加深——${state.pet.name} 升到 羁绊Lv.${result.level}，对你的了解更深了`), 500);
     }
     state.pet = Object.assign(state.pet || {}, { xp: result.xp, level: result.level });
   }
 }
 
+// ── 文章投喂 (记忆系统) ──
+// 展示摄取结果 + 羁绊升级提示. oldLevel 在调用前抓取, 避免被 broadcast 抢先刷新导致漏判升级.
+function showIngestResult(result, oldLevel) {
+  if (!result || result.canceled) return;
+  if (!result.ok) { addPetMessage('投喂失败——' + (result.error || '未知错误')); return; }
+  const tip = result.changed ? '，已记下其中与你相关的要点 ✓' : '，已归档';
+  addPetMessage(`已读取《${result.title}》${tip}`);
+  if (result.level > (oldLevel || 1)) {
+    setTimeout(() => addPetMessage(`💠 羁绊加深——${state.pet.name} 升到 羁绊Lv.${result.level}，对你的了解更深了`), 500);
+  }
+}
+
+// 点 📎 选本地文件 (txt/docx) 投喂
+async function attachArticle() {
+  if (isChatting) return;
+  const btn = document.getElementById('attach-btn');
+  const oldLevel = state.pet?.level || 1;
+  btn.disabled = true;
+  let result;
+  try { result = await window.petAPI.pickArticleFile(); }
+  catch (e) { result = { ok: false, error: e.message }; }
+  finally { btn.disabled = false; }
+  showIngestResult(result, oldLevel);
+}
+
+// 粘贴纯链接 → 抓正文投喂
+async function ingestUrlFlow(url) {
+  const oldLevel = state.pet?.level || 1;
+  addTypingIndicator();
+  let result;
+  try { result = await window.petAPI.ingestArticleUrl(url); }
+  catch (e) { result = { ok: false, error: e.message }; }
+  removeTypingIndicator();
+  showIngestResult(result, oldLevel);
+}
+
 document.getElementById('send-btn').addEventListener('click', sendChat);
+
+// ── 记忆面板 (CONFIG) ──
+const MEM_GROUPS = [
+  { key: 'facts',        title: '关于你的事实',           ph: '手动添加一条事实...' },
+  { key: 'interests',    title: '兴趣领域',               ph: '添加一个兴趣...' },
+  { key: 'toneContract', title: '语气契约（该怎么和你说话）', ph: '添加一条语气规则...' },
+];
+let _memProfile = null;
+let _clearArmed = false;
+let _memEdit = { key: null, idx: -1 };   // 当前正在行内编辑的条目
+
+async function renderMemoryPanel() {
+  const body = document.getElementById('memory-body');
+  if (!body) return;
+  // 每次进入 config 都强制收起, 避免上次展开后偏好一直晾着
+  const frame = document.getElementById('memory-frame');
+  const caret = document.getElementById('memory-caret');
+  if (frame) frame.classList.add('mem-collapsed');
+  if (caret) caret.textContent = '🔒 点击展开';
+  let res;
+  try { res = await window.petAPI.getMemoryProfile(); }
+  catch (e) { body.innerHTML = `<div class="mem-empty">读取记忆失败: ${escHtml(e.message)}</div>`; return; }
+  _memProfile = res.profile || {};
+  const lvl = res.level || 1;
+  const ac = _memProfile.articleCount || 0;
+  document.getElementById('memory-bond-text').textContent =
+    `羁绊 Lv.${lvl} · ${bondTitle(lvl)}` + (ac ? ` · 已读 ${ac} 篇文章` : '');
+
+  let html = '';
+  for (const g of MEM_GROUPS) {
+    const arr = Array.isArray(_memProfile[g.key]) ? _memProfile[g.key] : [];
+    html += `<div class="mem-group"><div class="mem-group-title">${g.title}</div>`;
+    html += arr.length
+      ? arr.map((it, i) => {
+          if (_memEdit.key === g.key && _memEdit.idx === i) {
+            // 编辑态: input 的值在渲染后由 JS 注入 (零注入风险), 不写进 value 属性
+            return `<div class="mem-item"><input class="mem-add-input" id="mem-edit-input" onkeydown="if(event.key==='Enter')memSaveEdit();else if(event.key==='Escape')memCancelEdit()"><button class="mem-add-btn" onclick="memSaveEdit()" title="保存">✓</button><button class="mem-del" onclick="memCancelEdit()" title="取消">✕</button></div>`;
+          }
+          return `<div class="mem-item"><span>${escHtml(String(it))}</span><button class="mem-edit" onclick="memEditItem('${g.key}',${i})" title="修改">✎</button><button class="mem-del" onclick="memDelItem('${g.key}',${i})" title="删除">✕</button></div>`;
+        }).join('')
+      : `<div class="mem-empty">（暂无）</div>`;
+    html += `<div class="mem-add-row"><input class="mem-add-input" id="mem-add-${g.key}" placeholder="${g.ph}" onkeydown="if(event.key==='Enter')memAddItem('${g.key}')"><button class="mem-add-btn" onclick="memAddItem('${g.key}')" title="添加">+</button></div></div>`;
+  }
+  // 沟通偏好: 自动总结, 只读
+  const cs = _memProfile.commStyle || {};
+  const bits = [];
+  if (cs.length) bits.push('详略: ' + cs.length);
+  if (cs.tone)   bits.push('语气: ' + cs.tone);
+  if (cs.emoji === true)  bits.push('可用 emoji'); else if (cs.emoji === false) bits.push('不用 emoji');
+  if ((cs.dislikes || []).length) bits.push('反感: ' + cs.dislikes.join('、'));
+  html += `<div class="mem-group"><div class="mem-group-title">沟通偏好（自动总结）</div>`;
+  html += bits.length ? `<div class="mem-readonly">${escHtml(bits.join(' · '))}</div>` : `<div class="mem-empty">（还在观察中）</div>`;
+  html += `</div>`;
+  body.innerHTML = html;
+
+  // 编辑态: 渲染后用 JS 注入原文 + 聚焦 (避免把文本拼进 HTML 属性)
+  if (_memEdit.key && Array.isArray(_memProfile[_memEdit.key])) {
+    const inp = document.getElementById('mem-edit-input');
+    if (inp) { inp.value = _memProfile[_memEdit.key][_memEdit.idx] || ''; inp.focus(); inp.select(); }
+  }
+}
+
+// 折叠/展开记忆区 — 默认收起, 防止打开 config 时偏好被旁人看到
+function toggleMemoryCollapse() {
+  const frame = document.getElementById('memory-frame');
+  const caret = document.getElementById('memory-caret');
+  if (!frame) return;
+  const collapsed = frame.classList.toggle('mem-collapsed');
+  if (caret) caret.textContent = collapsed ? '🔒 点击展开' : '🔓 点击收起';
+}
+
+function memEditItem(key, idx) {
+  _memEdit = { key, idx };
+  renderMemoryPanel();
+}
+
+// ── 自定义性格人设 (PERSONA) ──
+function togglePersonaCollapse() {
+  const frame = document.getElementById('persona-frame');
+  const caret = document.getElementById('persona-caret');
+  if (!frame) return;
+  const collapsed = frame.classList.toggle('mem-collapsed');
+  if (caret) caret.textContent = collapsed ? '🔒 点击展开' : '🔓 点击收起';
+}
+
+async function loadPersona() {
+  // 每次进入 config 强制收起, 避免性格设定被旁人看到
+  const frame = document.getElementById('persona-frame');
+  const caret = document.getElementById('persona-caret');
+  if (frame) frame.classList.add('mem-collapsed');
+  if (caret) caret.textContent = '🔒 点击展开';
+  const inp = document.getElementById('persona-input');
+  if (!inp) return;
+  try { inp.value = await window.petAPI.getPersona() || ''; }
+  catch (e) { console.log('[PERSONA] load failed', e); }
+}
+
+async function savePersona() {
+  const inp = document.getElementById('persona-input');
+  if (!inp) return;
+  try {
+    const res = await window.petAPI.setPersona(inp.value);
+    inp.value = (res && res.persona) || '';
+    const msg = document.getElementById('persona-success');
+    if (msg) { msg.style.display = 'block'; setTimeout(() => { msg.style.display = 'none'; }, 2000); }
+  } catch (e) { console.log('[PERSONA] save failed', e); }
+}
+
+function memCancelEdit() {
+  _memEdit = { key: null, idx: -1 };
+  renderMemoryPanel();
+}
+
+async function memSaveEdit() {
+  const inp = document.getElementById('mem-edit-input');
+  const { key, idx } = _memEdit;
+  if (!inp || !key || !_memProfile || !Array.isArray(_memProfile[key])) return;
+  const v = inp.value.trim();
+  _memEdit = { key: null, idx: -1 };
+  if (!v) { _memProfile[key].splice(idx, 1); }   // 清空内容 = 删除该条
+  else    { _memProfile[key][idx] = v; }
+  await window.petAPI.updateMemoryProfile(_memProfile);
+  renderMemoryPanel();
+}
+
+async function memAddItem(key) {
+  const inp = document.getElementById('mem-add-' + key);
+  const v = (inp?.value || '').trim();
+  if (!v || !_memProfile) return;
+  _memProfile[key] = Array.isArray(_memProfile[key]) ? _memProfile[key] : [];
+  _memProfile[key].push(v);
+  await window.petAPI.updateMemoryProfile(_memProfile);
+  renderMemoryPanel();
+}
+
+async function memDelItem(key, idx) {
+  if (!_memProfile || !Array.isArray(_memProfile[key])) return;
+  _memProfile[key].splice(idx, 1);
+  await window.petAPI.updateMemoryProfile(_memProfile);
+  renderMemoryPanel();
+}
+
+// 两步确认清空 (不依赖 window.confirm — Electron 可能禁用)
+function clearMemoryConfirm() {
+  const btn = document.getElementById('memory-clear-btn');
+  if (!_clearArmed) {
+    _clearArmed = true;
+    btn.textContent = '⚠ 再点一次确认清空';
+    setTimeout(() => { _clearArmed = false; if (btn) btn.textContent = '🗑 清空全部记忆'; }, 3000);
+    return;
+  }
+  _clearArmed = false;
+  if (btn) btn.textContent = '🗑 清空全部记忆';
+  doClearMemory();
+}
+
+async function doClearMemory() {
+  await window.petAPI.clearMemory();
+  const msg = document.getElementById('memory-cleared-msg');
+  if (msg) { msg.style.display = 'block'; setTimeout(() => { msg.style.display = 'none'; }, 2500); }
+  renderMemoryPanel();
+}
 document.getElementById('chat-input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.metaKey) { e.preventDefault(); sendChat(); }
 });
@@ -2379,7 +2651,7 @@ async function wfRun(id) {
   } else {
     addPetMessage(result.reply);
     if (result.level > (state.pet?.level || 1)) {
-      setTimeout(() => addPetMessage(`⚡ 系统升级完成——${state.pet.name} 已进化至 Lv.${result.level}，战斗力提升！`), 500);
+      setTimeout(() => addPetMessage(`💠 羁绊加深——${state.pet.name} 升到 羁绊Lv.${result.level}，对你的了解更深了`), 500);
     }
     state.pet = Object.assign(state.pet || {}, { xp: result.xp, level: result.level });
     const wfUpdated = Object.assign({}, wf, { lastRun: new Date().toISOString() });

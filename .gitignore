@@ -29,8 +29,15 @@ build/iconC*.png
 *.log
 zaku-notify-debug.log
 
-# ── 用户运行时数据 (虽然存在 home, 不在仓库, 但避免误提交) ─
+# ── 用户运行时数据 / 隐私 (存在 home, 不在仓库; 这里再兜一层防误提交) ─
+# .desktop-pet/ 含: API Key、聊天历史、长期记忆画像 (memory/profile.json)、
+#                   投喂文章原文 (memory/articles/)、对话归档 (memory/chat-archive/)
 .desktop-pet/
+# .macross/ 含: Claude Code/OpenCode hook flag、TTY 路径、调试日志
+.macross/
+# 任何散落到仓库的画像 / 数据快照
+profile.json
+data.json
 
 # ── macOS / 编辑器 ──────────────────────────────────────────
 .DS_Store

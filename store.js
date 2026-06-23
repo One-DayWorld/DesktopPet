@@ -5,7 +5,8 @@ const os = require('os');
 const DATA_DIR = path.join(os.homedir(), '.desktop-pet');
 const DATA_FILE = path.join(DATA_DIR, 'data.json');
 
-const XP_THRESHOLDS = [0, 100, 300, 600, 1000, 1500, 2200, 3100, 4300, 6000];
+// 羁绊值阈值 (Lv.1→Lv.10). 羁绊只靠交流涨 (聊天/喂文章/给反馈), 曲线调成合理交流量内可达默契 Lv.6+.
+const XP_THRESHOLDS = [0, 40, 100, 200, 350, 550, 800, 1100, 1500, 2000];
 
 const DEFAULT_STATE = {
   pet: { name: '骷髅一号', level: 1, xp: 0, mood: 'happy', avatar: '🐕' },
@@ -17,7 +18,8 @@ const DEFAULT_STATE = {
   alertSoundEnabled: true,
   breakReminder: { enabled: true, intervalMin: 60 },
   edgePatrol:    { enabled: true },
-  voiceLang:     'zh'            // 语音台词语言: 'zh' 中文 / 'en' 英文
+  voiceLang:     'zh',           // 语音台词语言: 'zh' 中文 / 'en' 英文
+  persona:       ''              // 自定义性格人设(空=默认军事腔骷髅一号); 非空时聊天里完全接管语气/自称/称呼
 };
 
 function calcLevelFromXP(xp) {
@@ -59,6 +61,12 @@ function load() {
     // deep merge breakReminder for older data files that don't have this field
     merged.breakReminder = Object.assign({}, DEFAULT_STATE.breakReminder, merged.breakReminder || {});
     merged.edgePatrol    = Object.assign({}, DEFAULT_STATE.edgePatrol,    merged.edgePatrol    || {});
+    // 羁绊系统迁移: 战斗等级语义改为"羁绊/熟悉度", 一次性清零旧战斗经验, 从 Lv.1 重新养羁绊
+    if (!merged._bondMigrated) {
+      merged.pet.xp = 0;
+      merged.pet.level = 1;
+      merged._bondMigrated = true;
+    }
     // always recalculate level from XP to ensure consistency
     merged.pet.level = calcLevelFromXP(merged.pet.xp || 0);
     return merged;

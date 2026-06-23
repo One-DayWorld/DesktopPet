@@ -23,8 +23,9 @@
 - 🤖 **Agent radar** — the VF-1 watches your **Claude Code** *and* **OpenCode** sessions. The moment an agent needs your permission or finishes a turn, it flashes gold, pulses a target-lock HUD, and calls out over TTS — while the **YES BOT** panel mirrors each waiting session as a live status card. No more babysitting a terminal in another window.
 - 🛸 **A real transformable mecha, not a sprite** — full **Fighter ↔ Gerwalk ↔ Battloid** morphing rendered live in Three.js. It cruises the edges of your screen, banks into turns, barrel-rolls, and hovers on glowing thrusters.
 - 🎛️ **A cockpit, not a tooltip** — click the model and a HUD-styled control panel slides out: LLM chat, a live terminal-session monitor, and reusable AI workflows.
+- 🧠 **It learns you over time** — the more you chat (and the articles you feed it), the better it knows your interests, personality, and the tone you're comfortable with. Memory is **persistent across restarts**, fully local, and you can view/edit/wipe it anytime. A **bond level** replaces combat XP — the higher it climbs, the deeper it understands you.
 - 🧠 **Bring your own brain** — the pet is just the body. Plug in **Qwen, DeepSeek, OpenAI, or Anthropic** as the intelligence, plus optional live web search.
-- 🔒 **100% local** — no telemetry, no cloud sync. Keys and state live in a `0600` file in your home directory.
+- 🔒 **100% local** — no telemetry, no cloud sync. Keys, state, and everything it remembers about you live in `0600` files in your home directory.
 
 > The pet itself is not the AI — it's a **frontend container**. The intelligence comes from whichever LLM you bind in `CONFIG`.
 
@@ -128,10 +129,43 @@ Click the VF-1 to open a HUD-styled, 4-tab control panel:
 
 | Tab | Purpose |
 |---|---|
-| **CHAT** | LLM chat with quick-actions (weather, calendar, news, sports) + one-click launchers |
+| **CHAT** | LLM chat with quick-actions (weather, calendar, news, sports), one-click launchers, and a 📎 button to feed it articles (txt / docx / link) |
 | **WORKFLOW** | Save & one-click-run reusable AI prompts |
 | **YES BOT** | Live status cards for Claude Code (permission / done) and OpenCode (done) sessions awaiting your reply |
-| **CONFIG** | Pet name/avatar, break reminder, edge-patrol toggle + reset, AI provider, API keys |
+| **CONFIG** | Pet name/avatar, break reminder, edge-patrol toggle + reset, AI provider, API keys, **Memory panel** (view / edit / wipe what it knows about you) |
+
+---
+
+## 🧠 Long-term memory — it gets to know you
+
+VF-1 isn't a goldfish. It builds a **persistent profile** of you that survives restarts, and gradually shifts its chat tone to match what you're comfortable with.
+
+```
+You chat / feed it an article
+        ↓
+On session boundary (panel close) or every ~10 turns
+        ↓
+A background LLM pass distills「old profile + new conversation」→ updated profile
+        ↓
+profile.json updates · bond level grows
+        ↓
+Next chat: the distilled profile (a few hundred tokens) is injected into the system prompt
+```
+
+**Three layers of memory**, all under `~/.desktop-pet/memory/`:
+- **Profile** — structured understanding: `facts`, `interests`, `commStyle`, and a `toneContract` (rules for how to talk to *you*). This is what gets injected each chat.
+- **Articles** — feed it a `.txt` / `.docx` / link via the 📎 button or by pasting a bare URL; it archives the original and distills your interests from it.
+- **Chat archive** — every turn logged in full (monthly `.jsonl`), for re-distillation.
+
+**Bond level replaces combat XP.** It grows **only from interaction** — chatting (+8), feeding an article (+25), or the model distilling a new insight (+15). The level gates *how deeply* the profile is injected:
+
+| Bond level | VF-1's behavior | Profile depth injected |
+|---|---|---|
+| Lv 1–2 (新驾驶员) | Default tone, cautious, few assumptions | Known facts only |
+| Lv 3–5 (熟识) | Starts matching your tone (length / warmth / emoji) | + interests & comm-style |
+| Lv 6+ (默契) | Talks the way you like; references what you care about | + full tone contract |
+
+**Two tones, kept separate.** Alerts and mission-complete callouts stay in fixed military-radio voice (they run off `voice-lines.json`, never the LLM — so memory never leaks into them). Only the **Chat** tab adapts to you. And you stay in control: the **CONFIG → Memory** panel lets you read every stored item, delete single entries, add your own, or wipe it all. Nothing leaves your machine.
 
 ---
 
@@ -158,6 +192,7 @@ Electron main process (`main.js`) drives two `BrowserWindow`s — a transparent 
 main.js ── IPC ──┬── pet.html      (Three.js VF-1: GLB loader, morph, patrol, maneuvers)
    │             └── panel.html    (HUD 4-tab UI: chat, workflows, terminal monitor, config)
    ├── LLM clients (Qwen / DeepSeek / OpenAI / Anthropic)
+   ├── memory.js — long-term profile store + distillation engine + article/chat archive
    ├── Edge-patrol loop + break reminders
    ├── Claude Code flag-file watchers + hook auto-installer
    ├── OpenCode session-DB poller (SQLite, step-finish detection)
@@ -187,8 +222,11 @@ Everything is local — no telemetry, no cloud.
 | Data | Location |
 |---|---|
 | Pet state, chat history, API keys, settings | `~/.desktop-pet/data.json` (`0600`) |
-| Claude Code hook script + flags | `~/.macross/` (`0700`) |
+| Long-term memory: profile, fed articles, chat archive | `~/.desktop-pet/memory/` (`0700` dir, `0600` files) |
+| Claude Code / OpenCode hook script + flags | `~/.macross/` (`0700`) |
 | Claude Code hook config | `~/.claude/settings.json` (auto-injected, idempotent) |
+
+All of the above live in your home directory — **none of it is in the repo**, and `.gitignore` blocks `.desktop-pet/`, `.macross/`, `data.json`, and `profile.json` as a second layer of defense. The Memory panel (CONFIG) lets you wipe everything VF-1 knows about you with two clicks.
 
 ---
 

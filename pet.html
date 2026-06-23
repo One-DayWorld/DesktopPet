@@ -662,6 +662,9 @@ let termAlertActive = false;
 // 任务完成 (Stop hook 写 /tmp/vf1_task_done) 后, main 广播 taskDoneAvailable=true.
 // 此时单击机体会跳转到对应 terminal 而不是变形, 跳完由 main 广播 false 清掉.
 let taskDoneAvailable = false;
+// OpenCode 完成一轮 (DB step-finish:stop) 后, main 广播 ocAlert=true.
+// 与 taskDoneAvailable 同样: 单击机体跳转到 opencode 所在终端, 跳完由 main 广播 false 清掉.
+let ocAlertActive = false;
 
 // ── 上升扫频警告音 (Macross / 星际牛仔风) ─────────────────────────────
 // Web Audio 合成: 锯齿波 400→1400Hz, 700ms 一轮上扫, 800ms 间隔。
@@ -1297,13 +1300,14 @@ loader.load(
 
       const allAccGroups = [gShield, gCannon, gBazooka, gThrusters, gWings, gCommander, gFullArmor, gChar];
 
-      function updateAccessories(level) {
-        allAccGroups.forEach(g => { g.visible = level >= g.userData.minLevel; });
+      // 羁绊系统不再门控装备解锁: 机体一步到位, 全部配件常驻显示 (保留签名, 忽略 level 入参)
+      function updateAccessories() {
+        allAccGroups.forEach(g => { g.visible = true; });
       }
 
       modelGroup.userData.updateAccessories = updateAccessories;
       modelGroup.userData.glowMat = mGlow;
-      updateAccessories(petState?.pet?.level || 1);
+      updateAccessories();
     }
   },
   undefined,
@@ -1939,6 +1943,10 @@ async function init() {
         }
       }
     }
+    if (data.ocAlert !== undefined) {
+      ocAlertActive = !!data.ocAlert;
+      console.log('[PET] ocAlert →', ocAlertActive);
+    }
     if (data.alertSoundEnabled !== undefined) {
       _alertSoundEnabled = !!data.alertSoundEnabled;
       if (!_alertSoundEnabled) {
@@ -2041,8 +2049,10 @@ petContainer.addEventListener('mousedown', (e) => {
         _pendingClickTimer = setTimeout(() => {
           _pendingClickTimer = null;
           // 任务完成后单击 = 跳到对应 terminal (一次性, main 端会清状态)
-          if (taskDoneAvailable) {
+          // Claude Code (taskDoneAvailable) 与 OpenCode (ocAlertActive) 共用此路径
+          if (taskDoneAvailable || ocAlertActive) {
             taskDoneAvailable = false;  // 本地立即关, 防止重复跳; main 也会广播确认
+            ocAlertActive = false;
             updateAlertRing();
             window.petAPI.focusTerminalAlert();
             // 单击已经把焦点切过去了, 不再叠加"已切换..."提示;
