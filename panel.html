@@ -1737,8 +1737,9 @@
       <div id="memory-collapse" class="mem-collapse">
         <div class="setting-note" style="margin-bottom:10px">骷髅一号通过聊天和你投喂的文章逐渐了解你。以下是它记住的一切——你可随时删除单条或全部清空。</div>
         <div id="memory-body"><div class="setting-note">加载中...</div></div>
-        <button class="save-btn" id="memory-clear-btn" style="margin-top:12px;background:rgba(200,45,45,0.16);border-color:rgba(220,70,70,0.4);color:#ff9999" onclick="clearMemoryConfirm()">🗑 清空全部记忆</button>
-        <div class="setting-success" id="memory-cleared-msg">✓ 记忆已清空</div>
+        <button class="save-btn" id="memory-clear-btn" style="margin-top:12px;background:rgba(200,45,45,0.16);border-color:rgba(220,70,70,0.4);color:#ff9999" onclick="clearMemoryConfirm()">🗑 从头开始（清空对话＋记忆）</button>
+        <div class="setting-note" style="margin-top:6px;opacity:0.7">清空近期对话、长期画像、本场规则与羁绊等级（回 Lv.1），让它彻底重新认识你。仅保留你设的性格人设；原始归档不动。</div>
+        <div class="setting-success" id="memory-cleared-msg">✓ 已从头开始</div>
       </div>
     </div>
 
@@ -1796,6 +1797,12 @@
         <div class="p-model">claude-opus-4-8</div>
       </div>
     </div>
+
+    <div class="setting-section">千问型号 <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;opacity:0.6">(仅 🦅 千问后台生效)</span></div>
+    <select class="setting-input" id="qwen-model-select" onchange="saveQwenModel()" style="cursor:pointer;margin-bottom:13px">
+      <option value="qwen-plus">qwen-plus · 更省更快（默认）</option>
+      <option value="qwen-max">qwen-max · 更强、长篇一致性更好（更贵）</option>
+    </select>
 
     <div class="setting-section">API Keys <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;opacity:0.6">(仅本地存储)</span></div>
 
@@ -1942,7 +1949,6 @@ async function init() {
   initSettings();
   document.getElementById('panel-title').textContent = `${state.pet.name}的面板`;
 
-  addPetMessage(`VF-1S 骷髅一号面板已启动。${state.pet.name} 随时待命，请下达指令。`);
   loadWorkflows();
 
   window.petAPI.onPetUpdate((data) => {
@@ -1991,7 +1997,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     tab.classList.add('active');
     document.getElementById('pane-' + tab.dataset.tab).classList.add('active');
-    if (tab.dataset.tab === 'settings') { loadBreakReminder(); loadEdgePatrol(); loadPetVisible(); loadVoiceLang(); renderMemoryPanel(); loadPersona(); loadSessionRules(); }
+    if (tab.dataset.tab === 'settings') { loadBreakReminder(); loadEdgePatrol(); loadPetVisible(); loadVoiceLang(); renderMemoryPanel(); loadPersona(); loadSessionRules(); loadQwenModel(); }
     if (tab.dataset.tab === 'terminal') { termActive = true; termPollNow(); }
     else termActive = false;
   });
@@ -2288,6 +2294,33 @@ async function saveSessionRules() {
   } catch (e) { console.log('[RULES] save failed', e); }
 }
 
+// ── 千问型号 (qwen-plus / qwen-max) ──
+function updateQwenCardModel(m) {
+  const el = document.querySelector('.provider-card[data-provider="qwen"] .p-model');
+  if (el) el.textContent = m;
+}
+
+async function loadQwenModel() {
+  const sel = document.getElementById('qwen-model-select');
+  if (!sel) return;
+  try {
+    const m = await window.petAPI.getQwenModel() || 'qwen-plus';
+    sel.value = m;
+    updateQwenCardModel(m);
+  } catch (e) { console.log('[QWEN] load failed', e); }
+}
+
+async function saveQwenModel() {
+  const sel = document.getElementById('qwen-model-select');
+  if (!sel) return;
+  try {
+    const res = await window.petAPI.setQwenModel(sel.value);
+    const m = (res && res.qwenModel) || sel.value;
+    sel.value = m;
+    updateQwenCardModel(m);
+  } catch (e) { console.log('[QWEN] save failed', e); }
+}
+
 function memCancelEdit() {
   _memEdit = { key: null, idx: -1 };
   renderMemoryPanel();
@@ -2325,22 +2358,26 @@ async function memDelItem(key, idx) {
 // 两步确认清空 (不依赖 window.confirm — Electron 可能禁用)
 function clearMemoryConfirm() {
   const btn = document.getElementById('memory-clear-btn');
+  const LABEL = '🗑 从头开始（清空对话＋记忆）';
   if (!_clearArmed) {
     _clearArmed = true;
-    btn.textContent = '⚠ 再点一次确认清空';
-    setTimeout(() => { _clearArmed = false; if (btn) btn.textContent = '🗑 清空全部记忆'; }, 3000);
+    btn.textContent = '⚠ 再点一次确认：对话和记忆都会清空';
+    setTimeout(() => { _clearArmed = false; if (btn) btn.textContent = LABEL; }, 3000);
     return;
   }
   _clearArmed = false;
-  if (btn) btn.textContent = '🗑 清空全部记忆';
+  if (btn) btn.textContent = LABEL;
   doClearMemory();
 }
 
 async function doClearMemory() {
-  await window.petAPI.clearMemory();
+  // 从头开始: 清对话历史 + 提炼缓冲 + 本场规则 + 长期画像 (保留性格/羁绊/归档)
+  await window.petAPI.resetConversation();
   const msg = document.getElementById('memory-cleared-msg');
   if (msg) { msg.style.display = 'block'; setTimeout(() => { msg.style.display = 'none'; }, 2500); }
   renderMemoryPanel();
+  // 本场规则已被清空, 同步刷新规则输入框
+  try { loadSessionRules(); } catch (_) {}
 }
 document.getElementById('chat-input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.metaKey) { e.preventDefault(); sendChat(); }

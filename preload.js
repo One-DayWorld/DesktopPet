@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('petAPI', {
   getMemoryProfile: () => ipcRenderer.invoke('get-memory-profile'),
   updateMemoryProfile: (profile) => ipcRenderer.invoke('update-memory-profile', profile),
   clearMemory: () => ipcRenderer.invoke('clear-memory'),
+  resetConversation: () => ipcRenderer.invoke('reset-conversation'),
 
 
   scanFiles: () => ipcRenderer.invoke('scan-files'),
@@ -66,6 +67,8 @@ contextBridge.exposeInMainWorld('petAPI', {
   setPersona: (text) => ipcRenderer.invoke('set-persona', text),
   getSessionRules: () => ipcRenderer.invoke('get-session-rules'),
   setSessionRules: (text) => ipcRenderer.invoke('set-session-rules', text),
+  getQwenModel: () => ipcRenderer.invoke('get-qwen-model'),
+  setQwenModel: (model) => ipcRenderer.invoke('set-qwen-model', model),
   resetPetPosition: () => ipcRenderer.invoke('reset-pet-position'),
   setIgnoreMouse: (ignore) => ipcRenderer.invoke('set-ignore-mouse', ignore),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),

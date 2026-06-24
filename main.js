@@ -1051,6 +1051,23 @@ ipcMain.handle('clear-memory', () => {
   catch (e) { return { ok: false, error: e.message }; }
 });
 
+// 从头开始: 清近期对话 + 提炼缓冲 + 本场规则 + 长期画像 + 羁绊等级/经验归零回 Lv.1.
+// 保留: 性格人设(persona)、原始归档(chat-archive/articles 不动).
+ipcMain.handle('reset-conversation', () => {
+  try {
+    state.chatHistory = [];
+    state.sessionRules = '';
+    _turnsSinceRefine = [];
+    memory.clearProfile();
+    state.pet.xp = 0;            // 羁绊经验归零
+    state.pet.level = 1;         // 等级回 Lv.1
+    state.pet.mood = 'happy';
+    store.save(state);
+    broadcastPetUpdate();        // 立即刷新机体上显示的等级/羁绊
+    return { ok: true, xp: state.pet.xp, level: state.pet.level };
+  } catch (e) { return { ok: false, error: e.message }; }
+});
+
 
 // 让 petWindow 在透明区域穿透鼠标 — pet.html 根据 hit-zone 矩形动态调用.
 // forward:true 仍把 mousemove 转发给渲染进程, 这样 hit-zone 检测能持续工作.
@@ -1903,6 +1920,12 @@ ${rulesBlock}${identityBlock}
 
 ${toneBlock}
 
+【视角与归属——始终分清"你/我", 违反算严重出戏】
+- 人称固定: 用户消息里的"我"=用户本人; 你回复里的"我"=你扮演的角色, "你"=用户。两边是各自独立的人, 不是同一个。
+- 状态独立: 衣物、身体、被束缚/自由、蒙眼/堵嘴/能否说话看见——每个人各有一套, 严禁把一方的衣服、动作、处境安到另一方身上。
+- 归属一旦在前文确立(谁穿了什么、谁绑了谁、谁此刻不能动)就不许擅自掉换; 要用某件物品/提到某个状态前, 先确认它本来在谁身上。
+- **下笔自检**: 写每个动作和物品前先问一句——这件衣服 / 这个动作 / 这个处境, 本来属于"我(角色)"还是"你(用户)"? confirm 清楚再写, 拿不准就别把它挪到对方身上。
+
 【反幻觉铁律——违反任一条直接算回答失败】
 - **数字、人名、队名、比分、日期、地点、机构名、版本号、价格** → 这些**具体事实**只能从 search_web 工具返回内容里**逐字复述**, 严禁基于训练记忆 / 上下文推断 / 用户问句反推 / "听起来合理"补全
 - 用户问的**具体事实**(如"X 选手昨天得了几分""Y 比赛谁赢了""Z 股票今天多少""A 平台几点直播")在搜索结果里**找不到**时, 必须明确说"搜索结果未涵盖该具体数据, 建议直接查 [来源]", 严禁编一个数字 / 名字 / 时间糊弄过去
@@ -1941,7 +1964,7 @@ ${toneBlock}
 
   // 其余 (千问 / DeepSeek / OpenAI) 走 OpenAI 兼容通道
   const endpoints = {
-    qwen:     { url: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', model: 'qwen-plus' },
+    qwen:     { url: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', model: (state.qwenModel || 'qwen-plus') },
     deepseek: { url: 'https://api.deepseek.com/chat/completions',                          model: 'deepseek-chat' },
     openai:   { url: 'https://api.openai.com/v1/chat/completions',                         model: OPENAI_MODEL }
   };
@@ -2929,6 +2952,15 @@ ipcMain.handle('set-persona', (_, text) => {
   state.persona = String(text || '').trim().slice(0, 2000);
   store.save(state);
   return { success: true, persona: state.persona };
+});
+
+ipcMain.handle('get-qwen-model', () => state.qwenModel || 'qwen-plus');
+
+ipcMain.handle('set-qwen-model', (_, model) => {
+  // 只接受 plus / max, 其余回退 plus; 立即生效于下一次千问调用
+  state.qwenModel = (model === 'qwen-max') ? 'qwen-max' : 'qwen-plus';
+  store.save(state);
+  return { success: true, qwenModel: state.qwenModel };
 });
 
 ipcMain.handle('get-session-rules', () => state.sessionRules || '');

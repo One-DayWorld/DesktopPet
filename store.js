@@ -20,7 +20,8 @@ const DEFAULT_STATE = {
   edgePatrol:    { enabled: true },
   voiceLang:     'zh',           // 语音台词语言: 'zh' 中文 / 'en' 英文
   persona:       '',             // 自定义性格人设(空=默认军事腔骷髅一号); 非空时聊天里完全接管语气/自称/称呼
-  sessionRules:  ''              // 本场规则(空=无); 非空时钉在 system prompt 顶部, 每轮强制遵守, 永不被对话长度挤掉
+  sessionRules:  '',             // 本场规则(空=无); 非空时钉在 system prompt 顶部, 每轮强制遵守, 永不被对话长度挤掉
+  qwenModel:     'qwen-plus'     // 千问后台具体型号: 'qwen-plus'(默认/更省) 或 'qwen-max'(更强/更贵)
 };
 
 function calcLevelFromXP(xp) {
@@ -57,6 +58,9 @@ function load() {
     // 选中的后台若已不在有效集合内, 回退到 qwen
     const VALID_PROVIDERS = ['qwen', 'deepseek', 'openai', 'anthropic'];
     if (!VALID_PROVIDERS.includes(merged.aiProvider)) merged.aiProvider = 'qwen';
+    // 千问型号只允许 plus / max, 非法值回退 plus
+    const VALID_QWEN = ['qwen-plus', 'qwen-max'];
+    if (!VALID_QWEN.includes(merged.qwenModel)) merged.qwenModel = 'qwen-plus';
     // deep merge pet to fill any missing fields
     merged.pet = Object.assign({}, DEFAULT_STATE.pet, merged.pet);
     // deep merge breakReminder for older data files that don't have this field
