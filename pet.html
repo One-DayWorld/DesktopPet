@@ -1326,8 +1326,50 @@ let _pendingClickTimer = null;
 // ── 鼠标命中区 ─────────────────────────────────────────────────────────
 // petWindow 是 180×400 的全透明窗, 其中只有中间一小块画着 VF-1 模型, 其余空白
 // 也会吸收鼠标点击 → 把不点到机体的区域设为穿透, 让点击落到底层应用.
-// HIT_ZONE 取 Battloid (最高/最展) 形态的近似外接矩形, 加少量余量给气泡/装饰.
-const HIT_ZONE = { x: 30, y: 18, w: 120, h: 300 };
+// HIT_ZONE 由 updateHitZone() 在渲染循环里动态投影更新, 贴合机甲实体包围盒.
+// 初始值覆盖全画布兜底 (模型加载前也能捕获到第一次鼠标移动).
+let HIT_ZONE = { x: 0, y: 0, w: 180, h: 260 };
+
+// 把 modelGroup 世界包围盒投影到屏幕像素, 更新 HIT_ZONE.
+// 仅在模型加载后执行; 调用方每 5 帧调一次, throttle 掉高频 Box3 计算.
+function updateHitZone() {
+  if (!modelGroup) return;
+  const box = new THREE.Box3().setFromObject(modelGroup);
+  if (box.isEmpty()) return;
+  const W = 180, H = 260, PAD = 8;
+  // 包围盒 8 个角逐一投影到 NDC, 转为屏幕像素坐标
+  const corners = [
+    new THREE.Vector3(box.min.x, box.min.y, box.min.z),
+    new THREE.Vector3(box.min.x, box.min.y, box.max.z),
+    new THREE.Vector3(box.min.x, box.max.y, box.min.z),
+    new THREE.Vector3(box.min.x, box.max.y, box.max.z),
+    new THREE.Vector3(box.max.x, box.min.y, box.min.z),
+    new THREE.Vector3(box.max.x, box.min.y, box.max.z),
+    new THREE.Vector3(box.max.x, box.max.y, box.min.z),
+    new THREE.Vector3(box.max.x, box.max.y, box.max.z),
+  ];
+  let minSx = Infinity, maxSx = -Infinity;
+  let minSy = Infinity, maxSy = -Infinity;
+  for (const c of corners) {
+    c.project(camera);                    // 修改 c 为 NDC 坐标 (x,y ∈ -1..1)
+    const sx = (c.x * 0.5 + 0.5) * W;   // NDC x → 像素 (左=0, 右=W)
+    const sy = (-c.y * 0.5 + 0.5) * H;  // NDC y 翻转 → 像素 (上=0, 下=H)
+    if (sx < minSx) minSx = sx;
+    if (sx > maxSx) maxSx = sx;
+    if (sy < minSy) minSy = sy;
+    if (sy > maxSy) maxSy = sy;
+  }
+  // 加余量后 clamp 到画布范围
+  const x  = Math.max(0, Math.floor(minSx - PAD));
+  const y  = Math.max(0, Math.floor(minSy - PAD));
+  const x2 = Math.min(W, Math.ceil(maxSx + PAD));
+  const y2 = Math.min(H, Math.ceil(maxSy + PAD));
+  HIT_ZONE = { x, y, w: x2 - x, h: y2 - y };
+}
+
+// 帧计数器 — 控制 updateHitZone throttle
+let _hitZoneFrameCount = 0;
+
 let _mouseIgnored = false;
 function _inHitZone(cx, cy) {
   return cx >= HIT_ZONE.x && cx <= HIT_ZONE.x + HIT_ZONE.w
@@ -1672,6 +1714,9 @@ function animate() {
       modelGroup.position.y -= shiftDown;
     }
   }
+
+  // 动态命中区每 5 帧更新一次 — 机甲变形/旋转时自动贴合, 同时避免每帧算包围盒
+  if (modelLoaded && ++_hitZoneFrameCount % 5 === 0) updateHitZone();
 
   renderer.render(scene, camera);
 }

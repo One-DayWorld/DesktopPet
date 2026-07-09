@@ -106,20 +106,20 @@ function ensureClaudeHooksInstalled() {
   }
 }
 
-// 机体 "home" / 复位位置: 屏幕右下角 (相对传入显示器的整块 bounds 计算, 含 dock/菜单栏).
+// 机体 "home" / 复位位置: 屏幕左下角 (相对传入显示器的整块 bounds 计算, 含 dock/菜单栏).
 // 启动初始位置与 reset-pet-position 共用此函数, 保证两者完全一致.
 const PET_W = 180, PET_H = 290;
-const PET_HOME_DX = 12, PET_HOME_DY = 60;  // 在贴边基础上的微调 (右移 / 下移)
+const PET_HOME_DX = 4, PET_HOME_DY = 60;  // 在贴边基础上的微调 (右移 / 下移)
 function homePetPosition(display) {
   const { x: sx, y: sy, width: sw, height: sh } = display.bounds;
   return {
-    x: Math.round(sx + sw - PET_W + PET_HOME_DX),
+    x: Math.round(sx + PET_HOME_DX),
     y: Math.round(sy + sh - PET_H + PET_HOME_DY)
   };
 }
 
 function createPetWindow() {
-  // 初始位置 = 复位位置 (屏幕右下角 home), 每次启动都落在这里
+  // 初始位置 = 复位位置 (屏幕左下角 home), 每次启动都落在这里
   const pos = homePetPosition(screen.getPrimaryDisplay());
   state.petPosition = pos;
   store.save(state);
@@ -199,6 +199,8 @@ const CLAUDE_PENDING_FLAG = path.join(RUN_DIR, 'vf1_claude_pending');
 
 // ── 任务完成语音播报 ──────────────────────────────────────────────────────
 const VF1_DONE_FLAG = path.join(RUN_DIR, 'vf1_task_done');
+// 需求1: 后台子 agent 活动时间戳 flag — 子 agent hook 事件(带 agent_id)touch 刷新此文件 mtime
+const VF1_SUBAGENT_FLAG = path.join(RUN_DIR, 'vf1_subagent_active');
 
 // ── 语音台词 (中英双语; 全部集中在 voice-lines.json, 切换开关在 CONFIG) ──────
 function _voiceLang() { return state.voiceLang === 'en' ? 'en' : 'zh'; }
@@ -541,6 +543,11 @@ async function startEdgePatrolLoop() {
 
 async function checkTaskDoneFlag() {
   if (!fs.existsSync(VF1_DONE_FLAG)) return;
+  // 需求1: 后台子 agent 近 12s 内仍在活动 → 推迟播报(保留 flag, 每秒轮询重判), 静默满 12s 才报
+  try {
+    const st = fs.statSync(VF1_SUBAGENT_FLAG);
+    if (Date.now() - st.mtimeMs < 12000) return;
+  } catch (_) { /* flag 不存在 = 无子 agent 活动, 正常播报 */ }
   let raw = '';
   try {
     raw = fs.readFileSync(VF1_DONE_FLAG, 'utf8');
@@ -2469,7 +2476,7 @@ ipcMain.handle('set-session-rules', (_, text) => {
   return { success: true, sessionRules: memory.getRules() };
 });
 
-// 复位: 让机体平滑飞回屏幕右下角的 home 位 (关闭巡航后归位用).
+// 复位: 让机体平滑飞回屏幕左下角的 home 位 (关闭巡航后归位用).
 // 目标点与启动初始位共用 homePetPosition, 但相对机体当前所在显示器计算, 兼容多屏.
 ipcMain.handle('reset-pet-position', async () => {
   if (!petWindow || petWindow.isDestroyed()) return { success: false };

@@ -9,6 +9,7 @@ RUN_DIR="${HOME}/.macross/run"
 mkdir -p "$RUN_DIR" 2>/dev/null && chmod 700 "$RUN_DIR" 2>/dev/null || true
 PENDING_FLAG="$RUN_DIR/vf1_claude_pending"
 TASK_DONE_FLAG="$RUN_DIR/vf1_task_done"
+SUBAGENT_FLAG="$RUN_DIR/vf1_subagent_active"
 TASK_DONE_MSG="目标已锁定，请指示"
 
 SUBCMD="${1:-}"
@@ -50,6 +51,9 @@ try:
     # 把完整 JSON 写到 debug log (与 flag 同处私有目录)
     with open(os.path.expanduser('~/.macross/run/vf1_debug.log'), 'a') as f:
         f.write(json.dumps(data, ensure_ascii=False) + '\n')
+    if data.get('agent_id') or data.get('tool_name') in ('Agent','Task'):
+        import pathlib
+        pathlib.Path(os.path.expanduser('~/.macross/run/vf1_subagent_active')).touch()
     tool = data.get('tool_name', '')
     pmode = data.get('permission_mode', '')
     print(tool + '|' + pmode)
@@ -76,6 +80,15 @@ except:
     ;;
 
   pending-clear)
+    python3 -c "
+import sys, json, os, pathlib
+try:
+    d = json.load(sys.stdin)
+    if d.get('agent_id') or d.get('tool_name') in ('Agent','Task'):
+        pathlib.Path(os.path.expanduser('~/.macross/run/vf1_subagent_active')).touch()
+except Exception:
+    pass
+" 2>/dev/null || true
     rm -f "$PENDING_FLAG"
     ;;
 
