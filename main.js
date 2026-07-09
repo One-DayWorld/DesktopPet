@@ -2277,8 +2277,14 @@ ipcMain.handle('run-workflow', async (_, prompt) => {
     const provider = state.aiProvider || 'qwen';
     const apiKey = (state.apiKeys || {})[provider] || '';
     const metasoKey = (state.apiKeys || {}).metaso || '';
-    const result = await callAI(provider, apiKey, state.pet.name, [], prompt, metasoKey);
-    return { result };
+    // 注入人设/规则/记忆, 使用当前对话历史作为上下文, 但不写入记忆/archive/XP
+    const callOpts = {};
+    const cfg = memory.loadConfig();
+    callOpts.persona = cfg.persona || '';
+    callOpts.sessionRules = cfg.rules || '';
+    try { callOpts.profileInject = buildProfileInject(cfg.memory, !!callOpts.persona); } catch (_) {}
+    const reply = await callAI(provider, apiKey, state.pet.name, state.chatHistory || [], prompt, metasoKey, callOpts);
+    return { reply };
   } catch (e) {
     if (e.name === 'TimeoutError') return { error: '请求超时，AI响应时间过长，请稍后重试' };
     return { error: e.message };

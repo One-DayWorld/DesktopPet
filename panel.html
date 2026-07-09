@@ -1717,7 +1717,7 @@ async function wfRun(id) {
   isChatting = true;
   document.getElementById('send-btn').disabled = true;
 
-  const result = await window.petAPI.chat(wf.prompt);
+  const result = await window.petAPI.runWorkflow(wf.prompt);
   removeTypingIndicator();
   isChatting = false;
   document.getElementById('send-btn').disabled = false;
@@ -1726,10 +1726,6 @@ async function wfRun(id) {
     addPetMessage('系统异常——' + result.error);
   } else {
     addPetMessage(result.reply);
-    if (result.level > (state.pet?.level || 1)) {
-      setTimeout(() => addPetMessage(`💠 羁绊加深——${state.pet.name} 升到 羁绊Lv.${result.level}，对你的了解更深了`), 500);
-    }
-    state.pet = Object.assign(state.pet || {}, { xp: result.xp, level: result.level });
     const wfUpdated = Object.assign({}, wf, { lastRun: new Date().toISOString() });
     await window.petAPI.saveWorkflow(wfUpdated);
     const idx = workflows.findIndex(w => w.id === id);
