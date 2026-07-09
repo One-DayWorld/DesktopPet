@@ -20,11 +20,11 @@
 
 ## ✨ Why you'll want this
 
-- 🤖 **Agent radar** — the VF-1 watches your **Claude Code** *and* **OpenCode** sessions. The moment an agent needs your permission or finishes a turn, it flashes gold, pulses a target-lock HUD, and calls out over TTS — while the **YES BOT** panel mirrors each waiting session as a live status card. No more babysitting a terminal in another window.
+- 🤖 **Agent radar** — the VF-1 watches your **Claude Code** *and* **OpenCode** sessions. The moment an agent needs your permission or finishes a turn, it flashes gold, pulses a target-lock HUD, and calls out over TTS. No more babysitting a terminal in another window.
 - 🛸 **A real transformable mecha, not a sprite** — full **Fighter ↔ Gerwalk ↔ Battloid** morphing rendered live in Three.js. It cruises the edges of your screen, banks into turns, barrel-rolls, and hovers on glowing thrusters.
 - 🎛️ **A cockpit, not a tooltip** — click the model and a HUD-styled control panel slides out: LLM chat, a live terminal-session monitor, and reusable AI workflows.
 - 🧠 **It learns you over time** — the more you chat (and the articles you feed it), the better it knows your interests, personality, and the tone you're comfortable with. Memory is **persistent across restarts**, fully local, and you can view/edit/wipe it anytime. A **bond level** replaces combat XP — the higher it climbs, the deeper it understands you.
-- 🧠 **Bring your own brain** — the pet is just the body. Plug in **Qwen, DeepSeek, OpenAI, or Anthropic** as the intelligence, plus optional live web search.
+- 🧠 **Bring your own brain** — the pet is just the body. Plug in **Qwen or DeepSeek** as the intelligence, plus optional live web search.
 - 🔒 **100% local** — no telemetry, no cloud sync. Keys, state, and everything it remembers about you live in `0600` files in your home directory.
 
 > The pet itself is not the AI — it's a **frontend container**. The intelligence comes from whichever LLM you bind in `CONFIG`.
@@ -90,7 +90,7 @@ Claude finishes → Stop hook fires → VF-1 announces "mission complete"
 
 **Terminals:** Terminal.app & iTerm2 (full support); WezTerm / Warp / Alacritty / Hyper fall back to focusing Terminal.app.
 
-**OpenCode, too:** Macross polls OpenCode's local session DB (`~/.local/share/opencode/opencode.db`). When a turn finishes (`step-finish` / `stop`) and it's waiting on you, it raises the same alert + a status card in YES BOT. Since OpenCode exposes no permission-vs-done distinction in its DB, it shows a single "waiting for reply" state — whereas Claude Code's hooks let it split into separate *permission* and *task-done* cards.
+**OpenCode, too:** Macross polls OpenCode's local session DB (`~/.local/share/opencode/opencode.db`). When a turn finishes (`step-finish` / `stop`) and it's waiting on you, it raises the same visual and audio alert. Since OpenCode exposes no permission-vs-done distinction in its DB, the alert shows a unified "waiting for reply" state — whereas Claude Code's hooks let the VF-1 distinguish between separate *permission* and *task-done* scenarios via distinct visual and voice states.
 
 ---
 
@@ -111,9 +111,9 @@ When idle, the VF-1 cruises your four screen corners:
 
 | Trigger | Behavior |
 |---|---|
-| Claude Code permission prompt | Eyes flash gold, target-lock HUD, voice every 30s + **red** card in YES BOT |
-| Claude Code task done | Voice announce + persistent bubble until clicked + **purple** card in YES BOT |
-| OpenCode turn finished | Voice announce + **blue** card in YES BOT |
+| Claude Code permission prompt | Eyes flash gold, target-lock HUD, voice every 30s |
+| Claude Code task done | Voice announce + persistent bubble until clicked |
+| OpenCode turn finished | Voice announce |
 | Click while task-done active | Brings the matching terminal window to front |
 | Break-reminder timer | Flies to screen center, speaks the reminder, returns home |
 | Lid close / system sleep | Timers pause; counters reset on wake to avoid burst-firing |
@@ -125,14 +125,13 @@ Click only registers on the model itself — transparent areas pass clicks throu
 
 ## 🎛️ Cockpit panel
 
-Click the VF-1 to open a HUD-styled, 4-tab control panel:
+Click the VF-1 to open a HUD-styled, 3-tab control panel:
 
 | Tab | Purpose |
 |---|---|
 | **CHAT** | LLM chat with quick-actions (weather, calendar, news, sports), one-click launchers, and a 📎 button to feed it articles (txt / docx / link) |
 | **WORKFLOW** | Save & one-click-run reusable AI prompts |
-| **YES BOT** | Live status cards for Claude Code (permission / done) and OpenCode (done) sessions awaiting your reply |
-| **CONFIG** | Pet name/avatar, break reminder, edge-patrol toggle + reset, AI provider, API keys, **Memory panel** (view / edit / wipe what it knows about you) |
+| **CONFIG** | Pet name/avatar, break reminder, edge-patrol toggle + reset, AI provider, API keys, settings file editor, and full memory reset |
 
 ---
 
@@ -161,24 +160,22 @@ Next chat: the distilled profile (a few hundred tokens) is injected into the sys
 
 | Bond level | VF-1's behavior | Profile depth injected |
 |---|---|---|
-| Lv 1–2 (新驾驶员) | Default tone, cautious, few assumptions | Known facts only |
+| Lv 1–2 (初识) | Default tone, cautious, few assumptions | Known facts only |
 | Lv 3–5 (熟识) | Starts matching your tone (length / warmth / emoji) | + interests & comm-style |
 | Lv 6+ (默契) | Talks the way you like; references what you care about | + full tone contract |
 
-**Two tones, kept separate.** Alerts and mission-complete callouts stay in fixed military-radio voice (they run off `voice-lines.json`, never the LLM — so memory never leaks into them). Only the **Chat** tab adapts to you. And you stay in control: the **CONFIG → Memory** panel lets you read every stored item, delete single entries, add your own, or wipe it all. Nothing leaves your machine.
+**Two tones, kept separate.** Alerts and mission-complete callouts stay in fixed, pre-written lines with a light, humorous tone (they run off `voice-lines.json`, never the LLM — so memory never leaks into them). Only the **Chat** tab adapts to you. And you stay in control: the **CONFIG** tab lets you open a unified settings file to edit your personality, session rules, and long-term memory directly, or use the **Reset** button to clear recent chat history, memory, and bond level while preserving your personality. Nothing leaves your machine.
 
 ---
 
 ## 🧠 AI providers
 
-Four backends behind one OpenAI-compatible interface — configure under `CONFIG → AI 后台`:
+Two backends behind one OpenAI-compatible interface — configure under `CONFIG → AI 后台`:
 
 | Provider | Default model | Endpoint | Get a key |
 |---|---|---|---|
 | **Qwen** (千问) | `qwen-plus` | DashScope (Alibaba Cloud) | [dashscope.console.aliyun.com](https://dashscope.console.aliyun.com) |
 | **DeepSeek** | `deepseek-chat` | api.deepseek.com | [platform.deepseek.com](https://platform.deepseek.com) |
-| **OpenAI** | `gpt-4o` | api.openai.com | [platform.openai.com](https://platform.openai.com/api-keys) |
-| **Anthropic** | `claude-opus-4-8` | api.anthropic.com | [console.anthropic.com](https://console.anthropic.com/settings/keys) |
 
 > Optional: add a [Metaso](https://metaso.cn) key under `CONFIG → 网页搜索` to let the AI search the live web for scores, news, and prices.
 
@@ -190,8 +187,8 @@ Electron main process (`main.js`) drives two `BrowserWindow`s — a transparent 
 
 ```
 main.js ── IPC ──┬── pet.html      (Three.js VF-1: GLB loader, morph, patrol, maneuvers)
-   │             └── panel.html    (HUD 4-tab UI: chat, workflows, terminal monitor, config)
-   ├── LLM clients (Qwen / DeepSeek / OpenAI / Anthropic)
+   │             └── panel.html    (HUD 3-tab UI: chat, workflows, config)
+   ├── LLM clients (Qwen / DeepSeek)
    ├── memory.js — long-term profile store + distillation engine + article/chat archive
    ├── Edge-patrol loop + break reminders
    ├── Claude Code flag-file watchers + hook auto-installer
