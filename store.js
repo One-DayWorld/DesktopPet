@@ -12,7 +12,7 @@ const DEFAULT_STATE = {
   pet: { name: '骷髅一号', level: 1, xp: 0, mood: 'happy', avatar: '🐕' },
   chatHistory: [],
   aiProvider: 'qwen',
-  apiKeys: { qwen: '', deepseek: '', openai: '', anthropic: '', metaso: '' },
+  apiKeys: { qwen: '', deepseek: '', metaso: '' },
   petPosition: { x: 100, y: 100 },
   workflows: [],
   alertSoundEnabled: true,
@@ -52,11 +52,10 @@ function load() {
       delete merged.apiKey;
     }
     merged.apiKeys = Object.assign({}, DEFAULT_STATE.apiKeys, merged.apiKeys);
-    // provider 集合迁移: 下线 doubao/ollama, 改用 openai/anthropic
-    // 清理已下线后台的残留 key 字段 (claude 为更早的旧命名)
-    ['doubao', 'ollama', 'claude'].forEach(k => { if (merged.apiKeys[k] !== undefined) delete merged.apiKeys[k]; });
+    // 清理已下线后台的残留 key 字段 (openai/anthropic/doubao/ollama/claude 均已下线)
+    ['doubao', 'ollama', 'claude', 'openai', 'anthropic'].forEach(k => { if (merged.apiKeys[k] !== undefined) delete merged.apiKeys[k]; });
     // 选中的后台若已不在有效集合内, 回退到 qwen
-    const VALID_PROVIDERS = ['qwen', 'deepseek', 'openai', 'anthropic'];
+    const VALID_PROVIDERS = ['qwen', 'deepseek'];
     if (!VALID_PROVIDERS.includes(merged.aiProvider)) merged.aiProvider = 'qwen';
     // 千问型号只允许 plus / max, 非法值回退 plus
     const VALID_QWEN = ['qwen-plus', 'qwen-max'];

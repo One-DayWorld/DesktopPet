@@ -10,7 +10,6 @@ const execAsync = util.promisify(exec);
 const execFileAsync = util.promisify(execFile);
 const store = require('./store');
 const memory = require('./memory');
-const Anthropic = require('@anthropic-ai/sdk');   // Anthropic 后台走官方 SDK (Messages API, 非 OpenAI 兼容)
 const mammoth = require('mammoth');   // docx → 纯文本 (文章投喂)
 
 let petWindow = null;
@@ -202,17 +201,17 @@ const VF1_DONE_FLAG = path.join(RUN_DIR, 'vf1_task_done');
 // 需求1: 后台子 agent 活动时间戳 flag — 子 agent hook 事件(带 agent_id)touch 刷新此文件 mtime
 const VF1_SUBAGENT_FLAG = path.join(RUN_DIR, 'vf1_subagent_active');
 
-// ── 语音台词 (中英双语; 全部集中在 voice-lines.json, 切换开关在 CONFIG) ──────
-function _voiceLang() { return state.voiceLang === 'en' ? 'en' : 'zh'; }
+// ── 语音台词 (只用中文; 全部集中在 voice-lines.json) ──────────────────────
+function _voiceLang() { return 'zh'; }
 
 // 从 voice-lines.json 读全部台词; 文件缺失/损坏时用极简兜底, 保证 App 不崩
 function loadVoiceLines() {
   const FALLBACK = {
-    alert:     { zh: '发现不明物体', en: 'Unidentified contact detected' },
-    emo:       { zh: ['听命'], en: ['Orders received.'] },
-    greetings: { zh: ['骷髅一号，起动完毕'], en: ['Skull One, standing by.'] },
-    break:     { zh: ['请起身活动一下'], en: ['Please stand up and stretch.'] },
-    taskDone:  { zh: '任务已完成', en: 'Mission complete' },
+    alert:     { zh: '发现不明物体' },
+    emo:       { zh: ['听命'] },
+    greetings: { zh: ['骷髅一号，起动完毕'] },
+    break:     { zh: ['请起身活动一下'] },
+    taskDone:  { zh: '任务已完成' },
   };
   try {
     const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'voice-lines.json'), 'utf8'));
@@ -1093,20 +1092,13 @@ ipcMain.handle('move-pet', (_, x, y) => {
 const PROVIDERS = {
   qwen:      { name: '千问',      needsKey: true },
   deepseek:  { name: 'DeepSeek',  needsKey: true },
-  openai:    { name: 'OpenAI',    needsKey: true },
-  anthropic: { name: 'Anthropic', needsKey: true }
 };
 
 const MODEL_DISPLAY = {
   qwen:      '通义千问 Plus（阿里云）',
   deepseek:  'DeepSeek Chat（DeepSeek）',
-  openai:    'GPT-4o（OpenAI）',
-  anthropic: 'Claude Opus 4.8（Anthropic）'
 };
 
-// 各后台默认模型 (集中一处, 便于调整)
-const OPENAI_MODEL    = 'gpt-4o';
-const ANTHROPIC_MODEL = 'claude-opus-4-8';
 
 function extractMoodFromText(text) {
   const matches = [...text.matchAll(/[（(]([^）)]+)[）)]/g)].map(m => m[1]).join('');
@@ -1797,52 +1789,6 @@ end run`;
   return '未知工具';
 }
 
-// Anthropic Messages API 分支 — 用官方 @anthropic-ai/sdk (与其它 OpenAI 兼容 provider 的裸 fetch 通道分开).
-// Anthropic 接口: system 是顶层参数、工具用 input_schema 格式 (复用 CLAUDE_TOOLS)、响应是 content block 数组、
-// 工具循环靠 stop_reason==='tool_use' + tool_result 回灌. 不传 temperature (opus-4-8 已移除该参数会 400).
-async function callAnthropic({ apiKey, model, systemPrompt, recentHistory, userMessage, useTools, forceTool, metasoKey }) {
-  const client = new Anthropic({ apiKey, timeout: 90000, maxRetries: 1 });
-  // Anthropic 要求首条消息为 user, 故剔除历史里开头的 assistant 前缀
-  const msgs = recentHistory
-    .map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content ?? '') }))
-    .filter(m => m.content.length > 0);
-  while (msgs.length && msgs[0].role === 'assistant') msgs.shift();
-  msgs.push({ role: 'user', content: userMessage });
-
-  const MAX_TOOL_ROUNDS = 6;
-  let rounds = 0, firstCall = true, finalText = '';
-  while (true) {
-    if (++rounds > MAX_TOOL_ROUNDS) {
-      console.warn('[AI] Anthropic 工具调用超过', MAX_TOOL_ROUNDS, '轮, 强制结束');
-      return finalText || '（处理超时：工具调用轮数过多，请换个问法重试）';
-    }
-    const req = { model, max_tokens: 4096, system: systemPrompt, messages: msgs };
-    if (useTools) {
-      req.tools = CLAUDE_TOOLS;
-      if (forceTool && firstCall) req.tool_choice = { type: 'tool', name: forceTool };
-    }
-    firstCall = false;
-
-    const resp = await client.messages.create(req);
-    const text = (resp.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
-    if (text) finalText = text;
-
-    if (resp.stop_reason === 'tool_use') {
-      msgs.push({ role: 'assistant', content: resp.content });
-      const toolResults = [];
-      for (const block of resp.content) {
-        if (block.type !== 'tool_use') continue;
-        let result;
-        try { result = await runTool(block.name, block.input || {}, { metasoKey }); }
-        catch (e) { result = `工具执行失败: ${e.message}`; }
-        toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: String(result ?? '') });
-      }
-      msgs.push({ role: 'user', content: toolResults });
-      continue;
-    }
-    return finalText;
-  }
-}
 
 // 从最新往前收对话, 累计内容字符数到 budget 为止; 至少保留最近 1 轮(2 条), 不被预算砍光.
 // 取代过去的 history.slice(-10): 短聊能留几十轮, 长角色扮演也能把开头定的规则保进上下文, 避免"前说后忘".
@@ -1949,20 +1895,14 @@ ${toneBlock}
   // Chat 主路径注入用户画像 (profileInject); systemOverride (顾问/提炼) 走自己的, 不受影响
   const systemPrompt = systemOverride || (defaultSystemPrompt + (profileInject ? '\n\n' + profileInject : ''));
   // 近期对话: 不再死砍 10 条(=5 个来回), 否则长角色扮演里"开头定的规则"会被挤出窗口 → 前说后忘.
-  // 改为从最新往前按字符预算尽量多带, 至少保最近 1 轮; 60000 字对 qwen/openai/anthropic 上下文绰绰有余, DeepSeek 64k 也安全(留足系统提示+回复余量).
+  // 改为从最新往前按字符预算尽量多带, 至少保最近 1 轮; 60000 字对 qwen/deepseek 上下文绰绰有余, DeepSeek 64k 也安全(留足系统提示+回复余量).
   const recentHistory = pickRecentHistory(history, 60000);
   const useTools = !noTools;
 
-  // Anthropic 非 OpenAI 兼容, 走官方 SDK 单独分支
-  if (provider === 'anthropic') {
-    return await callAnthropic({ apiKey, model: ANTHROPIC_MODEL, systemPrompt, recentHistory, userMessage, useTools, forceTool, metasoKey });
-  }
-
-  // 其余 (千问 / DeepSeek / OpenAI) 走 OpenAI 兼容通道
+  // 千问 / DeepSeek 走 OpenAI 兼容通道
   const endpoints = {
     qwen:     { url: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', model: (state.qwenModel || 'qwen-plus') },
     deepseek: { url: 'https://api.deepseek.com/chat/completions',                          model: 'deepseek-chat' },
-    openai:   { url: 'https://api.openai.com/v1/chat/completions',                         model: OPENAI_MODEL }
   };
   const ep = endpoints[provider];
   if (!ep) throw new Error('未知的 AI 后台，请在设置中重新选择');
@@ -2439,18 +2379,6 @@ ipcMain.handle('get-voice-lines', () => VOICE);
 ipcMain.handle('get-pet-visible', () => !!(petWindow && !petWindow.isDestroyed() && petWindow.isVisible()));
 ipcMain.handle('toggle-pet-visible', () => ({ visible: togglePetVisible() }));
 
-// 语音台词语言 (中/英)
-ipcMain.handle('get-voice-lang', () => state.voiceLang === 'en' ? 'en' : 'zh');
-
-ipcMain.handle('set-voice-lang', (_, lang) => {
-  state.voiceLang = lang === 'en' ? 'en' : 'zh';
-  store.save(state);
-  // 通知机体窗口立刻切换 (告警/点击/欢迎语台词与 TTS 嗓音随之改变)
-  if (petWindow && !petWindow.isDestroyed()) {
-    petWindow.webContents.send('pet-update', { voiceLang: state.voiceLang });
-  }
-  return { success: true, voiceLang: state.voiceLang };
-});
 
 ipcMain.handle('get-persona', () => memory.getPersona());
 

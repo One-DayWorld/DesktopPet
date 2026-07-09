@@ -1210,30 +1210,8 @@
       <div class="setting-note" style="margin-top:6px;">全局快捷键 <b>⌘⌥H</b> 随时隐藏 / 显示机体(隐藏期间巡航与休息提醒暂停, 显示后停在原位)。</div>
     </div>
 
-    <div style="height:14px"></div>
-    <div class="setting-section">语音台词语言</div>
-    <div class="setting-row" style="margin-bottom:8px">
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-        <label style="font-size:12px; color:var(--text-md);">语音播报 / 台词语言</label>
-        <select class="setting-input" id="voice-lang" style="width:auto; flex:0 0 auto;" onchange="saveVoiceLang()">
-          <option value="zh">中文</option>
-          <option value="en">English</option>
-        </select>
-      </div>
-      <div class="setting-note" style="margin-top:6px;">切换语言会同时改变告警/点击/欢迎/休息/任务完成的播报文案与 TTS 嗓音</div>
-    </div>
 
     </div><!-- /PET CONFIG hud-frame -->
-
-    <div class="hud-frame">
-      <div class="hud-pill">SETTINGS FILE · 设定文件</div>
-      <div class="setting-note" style="margin-bottom:10px">性格、本场规则、长期记忆现在统一存于一个文本文件。点下方按钮直接打开编辑，改完保存即生效——记忆段骷髅一号会自动更新，你也可以随时手改。</div>
-      <button class="save-btn" onclick="openConfigFile()">📂 打开设定文件</button>
-      <div style="height:14px"></div>
-      <button class="save-btn" id="memory-clear-btn" style="background:rgba(200,45,45,0.16);border-color:rgba(220,70,70,0.4);color:#ff9999" onclick="clearMemoryConfirm()">🗑 从头开始（清空对话＋记忆）</button>
-      <div class="setting-note" style="margin-top:6px;opacity:0.7">清空近期对话、长期记忆、本场规则与羁绊等级（回 Lv.1），让它彻底重新认识你。仅保留你设的性格；原始归档不动。</div>
-      <div class="setting-success" id="memory-cleared-msg">✓ 已从头开始</div>
-    </div>
 
     <div class="hud-frame" id="ai-backend-frame">
       <div class="hud-pill">AI BACKEND</div>
@@ -1249,16 +1227,6 @@
         <div class="p-icon">🌊</div>
         <div class="p-name">DeepSeek</div>
         <div class="p-model">deepseek-chat</div>
-      </div>
-      <div class="provider-card" data-provider="openai" onclick="selectProvider('openai')">
-        <div class="p-icon">🤖</div>
-        <div class="p-name">OpenAI</div>
-        <div class="p-model">gpt-4o</div>
-      </div>
-      <div class="provider-card" data-provider="anthropic" onclick="selectProvider('anthropic')">
-        <div class="p-icon">🧠</div>
-        <div class="p-name">Anthropic</div>
-        <div class="p-model">claude-opus-4-8</div>
       </div>
     </div>
 
@@ -1288,24 +1256,6 @@
       <div class="key-status" id="status-deepseek"></div>
     </div>
 
-    <div class="key-section">
-      <div class="setting-label" style="margin-bottom:0">🤖 OpenAI</div>
-      <div class="key-row">
-        <input class="setting-input" id="key-openai" type="password" placeholder="sk-..." />
-        <button class="key-save-btn" onclick="saveKey('openai')">保存</button>
-      </div>
-      <div class="key-status" id="status-openai"></div>
-    </div>
-
-    <div class="key-section">
-      <div class="setting-label" style="margin-bottom:0">🧠 Anthropic (Claude)</div>
-      <div class="key-row">
-        <input class="setting-input" id="key-anthropic" type="password" placeholder="sk-ant-..." />
-        <button class="key-save-btn" onclick="saveKey('anthropic')">保存</button>
-      </div>
-      <div class="key-status" id="status-anthropic"></div>
-    </div>
-
     <div style="height:14px"></div>
     <div class="setting-section">网页搜索（实时信息）</div>
 
@@ -1320,6 +1270,16 @@
     </div>
 
     </div><!-- /AI BACKEND hud-frame -->
+
+    <div class="hud-frame">
+      <div class="hud-pill">SETTINGS FILE · 设定文件</div>
+      <div class="setting-note" style="margin-bottom:10px">性格、本场规则、长期记忆现在统一存于一个文本文件。点下方按钮直接打开编辑，改完保存即生效——记忆段骷髅一号会自动更新，你也可以随时手改。</div>
+      <button class="save-btn" onclick="openConfigFile()">📂 打开设定文件</button>
+      <div style="height:14px"></div>
+      <button class="save-btn" id="memory-clear-btn" style="background:rgba(200,45,45,0.16);border-color:rgba(220,70,70,0.4);color:#ff9999" onclick="clearMemoryConfirm()">🗑 从头开始（清空对话＋记忆）</button>
+      <div class="setting-note" style="margin-top:6px;opacity:0.7">清空近期对话、长期记忆、本场规则与羁绊等级（回 Lv.1），让它彻底重新认识你。仅保留你设的性格；原始归档不动。</div>
+      <div class="setting-success" id="memory-cleared-msg">✓ 已从头开始</div>
+    </div>
 
     <div style="height:10px"></div>
     <div class="setting-note" style="text-align:center;color:rgba(78,148,175,0.38)">羁绊只靠交流增长 · 聊天+8 · 投喂文章+25 · 提炼出新理解+15</div>
@@ -1432,7 +1392,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     tab.classList.add('active');
     document.getElementById('pane-' + tab.dataset.tab).classList.add('active');
-    if (tab.dataset.tab === 'settings') { loadBreakReminder(); loadEdgePatrol(); loadPetVisible(); loadVoiceLang(); loadQwenModel(); }
+    if (tab.dataset.tab === 'settings') { loadBreakReminder(); loadEdgePatrol(); loadPetVisible(); loadQwenModel(); }
   });
 });
 
@@ -1855,21 +1815,6 @@ async function togglePetVisible() {
   } catch (e) { showToast('✗ 操作失败'); }
 }
 
-async function loadVoiceLang() {
-  try {
-    const lang = await window.petAPI.getVoiceLang();
-    const el = document.getElementById('voice-lang');
-    if (el) el.value = (lang === 'en') ? 'en' : 'zh';
-  } catch (e) { console.log('[VOICE] load failed', e); }
-}
-
-async function saveVoiceLang() {
-  const lang = document.getElementById('voice-lang').value === 'en' ? 'en' : 'zh';
-  try {
-    await window.petAPI.setVoiceLang(lang);
-    showToast(lang === 'en' ? '✓ Voice set to English' : '✓ 语音已设为中文');
-  } catch (e) { showToast('✗ 保存失败'); }
-}
 
 async function resetPetPosition() {
   showToast('骷髅一号归位中…');
@@ -1898,7 +1843,7 @@ async function selectProvider(provider) {
 }
 
 function providerLabel(p) {
-  return { qwen: '千问', deepseek: 'DeepSeek', openai: 'OpenAI', anthropic: 'Anthropic' }[p] || p;
+  return { qwen: '千问', deepseek: 'DeepSeek' }[p] || p;
 }
 
 function renderProviderCards(active) {
@@ -1939,7 +1884,7 @@ function initSettings() {
   renderProviderCards(provider);
   setAvatarContent(document.getElementById('pet-mini-avatar'), currentAvatar);
   setAvatarContent(document.getElementById('avatar-preview-lg'), currentAvatar);
-  ['qwen', 'deepseek', 'openai', 'anthropic', 'metaso'].forEach(p => {
+  ['qwen', 'deepseek', 'metaso'].forEach(p => {
     const hasKey = !!(apiKeys[p]);
     const input = document.getElementById('key-' + p);
     if (input && hasKey) { input.value = '•'.repeat(20); input.classList.add('has-key'); }

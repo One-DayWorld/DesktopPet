@@ -54,8 +54,6 @@ contextBridge.exposeInMainWorld('petAPI', {
   togglePetVisible: () => ipcRenderer.invoke('toggle-pet-visible'),
   getLite: () => ipcRenderer.invoke('get-lite'),
   getVoiceLines: () => ipcRenderer.invoke('get-voice-lines'),
-  getVoiceLang: () => ipcRenderer.invoke('get-voice-lang'),
-  setVoiceLang: (lang) => ipcRenderer.invoke('set-voice-lang', lang),
   getPersona: () => ipcRenderer.invoke('get-persona'),
   setPersona: (text) => ipcRenderer.invoke('set-persona', text),
   getSessionRules: () => ipcRenderer.invoke('get-session-rules'),

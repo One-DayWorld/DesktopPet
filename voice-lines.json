@@ -1,8 +1,7 @@
 {
-  "_note": "全部语音台词集中在此文件。改完保存后重启 App 生效。zh=中文 en=英文，CONFIG 里的语言开关决定用哪套。数组类(emo/greetings/break)为随机抽一句；alert/taskDone 为单句。",
+  "_note": "全部语音台词集中在此文件。改完保存后重启 App 生效。只用中文。数组类(emo/greetings/break)为随机抽一句；alert/taskDone 为单句。",
   "alert": {
-    "zh": "等待确认",
-    "en": "Unidentified contact detected. Confirm immediately."
+    "zh": "等待确认"
   },
   "emo": {
     "zh": [
@@ -15,30 +14,12 @@
       "骷髅中队，出击",
       "为Ace作战是我的使命",
       "与驾驶员并肩作战"
-    ],
-    "en": [
-      "At your service, Ace.",
-      "Orders received.",
-      "Standing by, ready.",
-      "Skull One on standby.",
-      "Awaiting your command.",
-      "Roger. Transforming now.",
-      "Skull Squadron, launch!",
-      "Fighting for Ace is my mission.",
-      "Fighting at your side, pilot."
     ]
   },
   "greetings": {
     "zh": [
       "在呢",
       "待命"
-    ],
-    "en": [
-      "Skull One, startup complete.",
-      "Sensors nominal, tracking targets.",
-      "Orders confirmed, ready to launch.",
-      "Gun pod loaded and ready.",
-      "Skull One, standing by."
     ]
   },
   "break": {
@@ -46,16 +27,9 @@
       "起身活动活动吧",
       "起身做做拉伸吧",
       "离开屏幕休息几分钟吧"
-    ],
-    "en": [
-      "You've been in combat a while. Stand up and move around.",
-      "Recommend a two-minute walk to ease fatigue.",
-      "Skull One detects prolonged inactivity. Please stand and stretch.",
-      "Good work, Ace. Step away from the screen for a few minutes."
     ]
   },
   "taskDone": {
-    "zh": "任务已完成",
-    "en": "mission complete"
+    "zh": "任务已完成"
   }
 }
