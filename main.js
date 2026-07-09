@@ -108,11 +108,11 @@ function ensureClaudeHooksInstalled() {
 // 机体 "home" / 复位位置: 屏幕左下角 (相对传入显示器的整块 bounds 计算, 含 dock/菜单栏).
 // 启动初始位置与 reset-pet-position 共用此函数, 保证两者完全一致.
 const PET_W = 180, PET_H = 290;
-const PET_HOME_DX = 4, PET_HOME_DY = 60;  // 在贴边基础上的微调 (右移 / 下移)
+const PET_HOME_DX = -4, PET_HOME_DY = 60;  // 在贴边基础上的微调 (左移 / 下移)
 function homePetPosition(display) {
   const { x: sx, y: sy, width: sw, height: sh } = display.bounds;
   return {
-    x: Math.round(sx + PET_HOME_DX),
+    x: Math.round(sx + sw - PET_W + PET_HOME_DX),
     y: Math.round(sy + sh - PET_H + PET_HOME_DY)
   };
 }
