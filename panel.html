@@ -188,9 +188,9 @@
   .msg.user { flex-direction: row-reverse; }
   .msg-bubble {
     max-width: 264px;
-    padding: 7px 12px;
-    font-size: 13px;
-    line-height: 1.65;
+    padding: 8px 13px;
+    font-size: 15px;
+    line-height: 1.6;
     word-break: break-word;
     white-space: pre-wrap;
   }
@@ -266,10 +266,10 @@
     border: 1px solid rgba(0, 155, 195, 0.24);
     border-radius: 18px;
     color: #c8e4f0;
-    font-size: 13px;
+    font-size: 15px;
     outline: none;
     resize: none;
-    max-height: 80px;
+    max-height: 88px;
     font-family: inherit;
     line-height: 1.5;
     transition: border-color 0.2s, box-shadow 0.2s;
@@ -1081,7 +1081,7 @@
 <div id="pet-status">
   <div class="pet-mini-avatar" id="pet-mini-avatar">🐕</div>
   <div class="pet-info">
-    <div class="pet-name-level" id="status-name">骷髅一号 · 羁绊Lv.1 新驾驶员</div>
+    <div class="pet-name-level" id="status-name">骷髅一号 · 羁绊Lv.1 初识</div>
     <div class="xp-bar-wrap">
       <div class="xp-bar-bg"><div class="xp-bar-fill" id="xp-bar" style="width:0%"></div></div>
       <div class="xp-text" id="xp-text">羁绊 0 / 40</div>
@@ -1095,7 +1095,7 @@
   <span class="axw-icon">⚠</span>
   <div class="axw-text">
     <div class="axw-title">辅助功能未授权</div>
-    <div class="axw-sub">骷髅一号无法读取 Claude Code 等全屏 TUI 的内容, 终端确认提示<strong>完全检测不到</strong></div>
+    <div class="axw-sub" id="axw-sub">骷髅一号无法读取 Claude Code 等全屏 TUI 的内容, 终端确认提示<strong>完全检测不到</strong></div>
   </div>
   <button class="axw-btn" id="ax-open-settings">打开授权 ⤴</button>
   <button class="axw-dismiss" id="ax-dismiss" title="本次会话隐藏">×</button>
@@ -1116,7 +1116,7 @@
       <div id="chat-messages"></div>
       <div id="chat-input-area">
         <button id="attach-btn" title="投喂文章 (txt/docx/链接) — 让骷髅一号更懂你" onclick="attachArticle()">📎</button>
-        <textarea id="chat-input" placeholder="和骷髅一号说点什么... (⌘↵ 发送)" rows="1"></textarea>
+        <textarea id="chat-input" placeholder="说点什么... (⌘↵ 发送)" rows="1"></textarea>
         <button id="send-btn" title="发送 (⌘↵)">↑</button>
       </div>
     </div>
@@ -1147,10 +1147,10 @@
   <!-- Settings -->
   <div class="tab-pane" id="pane-settings">
     <div class="hud-frame">
-      <div class="hud-pill">UNIT CONFIG</div>
-    <div class="setting-section">机体设置</div>
+      <div class="hud-pill">CONFIG</div>
+    <div class="setting-section">桌宠设置</div>
     <div class="setting-row">
-      <div class="setting-label">机体涂装 (UNIT EMBLEM)</div>
+      <div class="setting-label">桌宠头像</div>
       <div class="avatar-upload-wrap">
         <div class="avatar-preview-lg" id="avatar-preview-lg"></div>
         <div style="display:flex;flex-direction:column;gap:7px;">
@@ -1161,7 +1161,7 @@
     </div>
     <div style="height:10px"></div>
     <div class="setting-row">
-      <div class="setting-label">机体代号 (UNIT DESIGNATION)</div>
+      <div class="setting-label">桌宠名字</div>
       <input class="setting-input" id="pet-name-input" type="text" placeholder="VF-1S" />
     </div>
     <button class="save-btn" onclick="savePetName()">确认代号</button>
@@ -1173,7 +1173,7 @@
       <div style="display:flex; align-items:center; gap:10px;">
         <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:12px; color:var(--text-md);">
           <input type="checkbox" id="break-reminder-enabled" onchange="saveBreakReminder()" style="cursor:pointer">
-          启用骷髅一号飞到屏幕中央提示休息
+          <span id="break-enable-text">启用骷髅一号飞到屏幕中央提示休息</span>
         </label>
       </div>
       <div style="display:flex; align-items:center; gap:7px; margin-top:8px;">
@@ -1183,7 +1183,7 @@
         <span style="font-size:12px; color:var(--text-md);">分钟</span>
         <button class="save-btn" style="margin-left:auto; padding:5px 12px;" onclick="testBreakReminder()">立即测试</button>
       </div>
-      <div class="setting-note" style="margin-top:6px;">骷髅一号会变形飞到屏幕中央, 语音提示驾驶员起身活动, 念完后飞回原位</div>
+      <div class="setting-note" style="margin-top:6px;" id="break-note">骷髅一号会变形飞到屏幕中央, 语音提示你起身活动, 念完后飞回原位</div>
     </div>
 
     <div style="height:14px"></div>
@@ -1197,17 +1197,17 @@
         <button class="save-btn" style="padding:5px 12px; flex:0 0 auto;" onclick="resetPetPosition()">复位</button>
       </div>
       <div class="setting-note" style="margin-top:6px;">空闲时 VF-1 沿屏幕四角顺时针缓慢飞行, 横边走 Fighter (机头对齐航向), 竖边走 Gerwalk (悬停)。被告警/拖动/休息提醒打断时自动让位</div>
-      <div class="setting-note" style="margin-top:4px;">复位: 关闭巡航后, 点击让机体飞回屏幕右下角停留</div>
+      <div class="setting-note" style="margin-top:4px;">复位: 关闭巡航后, 点击让桌宠飞回屏幕右下角停留</div>
     </div>
 
     <div style="height:14px"></div>
-    <div class="setting-section">显示 / 隐藏机体</div>
+    <div class="setting-section">显示 / 隐藏桌宠</div>
     <div class="setting-row" style="margin-bottom:8px">
       <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-        <label style="font-size:12px; color:var(--text-md);">机体挡住要点的区域时, 可临时隐藏</label>
-        <button class="save-btn" id="pet-visible-btn" style="padding:5px 12px; flex:0 0 auto;" onclick="togglePetVisible()">隐藏机体</button>
+        <label style="font-size:12px; color:var(--text-md);">桌宠挡住要点的区域时, 可临时隐藏</label>
+        <button class="save-btn" id="pet-visible-btn" style="padding:5px 12px; flex:0 0 auto;" onclick="togglePetVisible()">隐藏桌宠</button>
       </div>
-      <div class="setting-note" style="margin-top:6px;">全局快捷键 <b>⌘⌥H</b> 随时隐藏 / 显示机体(隐藏期间巡航与休息提醒暂停, 显示后停在原位)。</div>
+      <div class="setting-note" style="margin-top:6px;">全局快捷键 <b>⌘⌥H</b> 随时隐藏 / 显示桌宠(隐藏期间巡航与休息提醒暂停, 显示后停在原位)。</div>
     </div>
 
 
@@ -1273,7 +1273,7 @@
 
     <div class="hud-frame">
       <div class="hud-pill">SETTINGS FILE · 设定文件</div>
-      <div class="setting-note" style="margin-bottom:10px">性格、本场规则、长期记忆现在统一存于一个文本文件。点下方按钮直接打开编辑，改完保存即生效——记忆段骷髅一号会自动更新，你也可以随时手改。</div>
+      <div class="setting-note" style="margin-bottom:10px" id="settings-file-note">性格、本场规则、长期记忆现在统一存于一个文本文件。点下方按钮直接打开编辑，改完保存即生效——记忆段骷髅一号会自动更新，你也可以随时手改。</div>
       <button class="save-btn" onclick="openConfigFile()">📂 打开设定文件</button>
       <div style="height:14px"></div>
       <button class="save-btn" id="memory-clear-btn" style="background:rgba(200,45,45,0.16);border-color:rgba(220,70,70,0.4);color:#ff9999" onclick="clearMemoryConfirm()">🗑 从头开始（清空对话＋记忆）</button>
@@ -1349,6 +1349,7 @@ async function init() {
   document.getElementById('chat-input').placeholder = `和${state.pet.name}说点什么... (⌘↵ 发送)`;
   initSettings();
   document.getElementById('panel-title').textContent = `${state.pet.name}的面板`;
+  applyPetName(state.pet.name);   // 把散落在界面里、原本硬编码"骷髅一号"的文案统一填成当前桌宠名
 
   loadWorkflows();
 
@@ -1363,7 +1364,19 @@ async function init() {
 function bondTitle(level) {
   if (level >= 6) return '默契';
   if (level >= 3) return '熟识';
-  return '新驾驶员';
+  return '初识';
+}
+
+// 把界面里依赖桌宠名字的文案统一填成当前名字 (原本各处硬编码"骷髅一号")
+// 初始化时按当前名调用一次; 用户改名后 savePetName 再调用同步
+function applyPetName(name) {
+  const n = name || '桌宠';
+  const set = (id, fn) => { const el = document.getElementById(id); if (el) fn(el); };
+  set('axw-sub', el => el.innerHTML = `${n}无法读取 Claude Code 等全屏 TUI 的内容, 终端确认提示<strong>完全检测不到</strong>`);
+  set('attach-btn', el => el.title = `投喂文章 (txt/docx/链接) — 让${n}更懂你`);
+  set('break-enable-text', el => el.textContent = `启用${n}飞到屏幕中央提示休息`);
+  set('break-note', el => el.textContent = `${n}会变形飞到屏幕中央, 语音提示你起身活动, 念完后飞回原位`);
+  set('settings-file-note', el => el.textContent = `性格、本场规则、长期记忆现在统一存于一个文本文件。点下方按钮直接打开编辑，改完保存即生效——记忆段${n}会自动更新，你也可以随时手改。`);
 }
 
 function updateStatus(pet, xpProgress) {
@@ -1372,7 +1385,7 @@ function updateStatus(pet, xpProgress) {
   state.pet = pet;
   document.getElementById('status-name').textContent = `${pet.name} · 羁绊Lv.${pet.level} ${bondTitle(pet.level)}`;
   document.getElementById('mood-icon').textContent = moodMap[pet.mood] || '😊';
-  document.getElementById('panel-title').textContent = `◈ ${pet.name} UNIT ◈`;
+  document.getElementById('panel-title').textContent = `${pet.name}的面板`;
   document.getElementById('chat-input').placeholder = `[CHAT] 向 ${pet.name} 发送指令... (⌘↵)`;
   if (pet.avatar && pet.avatar !== currentAvatar) {
     currentAvatar = pet.avatar;
@@ -1598,6 +1611,9 @@ function clearMemoryConfirm() {
 async function doClearMemory() {
   // 从头开始: 清对话历史 + 提炼缓冲 + 本场规则 + 长期记忆 (保留性格/归档), 羁绊回 Lv.1
   await window.petAPI.resetConversation();
+  // 同步清空聊天框里的历史气泡, 否则后端已清、界面还留着旧对话
+  const msgs = document.getElementById('chat-messages');
+  if (msgs) msgs.innerHTML = '';
   const msg = document.getElementById('memory-cleared-msg');
   if (msg) { msg.style.display = 'block'; setTimeout(() => { msg.style.display = 'none'; }, 2500); }
 }
@@ -1739,9 +1755,10 @@ async function savePetName() {
   if (!name) return;
   await window.petAPI.setPetName(name);
   state.pet.name = name;
-  document.getElementById('status-name').textContent = `${name} · Lv.${state.pet.level}`;
-  document.getElementById('panel-title').textContent = `◈ ${name} UNIT ◈`;
+  document.getElementById('status-name').textContent = `${name} · 羁绊Lv.${state.pet.level} ${bondTitle(state.pet.level)}`;
+  document.getElementById('panel-title').textContent = `${name}的面板`;
   document.getElementById('chat-input').placeholder = `[CHAT] 向 ${name} 发送指令... (⌘↵)`;
+  applyPetName(name);   // 同步刷新依赖名字的其它文案
   const s = document.getElementById('name-success');
   s.style.display = 'block';
   setTimeout(() => s.style.display = 'none', 2000);
@@ -1773,7 +1790,7 @@ async function saveBreakReminder() {
 }
 
 async function testBreakReminder() {
-  showToast('骷髅一号起飞中…');
+  showToast(`${(state.pet && state.pet.name) || '桌宠'}起飞中…`);
   try { await window.petAPI.triggerBreakReminder(); }
   catch (e) { showToast('✗ 触发失败'); }
 }
@@ -1795,7 +1812,7 @@ async function saveEdgePatrol() {
 
 function setPetVisibleBtn(visible) {
   const btn = document.getElementById('pet-visible-btn');
-  if (btn) btn.textContent = visible ? '隐藏机体' : '显示机体';
+  if (btn) btn.textContent = visible ? '隐藏桌宠' : '显示桌宠';
 }
 
 async function loadPetVisible() {
@@ -1807,13 +1824,13 @@ async function togglePetVisible() {
   try {
     const r = await window.petAPI.togglePetVisible();
     setPetVisibleBtn(!!r.visible);
-    showToast(r.visible ? '✓ 机体已显示' : '机体已隐藏(⌘⌥H 召回)');
+    showToast(r.visible ? '✓ 桌宠已显示' : '桌宠已隐藏(⌘⌥H 召回)');
   } catch (e) { showToast('✗ 操作失败'); }
 }
 
 
 async function resetPetPosition() {
-  showToast('骷髅一号归位中…');
+  showToast(`${(state.pet && state.pet.name) || '桌宠'}归位中…`);
   try {
     const r = await window.petAPI.resetPetPosition();
     showToast(r && r.success ? '✓ 已复位到右下角' : '✗ 复位失败');
