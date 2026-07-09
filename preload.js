@@ -13,16 +13,9 @@ contextBridge.exposeInMainWorld('petAPI', {
   pickArticleFile: () => ipcRenderer.invoke('pick-article-file'),
   ingestArticleUrl: (url) => ipcRenderer.invoke('ingest-article-url', url),
 
-  // 记忆面板
-  getMemoryProfile: () => ipcRenderer.invoke('get-memory-profile'),
-  updateMemoryProfile: (profile) => ipcRenderer.invoke('update-memory-profile', profile),
-  clearMemory: () => ipcRenderer.invoke('clear-memory'),
+  // 设定文件 (性格 / 本场规则 / 长期记忆 三合一) + 从头开始
+  openConfigFile: () => ipcRenderer.invoke('open-config-file'),
   resetConversation: () => ipcRenderer.invoke('reset-conversation'),
-
-
-  scanFiles: () => ipcRenderer.invoke('scan-files'),
-  deleteFile: (filePath) => ipcRenderer.invoke('delete-file', filePath),
-  getAiSuggestions: () => ipcRenderer.invoke('get-ai-suggestions'),
 
   setApiKey: (provider, key) => ipcRenderer.invoke('set-api-key', provider, key),
   setProvider: (provider) => ipcRenderer.invoke('set-provider', provider),

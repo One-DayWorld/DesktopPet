@@ -19,8 +19,8 @@ const DEFAULT_STATE = {
   breakReminder: { enabled: true, intervalMin: 60 },
   edgePatrol:    { enabled: true },
   voiceLang:     'zh',           // 语音台词语言: 'zh' 中文 / 'en' 英文
-  persona:       '',             // 自定义性格人设(空=默认军事腔骷髅一号); 非空时聊天里完全接管语气/自称/称呼
-  sessionRules:  '',             // 本场规则(空=无); 非空时钉在 system prompt 顶部, 每轮强制遵守, 永不被对话长度挤掉
+  persona:       '',             // [已迁移] 现存于 ~/.desktop-pet/persona-memory.md; 此字段仅供旧数据一次性迁移(migrateIfNeeded)
+  sessionRules:  '',             // [已迁移] 同上, 现存于 persona-memory.md 的「本场规则」段
   qwenModel:     'qwen-plus'     // 千问后台具体型号: 'qwen-plus'(默认/更省) 或 'qwen-max'(更强/更贵)
 };
 

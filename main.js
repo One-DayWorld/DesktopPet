@@ -16,6 +16,8 @@ const mammoth = require('mammoth');   // docx → 纯文本 (文章投喂)
 let petWindow = null;
 let panelWindow = null;
 let state = store.load();
+// 首次启动: 把旧的 persona/sessionRules(data.json) 与结构化画像(profile.json) 迁移进 persona-memory.md
+memory.migrateIfNeeded(state.persona, state.sessionRules);
 
 // 精简版标志: 构建时由 electron-builder 的 extraMetadata.vf1Lite 注入 package.json;
 // 开发运行 (npm start) 时该字段不存在 → 完整版.
@@ -1022,30 +1024,16 @@ ipcMain.handle('ingest-article-url', async (_, url) => {
 // ── 记忆面板 IPC ─────────────────────────────────────────────────────────
 // 返回画像 + 当前羁绊等级 (面板顶部展示)
 ipcMain.handle('get-memory-profile', () => {
-  return { profile: memory.loadProfile(), level: state.pet.level, xp: state.pet.xp };
+  return { memory: memory.getMemoryText(), level: state.pet.level, xp: state.pet.xp };
 });
 
-// 驾驶员手动编辑画像 (删条目 / 加条目) → 整体覆盖保存
-ipcMain.handle('update-memory-profile', (_, profile) => {
-  try {
-    if (!profile || typeof profile !== 'object') return { ok: false, error: '画像格式错误' };
-    // 只接受已知字段, 防止写入垃圾
-    const clean = {
-      facts:        Array.isArray(profile.facts) ? profile.facts.slice(0, 50) : [],
-      interests:    Array.isArray(profile.interests) ? profile.interests.slice(0, 50) : [],
-      commStyle:    (profile.commStyle && typeof profile.commStyle === 'object') ? profile.commStyle : {},
-      toneContract: Array.isArray(profile.toneContract) ? profile.toneContract.slice(0, 50) : [],
-      articleCount: profile.articleCount || 0
-    };
-    const merged = Object.assign(memory.loadProfile(), clean);
-    memory.saveProfile(merged);
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, error: e.message };
-  }
+// 记忆手动编辑改为"打开设定文件"直接编辑, 不再走面板 IPC — 打开 persona-memory.md
+ipcMain.handle('open-config-file', async () => {
+  try { await shell.openPath(memory.CONFIG_FILE); return { ok: true }; }
+  catch (e) { return { ok: false, error: e.message }; }
 });
 
-// 一键清空记忆 (画像归零; 归档原文不动)
+// 一键清空记忆 (记忆段清空; 性格/规则/归档原文不动)
 ipcMain.handle('clear-memory', () => {
   try { memory.clearProfile(); return { ok: true }; }
   catch (e) { return { ok: false, error: e.message }; }
@@ -1056,9 +1044,9 @@ ipcMain.handle('clear-memory', () => {
 ipcMain.handle('reset-conversation', () => {
   try {
     state.chatHistory = [];
-    state.sessionRules = '';
+    memory.setRules('');       // 清本场规则(md)
     _turnsSinceRefine = [];
-    memory.clearProfile();
+    memory.clearProfile();     // 清长期记忆段(md); 性格/归档保留
     state.pet.xp = 0;            // 羁绊经验归零
     state.pet.level = 1;         // 等级回 Lv.1
     state.pet.mood = 'happy';
@@ -2059,105 +2047,62 @@ function needsRealtimeSearch(msg) {
 // ── 用户画像记忆: 注入 + 提炼 ────────────────────────────────────────────────
 // 按羁绊等级分层注入画像到 Chat system prompt 末尾. 等级越高, 越懂驾驶员, 注入越深.
 // 返回空串 = 不注入 (画像还没东西时). 只用于 Chat 主路径, 不碰告警/任务播报 (那些走 voice-lines).
-function buildProfileInject(profile, bondLevel, personaActive = false) {
-  if (!profile) return '';
-  const lines = [];
-  const facts = (profile.facts || []).slice(0, 12);
-  const interests = (profile.interests || []).slice(0, 12);
-  const cs = profile.commStyle || {};
-  const contract = (profile.toneContract || []).slice(0, 10);
-
-  // Lv1+ : 基本事实 (始终注入已知事实, 让 VF-1 不"失忆")
-  if (facts.length) lines.push('【你已知的关于驾驶员的事实】\n- ' + facts.join('\n- '));
-
-  // Lv3+ : 兴趣 + 沟通偏好
-  if (bondLevel >= 3) {
-    if (interests.length) lines.push('【驾驶员的兴趣领域】\n- ' + interests.join('\n- '));
-    const styleBits = [];
-    if (cs.length) styleBits.push(`回答详略: ${cs.length}`);
-    if (cs.tone)   styleBits.push(`语气: ${cs.tone}`);
-    if (cs.emoji === true)  styleBits.push('可以适度用 emoji');
-    if (cs.emoji === false) styleBits.push('不要用 emoji');
-    if ((cs.dislikes || []).length) styleBits.push('反感: ' + cs.dislikes.join('、'));
-    if (styleBits.length) lines.push('【驾驶员的沟通偏好】\n- ' + styleBits.join('\n- '));
+function buildProfileInject(memoryText, personaActive = false) {
+  const mem = String(memoryText || '').trim();
+  if (!mem) {
+    // 记忆还是空的: 给个起步提示, 让 VF-1 有意识地观察了解
+    return '【记忆提示】你正在逐渐了解这位驾驶员, 多观察其偏好, 少做假设。';
   }
-
-  // Lv6+ : 完整语气契约 — 闲聊时可软化军事腔贴合驾驶员
-  if (bondLevel >= 6 && contract.length) {
-    lines.push('【与这位驾驶员说话的语气契约 — 闲聊时遵守】\n- ' + contract.join('\n- '));
-  }
-
-  if (!lines.length) {
-    // 画像还是空的: 给个起步提示, 让 VF-1 有意识地观察了解
-    return bondLevel <= 2 ? '【记忆提示】你正在逐渐了解这位驾驶员, 多观察其偏好, 少做假设。' : '';
-  }
-
-  let header = '【长期记忆 — 你对这位驾驶员的了解】\n'
+  const header = '【长期记忆 — 你对这位驾驶员的了解】\n'
     + '以下是你对这位驾驶员的长期记忆, 跨会话持久保存。被问到"是否记得 / 有没有记忆"时, 如实承认你记得, 不要说自己没有长期记忆。\n\n';
   // 分场景护栏: 闲聊贴合; 涉及事实仍走反幻觉铁律。
   // personaActive 时不再重申"你仍是骷髅一号"——避免与用户自定义性格的"完全接管"矛盾。
-  let footer = personaActive
+  const footer = personaActive
     ? '\n\n闲聊时按以上理解调整语气, 让驾驶员舒服; 涉及事实数据仍须遵守反幻觉铁律。'
     : '\n\n闲聊时按以上理解调整语气, 让驾驶员舒服; 但你仍是 VF-1S 骷髅一号, 身份不变, 涉及事实数据仍须遵守反幻觉铁律。';
-  return header + lines.join('\n\n') + footer;
+  return header + mem + footer;
 }
 
-// 后台提炼: 把"旧画像 + 最近若干轮对话"合并出新画像. 失败静默, 绝不影响聊天主流程.
+// 后台提炼: 把"现有记忆文本 + 最近若干轮对话"合并出更新后的记忆文本. 失败静默, 绝不影响聊天主流程.
 // 用 systemOverride 走独立提炼 prompt, noTools, 低温度求稳定.
-async function refineProfile(provider, apiKey, petName, oldProfile, newTurns, metasoKey = '') {
+async function refineProfile(provider, apiKey, petName, oldMemory, newTurns, metasoKey = '') {
   if (!apiKey || !newTurns || !newTurns.length) return null;
-  const refineSystem = `你是一个"用户画像提炼器", 负责从对话里沉淀出对用户(驾驶员)的长期理解。
-输入: 一份旧画像(JSON) + 最近的对话记录。
-输出: **只输出**一个更新后的画像 JSON 对象, 不要任何解释、不要 markdown 代码块。
+  const refineSystem = `你是一个"长期记忆整理器", 负责从对话里沉淀出对用户(驾驶员)的长期理解。
+输入: 现有记忆文本 + 最近的对话记录。
+输出: **只输出**更新后的完整记忆文本(纯文本, 可用简单短句或分行列点), 不要任何解释、不要 markdown 代码块、不要 JSON。
 
-画像 JSON 结构:
-{
-  "facts": [],        // 稳定的客观事实(职业/在做的项目/工具/重要的人和事), 短句
-  "interests": [],    // 兴趣领域/话题偏好
-  "commStyle": { "length": "简短|适中|详细", "tone": "正式|随意|...", "emoji": true|false|null, "dislikes": [] },
-  "toneContract": []  // 和这位用户说话该遵守的具体规则(尤其用户明确纠正过的, 如"别那么军事腔""说简短点")
-}
+可记录: 稳定的客观事实(职业/在做的项目/工具/重要的人和事)、兴趣领域/话题偏好、沟通偏好(详略/语气/是否用 emoji)、以及用户明确纠正过的说话规则(如"别那么军事腔""说简短点")。
 
 铁律:
+- **保留现有记忆里仍然成立的内容, 尤其是用户手写的部分, 不得删改**; 只在其基础上增量补充新发现, 同类合并去重。
 - **只记真正稳定的**事实与偏好, 不要把一次性的提问内容当成长期事实; 不确定就不记。
-- **保留**旧画像里仍然成立的条目, 增量补充新发现, 同类去重。
-- 用户的**语气纠正/明确偏好**优先写进 toneContract。
-- 数组各项简洁, 每类不超过 12 条; 控制总量, 宁缺毋滥。
-- 严禁臆测用户没表达过的隐私(收入/健康/政治立场等)。`;
+- 严禁臆测用户没表达过的隐私(收入/健康/政治立场等)。
+- 总量精简, 建议不超过约 600 字; 宁缺毋滥。`;
 
   const convo = newTurns.map(t => `[驾驶员] ${t.user}\n[VF-1] ${t.reply}`).join('\n\n').slice(0, 8000);
-  const userPrompt = `旧画像 JSON:\n${JSON.stringify(oldProfile || {}, null, 2)}\n\n最近对话:\n${convo}\n\n请输出更新后的画像 JSON。`;
+  const userPrompt = `现有记忆文本:\n${String(oldMemory || '').trim() || '(空)'}\n\n最近对话:\n${convo}\n\n请输出更新后的完整记忆文本。`;
 
   try {
     const raw = await callAI(provider, apiKey, petName, [], userPrompt, metasoKey, {
       systemOverride: refineSystem, noTools: true, temperature: 0.3
     });
-    // 稳健解析: 剥离可能的 ```json 包裹, 取第一个 {...}
-    let txt = String(raw || '').trim().replace(/^```(?:json)?/i, '').replace(/```$/,'').trim();
-    const s = txt.indexOf('{'), e = txt.lastIndexOf('}');
-    if (s < 0 || e < 0) return null;
-    const parsed = JSON.parse(txt.slice(s, e + 1));
-    if (!parsed || typeof parsed !== 'object') return null;
-    return parsed;
+    // 剥离可能的 ``` 代码块包裹, 取纯文本
+    const txt = String(raw || '').trim().replace(/^```[a-zA-Z]*\n?/, '').replace(/```$/, '').trim();
+    return txt || null;
   } catch (e) {
     console.warn('[MEMORY] refineProfile failed:', e.message);
     return null;
   }
 }
 
-// 把提炼出的画像合并存盘, 并按"是否新增偏好规则"给羁绊加分. 返回是否真的更新了.
-function commitRefinedProfile(refined) {
-  if (!refined) return false;
-  const prof = memory.loadProfile();
-  const before = JSON.stringify({ f: prof.facts, i: prof.interests, c: prof.commStyle, t: prof.toneContract });
-  if (Array.isArray(refined.facts))        prof.facts = refined.facts.slice(0, 12);
-  if (Array.isArray(refined.interests))    prof.interests = refined.interests.slice(0, 12);
-  if (refined.commStyle && typeof refined.commStyle === 'object')
-    prof.commStyle = Object.assign({}, prof.commStyle, refined.commStyle);
-  if (Array.isArray(refined.toneContract)) prof.toneContract = refined.toneContract.slice(0, 10);
-  const after = JSON.stringify({ f: prof.facts, i: prof.interests, c: prof.commStyle, t: prof.toneContract });
-  memory.saveProfile(prof);
-  return before !== after;
+// 把提炼出的记忆文本存盘(仅当有实质变化). 返回是否真的更新了.
+function commitRefinedMemory(newText) {
+  const next = String(newText || '').trim();
+  if (!next) return false;
+  const old = String(memory.getMemoryText() || '').trim();
+  if (next === old) return false;
+  memory.setMemoryText(next);
+  return true;
 }
 
 // 提炼缓冲: 自上次提炼以来积累的新对话轮次. 达阈值或会话边界时触发提炼.
@@ -2173,14 +2118,14 @@ async function runRefine(reason) {
     const provider = state.aiProvider || 'qwen';
     const apiKey = (state.apiKeys || {})[provider] || '';
     const metasoKey = (state.apiKeys || {}).metaso || '';
-    const oldProfile = memory.loadProfile();
-    const refined = await refineProfile(provider, apiKey, state.pet.name, oldProfile, turns, metasoKey);
-    const changed = commitRefinedProfile(refined);
+    const oldMemory = memory.getMemoryText();
+    const refined = await refineProfile(provider, apiKey, state.pet.name, oldMemory, turns, metasoKey);
+    const changed = commitRefinedMemory(refined);
     if (changed) {
       state = store.addXP(state, 15);   // 提炼出新理解 → 羁绊加深
       store.save(state);
       broadcastPetUpdate();
-      console.log(`[MEMORY] profile refined (${reason}), turns=${turns.length}, bond Lv.${state.pet.level}`);
+      console.log(`[MEMORY] memory refined (${reason}), turns=${turns.length}, bond Lv.${state.pet.level}`);
     }
   } catch (e) {
     console.warn('[MEMORY] runRefine error:', e.message);
@@ -2193,36 +2138,27 @@ async function runRefine(reason) {
 
 // ── 文章投喂: 从驾驶员读过的文章提炼兴趣/关注 ──────────────────────────────
 // 注意: 文章观点 ≠ 驾驶员观点, 只反映其"关注/阅读"的领域. 提炼时严格约束.
-async function refineFromArticle(provider, apiKey, petName, oldProfile, title, text, metasoKey = '') {
+async function refineFromArticle(provider, apiKey, petName, oldMemory, title, text, metasoKey = '') {
   if (!apiKey || !text) return null;
-  const refineSystem = `你是一个"用户画像提炼器"。输入: 一份旧画像(JSON) + 一篇**驾驶员阅读过**的文章。
-任务: 从这篇文章推断驾驶员**关注/感兴趣的领域和话题**, 更新画像。
+  const refineSystem = `你是一个"长期记忆整理器"。输入: 现有记忆文本 + 一篇**驾驶员阅读过**的文章。
+任务: 从这篇文章推断驾驶员**关注/感兴趣的领域和话题**, 补充进记忆文本。
 
-**只输出**更新后的画像 JSON 对象, 不要解释、不要 markdown 代码块。结构:
-{
-  "facts": [], "interests": [],
-  "commStyle": { "length": "", "tone": "", "emoji": null, "dislikes": [] },
-  "toneContract": []
-}
+**只输出**更新后的完整记忆文本(纯文本), 不要解释、不要 markdown 代码块、不要 JSON。
 
 铁律:
-- 文章**内容/观点不等于驾驶员的观点或事实**, 不要把文章里的主张写进 facts。
-- 只从"驾驶员选择读了这篇文章"这一行为, 谨慎推断其 **interests**(兴趣领域/关注话题)。
-- **保留**旧画像所有仍成立的条目, 增量补充, 同类去重; interests 不超过 12 条。
-- commStyle / toneContract 一般保持旧值不变(文章无法反映沟通偏好)。
+- 文章**内容/观点不等于驾驶员的观点或事实**, 不要把文章里的主张当成驾驶员的事实写入。
+- 只从"驾驶员选择读了这篇文章"这一行为, 谨慎补充其**兴趣领域/关注话题**。
+- **保留现有记忆的全部内容(尤其用户手写部分), 不得删改**, 只增量补充, 同类合并去重。
 - 拿不准就不加, 宁缺毋滥。`;
 
   const body = String(text).slice(0, 8000);
-  const userPrompt = `旧画像 JSON:\n${JSON.stringify(oldProfile || {}, null, 2)}\n\n驾驶员阅读的文章《${title || '无题'}》正文:\n${body}\n\n请输出更新后的画像 JSON。`;
+  const userPrompt = `现有记忆文本:\n${String(oldMemory || '').trim() || '(空)'}\n\n驾驶员阅读的文章《${title || '无题'}》正文:\n${body}\n\n请输出更新后的完整记忆文本。`;
   try {
     const raw = await callAI(provider, apiKey, petName, [], userPrompt, metasoKey, {
       systemOverride: refineSystem, noTools: true, temperature: 0.3
     });
-    let txt = String(raw || '').trim().replace(/^```(?:json)?/i, '').replace(/```$/,'').trim();
-    const s = txt.indexOf('{'), e = txt.lastIndexOf('}');
-    if (s < 0 || e < 0) return null;
-    const parsed = JSON.parse(txt.slice(s, e + 1));
-    return (parsed && typeof parsed === 'object') ? parsed : null;
+    const txt = String(raw || '').trim().replace(/^```[a-zA-Z]*\n?/, '').replace(/```$/, '').trim();
+    return txt || null;
   } catch (e) {
     console.warn('[MEMORY] refineFromArticle failed:', e.message);
     return null;
@@ -2238,13 +2174,10 @@ async function ingestArticle(title, text) {
   const metasoKey = (state.apiKeys || {}).metaso || '';
   try {
     memory.archiveArticle(title, text);
-    const oldProfile = memory.loadProfile();
-    const refined = await refineFromArticle(provider, apiKey, state.pet.name, oldProfile, title, text, metasoKey);
-    const changed = commitRefinedProfile(refined);
-    // 计数 + 加分 (即使提炼没产出新条目, 读文章这一行为本身也算交流)
-    const prof = memory.loadProfile();
-    prof.articleCount = (prof.articleCount || 0) + 1;
-    memory.saveProfile(prof);
+    const oldMemory = memory.getMemoryText();
+    const refined = await refineFromArticle(provider, apiKey, state.pet.name, oldMemory, title, text, metasoKey);
+    const changed = commitRefinedMemory(refined);
+    // 读文章这一行为本身也算交流, 无论是否产出新记忆都加分
     state = store.addXP(state, 25);
     store.save(state);
     broadcastPetUpdate();
@@ -2290,19 +2223,17 @@ ipcMain.handle('chat', async (_, message) => {
     if (ruleCmd) {
       const arg = (ruleCmd[1] || '').trim();
       if (!arg) {
-        const cur = state.sessionRules || '';
+        const cur = memory.getRules();
         return { reply: cur
           ? `📌 本场规则（每轮强制遵守，不会被对话长度挤掉）：\n\n${cur}\n\n——修改：「/规则 新内容」　清除：「/规则 清除」`
           : '当前没有设定本场规则。\n用「/规则 你的规则…」设定后，无论聊多长我都不会忘。', xp: state.pet.xp, level: state.pet.level };
       }
       if (/^(清除|清空|取消|clear|reset|none)$/i.test(arg)) {
-        state.sessionRules = '';
-        store.save(state);
+        memory.setRules('');
         return { reply: '✅ 本场规则已清除。', xp: state.pet.xp, level: state.pet.level };
       }
-      state.sessionRules = arg.slice(0, 2000);
-      store.save(state);
-      return { reply: `📌 本场规则已置顶，之后每一轮我都会先遵守它、不会被聊天长度挤掉：\n\n${state.sessionRules}`, xp: state.pet.xp, level: state.pet.level };
+      memory.setRules(arg.slice(0, 2000));
+      return { reply: `📌 本场规则已置顶，之后每一轮我都会先遵守它、不会被聊天长度挤掉：\n\n${memory.getRules()}`, xp: state.pet.xp, level: state.pet.level };
     }
 
     const metasoKey = (state.apiKeys || {}).metaso || '';
@@ -2325,11 +2256,12 @@ ipcMain.handle('chat', async (_, message) => {
       callOpts.forceTool = 'search_web';   // API 层强制首轮调 search_web
       console.log('[CHAT] realtime keyword hit → forcing search_web');
     }
-    // 注入长期画像 (按羁绊等级分层); 提炼/告警/语音不受影响
-    callOpts.persona = state.persona || '';
-    callOpts.sessionRules = state.sessionRules || '';   // 本场规则置顶, 永不被挤出上下文
+    // 注入性格/规则/长期记忆 (均来自 persona-memory.md); 提炼/告警/语音不受影响
+    const cfg = memory.loadConfig();
+    callOpts.persona = cfg.persona || '';
+    callOpts.sessionRules = cfg.rules || '';   // 本场规则置顶, 永不被挤出上下文
     try {
-      callOpts.profileInject = buildProfileInject(memory.loadProfile(), state.pet.level || 1, !!callOpts.persona);
+      callOpts.profileInject = buildProfileInject(cfg.memory, !!callOpts.persona);
     } catch (_) {}
     const reply = await callAI(provider, apiKey, state.pet.name, state.chatHistory || [], effectiveMessage, metasoKey, callOpts);
     const detectedMood = extractMoodFromText(reply);
@@ -2360,426 +2292,6 @@ ipcMain.handle('chat', async (_, message) => {
   }
 });
 
-async function gatherSystemInfo() {
-  const info = {};
-  const now = Date.now();
-
-  await Promise.allSettled([
-    // Desktop
-    (async () => {
-      const p = path.join(os.homedir(), 'Desktop');
-      const entries = fs.readdirSync(p).filter(f => !f.startsWith('.'));
-      const files = entries.map(f => {
-        try {
-          const s = fs.statSync(path.join(p, f));
-          return { name: f, dir: s.isDirectory(), sizeMB: +(s.size / 1e6).toFixed(1), ageDays: Math.floor((now - s.mtimeMs) / 86400000) };
-        } catch { return null; }
-      }).filter(Boolean);
-      const screenshots = files.filter(f => /^(截图|Screenshot|屏幕快照|Screen Shot)/i.test(f.name));
-      info.desktop = {
-        count: files.length,
-        screenshots: screenshots.length,
-        fileNames: files.map(f => f.name).slice(0, 40),
-        oldFiles: files.filter(f => !f.dir && f.ageDays > 30).length
-      };
-    })(),
-
-    // Downloads
-    (async () => {
-      const p = path.join(os.homedir(), 'Downloads');
-      const entries = fs.readdirSync(p).filter(f => !f.startsWith('.'));
-      const files = entries.map(f => {
-        try {
-          const s = fs.statSync(path.join(p, f));
-          return { name: f, sizeMB: +(s.size / 1e6).toFixed(1), ageDays: Math.floor((now - s.mtimeMs) / 86400000) };
-        } catch { return null; }
-      }).filter(Boolean).sort((a, b) => b.sizeMB - a.sizeMB);
-      info.downloads = {
-        count: files.length,
-        totalMB: Math.round(files.reduce((s, f) => s + f.sizeMB, 0)),
-        largeFiles: files.filter(f => f.sizeMB > 50).map(f => `${f.name}(${f.sizeMB}MB)`).slice(0, 8),
-        oldFiles: files.filter(f => f.ageDays > 30).map(f => `${f.name}(${f.ageDays}天前)`).slice(0, 8),
-        recentFiles: files.filter(f => f.ageDays <= 7).map(f => f.name).slice(0, 8)
-      };
-    })(),
-
-    // Documents
-    (async () => {
-      const p = path.join(os.homedir(), 'Documents');
-      const entries = fs.readdirSync(p).filter(f => !f.startsWith('.')).slice(0, 30);
-      info.documents = { count: entries.length, items: entries };
-    })(),
-
-    // Installed apps
-    (async () => {
-      const apps = fs.readdirSync('/Applications').filter(f => f.endsWith('.app')).map(f => f.replace('.app', ''));
-      const userApps = (() => {
-        try { return fs.readdirSync(path.join(os.homedir(), 'Applications')).filter(f => f.endsWith('.app')).map(f => f.replace('.app', '')); } catch { return []; }
-      })();
-      info.installedApps = [...new Set([...apps, ...userApps])].slice(0, 60);
-    })(),
-
-    // Trash
-    (async () => {
-      try {
-        const { stdout } = await execAsync('du -sk ~/.Trash 2>/dev/null');
-        info.trashMB = Math.round(parseInt(stdout.trim().split(/\s/)[0]) / 1024);
-      } catch { info.trashMB = 0; }
-    })(),
-
-    // Disk space
-    (async () => {
-      const { stdout } = await execAsync('df -k /');
-      const parts = stdout.trim().split('\n')[1]?.split(/\s+/);
-      if (parts) {
-        const total = parseInt(parts[1]) * 1024;
-        const used = parseInt(parts[2]) * 1024;
-        const free = parseInt(parts[3]) * 1024;
-        info.disk = { totalGB: (total / 1e9).toFixed(1), freeGB: (free / 1e9).toFixed(1), usedPct: Math.round(used / total * 100) };
-      }
-    })(),
-
-    // Memory
-    (async () => {
-      try {
-        const { stdout } = await execAsync('vm_stat');
-        const get = (key) => parseInt(stdout.split('\n').find(l => l.includes(key))?.match(/\d+/)?.[0] || 0);
-        const free = get('Pages free');
-        const inactive = get('Pages inactive');
-        const wired = get('Pages wired down');
-        const active = get('Pages active');
-        const total = free + inactive + wired + active;
-        info.mem = { freeGB: ((free + inactive) * 4096 / 1e9).toFixed(1), usedPct: Math.round((wired + active) / total * 100) };
-      } catch {}
-    })(),
-
-    // Homebrew outdated
-    (async () => {
-      try {
-        const brewBin = fs.existsSync('/opt/homebrew/bin/brew') ? '/opt/homebrew/bin/brew' : 'brew';
-        const { stdout } = await execAsync(`${brewBin} outdated --quiet 2>/dev/null`, { timeout: 6000 });
-        info.brewOutdated = stdout.trim().split('\n').filter(Boolean).slice(0, 15);
-      } catch { info.brewOutdated = []; }
-    })(),
-
-    // Currently running GUI apps (what the user is actually doing right now)
-    (async () => {
-      try {
-        const { stdout } = await execAsync(`osascript -e 'tell application "System Events" to name of every process where background only is false' 2>/dev/null`, { timeout: 5000 });
-        const skip = new Set(['loginwindow', 'Finder', 'SystemUIServer', 'Dock', 'WindowServer', 'Notification Center', 'Spotlight', 'Control Center', 'DesktopPet', 'Electron', 'Universal Control']);
-        info.runningApps = stdout.trim().split(', ').map(a => a.trim()).filter(a => a && !skip.has(a)).slice(0, 12);
-      } catch { info.runningApps = []; }
-    })(),
-
-    // Today's calendar events
-    (async () => {
-      try {
-        const script = `tell application "Calendar"
-  set output to ""
-  set today to (current date)
-  set time of today to 0
-  set dayEnd to today + 86399
-  repeat with cal in calendars
-    try
-      set evList to (every event of cal whose start date >= today and start date <= dayEnd)
-      repeat with ev in evList
-        try
-          set output to output & (summary of ev) & "|||" & ((start date of ev) as string) & "\\n"
-        end try
-      end repeat
-    end try
-  end repeat
-  return output
-end tell`;
-        const raw = await runAppleScript(script);
-        info.calendarToday = raw.split('\n').filter(l => l.includes('|||')).slice(0, 8).map(l => {
-          const [title, time] = l.split('|||');
-          const timeMatch = (time || '').match(/\d+:\d+/);
-          const timeStr = timeMatch ? timeMatch[0] : '';
-          return timeStr ? `${title.trim()}（${timeStr}）` : title.trim();
-        });
-      } catch { info.calendarToday = []; }
-    })(),
-
-    // Files modified in last 24h — reveals active projects
-    (async () => {
-      try {
-        const { stdout } = await execAsync(
-          `find "${os.homedir()}/Documents" "${os.homedir()}/Desktop" -maxdepth 3 -type f -mtime -1 -not -name ".*" 2>/dev/null | head -15`,
-          { timeout: 5000 }
-        );
-        info.recentFiles = stdout.trim().split('\n').filter(Boolean).map(p => path.basename(p));
-      } catch { info.recentFiles = []; }
-    })(),
-
-    // "Stalled" files: in-progress work modified 3-14 days ago — likely abandoned drafts
-    (async () => {
-      try {
-        const { stdout } = await execAsync(
-          `find "${os.homedir()}/Documents" "${os.homedir()}/Desktop" -maxdepth 3 -type f -mtime +3 -mtime -14 -not -name ".*" -not -name "*.app" 2>/dev/null | head -20`,
-          { timeout: 5000 }
-        );
-        const files = stdout.trim().split('\n').filter(Boolean);
-        // Pair each with its mtime age in days for AI to reference precisely
-        info.stalledFiles = files.slice(0, 8).map(p => {
-          try {
-            const s = fs.statSync(p);
-            const days = Math.floor((Date.now() - s.mtimeMs) / 86400000);
-            return `${path.basename(p)}（${days}天前）`;
-          } catch { return path.basename(p); }
-        });
-      } catch { info.stalledFiles = []; }
-    })(),
-
-    // Next upcoming calendar event (today or near future) with countdown
-    (async () => {
-      try {
-        const script = `tell application "Calendar"
-  set output to ""
-  set startTime to (current date)
-  set endTime to startTime + (2 * 86400)
-  repeat with cal in calendars
-    try
-      set evList to (every event of cal whose start date >= startTime and start date <= endTime)
-      repeat with ev in evList
-        try
-          set output to output & (summary of ev) & "|||" & ((start date of ev) as string) & "\\n"
-        end try
-      end repeat
-    end try
-  end repeat
-  return output
-end tell`;
-        const raw = await runAppleScript(script);
-        const events = raw.split('\n').filter(l => l.includes('|||')).map(l => {
-          const [title, dateStr] = l.split('|||');
-          const d = new Date(dateStr);
-          if (isNaN(d.getTime())) return null;
-          return { title: title.trim(), at: d.getTime() };
-        }).filter(Boolean).filter(e => e.at >= Date.now()).sort((a, b) => a.at - b.at);
-        if (events.length) {
-          const next = events[0];
-          const minsAway = Math.round((next.at - Date.now()) / 60000);
-          info.nextEvent = { title: next.title, inMinutes: minsAway, at: new Date(next.at).toLocaleString('zh-CN') };
-        }
-      } catch {}
-    })()
-  ]);
-
-  // Compute file-age buckets for downloads / desktop (already counted, just bucket)
-  if (info.downloads) {
-    const byAge = { fresh: 0, stale: 0, old: 0 }; // <7d / 7-30d / >30d
-    try {
-      const p = path.join(os.homedir(), 'Downloads');
-      const entries = fs.readdirSync(p).filter(f => !f.startsWith('.'));
-      for (const f of entries) {
-        try {
-          const s = fs.statSync(path.join(p, f));
-          const ageDays = (Date.now() - s.mtimeMs) / 86400000;
-          if (ageDays < 7) byAge.fresh++;
-          else if (ageDays < 30) byAge.stale++;
-          else byAge.old++;
-        } catch {}
-      }
-    } catch {}
-    info.downloads.ageBuckets = byAge;
-  }
-
-  return info;
-}
-
-// 创意视角池 — 每次调用随机抽 2 个塞进 prompt, 防止 AI 套路化
-const ADVISOR_ANGLES = [
-  '长期目标的小步推进（这季度想完成什么，今天能挪一寸吗）',
-  '一段被忽略的关系（家人、老友、同事 — 谁该回个消息）',
-  '信息消化与笔记（看过没消化的内容、囤着的文章）',
-  '工作流优化机会（重复劳动、能自动化的地方）',
-  '当下的精力管理（不是泛泛"休息一下"而是具体的节律）',
-  '学习窗口（今天有哪段时间适合啃硬骨头）',
-  '财务/订阅节点（账单、续费、不再用的服务）',
-  '灵感记录（脑子里转了几天但没落笔的事）',
-  '环境整理（不是文件 — 是物理桌面、座椅、光线、水杯）',
-  '人际表达（一句感谢、一次反馈、一个邀约）',
-  '健康节律（睡眠、饮食、视力、运动）',
-  '审美/趣味补给（看一段、读一页、听一首）',
-  '决策待办（卡住没决定的事，今天能不能做掉一件）',
-  '复盘与庆祝（最近完成了什么值得记一下）'
-];
-
-ipcMain.handle('get-ai-suggestions', async () => {
-  const provider = state.aiProvider || 'qwen';
-  const apiKey = (state.apiKeys || {})[provider] || '';
-  if (PROVIDERS[provider]?.needsKey && !apiKey) {
-    return { error: `请先在设置中填写 ${PROVIDERS[provider]?.name || provider} API Key` };
-  }
-  try {
-    const info = await gatherSystemInfo();
-    const now = new Date();
-    const hour = now.getHours();
-    const today = now.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
-    const timeOfDay = hour < 6 ? '深夜' : hour < 9 ? '清晨' : hour < 12 ? '上午' : hour < 14 ? '中午' : hour < 18 ? '下午' : hour < 22 ? '晚上' : '深夜';
-    const timeStr = `${String(hour).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-    const unitName = state.pet?.name || 'VF-1S';
-
-    // 随机抽 2 个不同视角, 强制 AI 跳出常用套路
-    const shuffled = [...ADVISOR_ANGLES].sort(() => Math.random() - 0.5);
-    const angle1 = shuffled[0];
-    const angle2 = shuffled[1];
-
-    // 下个日程的"剩余时间"用人能感知的形式
-    const nextEvLine = info.nextEvent
-      ? (info.nextEvent.inMinutes < 60
-          ? `【⚠ 下个日程】${info.nextEvent.title} — 还有 ${info.nextEvent.inMinutes} 分钟（${info.nextEvent.at}）`
-          : info.nextEvent.inMinutes < 60 * 12
-            ? `【下个日程】${info.nextEvent.title} — ${Math.round(info.nextEvent.inMinutes / 60)} 小时后（${info.nextEvent.at}）`
-            : `【下个日程】${info.nextEvent.title}（${info.nextEvent.at}）`)
-      : '';
-
-    const dlAge = info.downloads?.ageBuckets;
-    const dlAgeLine = dlAge
-      ? `下载文件年龄：<7天 ${dlAge.fresh}，7-30天 ${dlAge.stale}，>30天 ${dlAge.old}`
-      : '';
-
-    const infoText = [
-      `现在：${today} ${timeStr}（${timeOfDay}）`,
-
-      info.calendarToday?.length
-        ? `【今日日历】${info.calendarToday.join('、')}`
-        : '今日日历：无安排',
-      nextEvLine,
-
-      info.runningApps?.length
-        ? `【正在打开的应用】${info.runningApps.join('、')}`
-        : '',
-
-      info.recentFiles?.length
-        ? `【近 24h 修改过】${info.recentFiles.join('、')}`
-        : '',
-
-      info.stalledFiles?.length
-        ? `【停滞 3-14 天的文件】${info.stalledFiles.join('、')}（这是判断"烂尾活"的关键线索）`
-        : '',
-
-      info.desktop?.fileNames?.length
-        ? `桌面（共 ${info.desktop.count}，截图 ${info.desktop.screenshots}）：${info.desktop.fileNames.slice(0, 15).join('、')}`
-        : `桌面：${info.desktop?.count ?? '?'} 项`,
-
-      info.downloads?.largeFiles?.length
-        ? `下载夹大文件(>50MB)：${info.downloads.largeFiles.join('、')}`
-        : '',
-      dlAgeLine,
-
-      info.documents?.items?.length
-        ? `文稿夹一级条目：${info.documents.items.slice(0, 15).join('、')}`
-        : '',
-
-      `磁盘：已用 ${info.disk?.usedPct ?? '?'}%，剩余 ${info.disk?.freeGB ?? '?'} GB`,
-      info.mem ? `内存：已用 ${info.mem.usedPct ?? '?'}%，可用 ${info.mem.freeGB ?? '?'} GB` : '',
-      info.brewOutdated?.length ? `Homebrew 可更新：${info.brewOutdated.length} 个` : '',
-      info.trashMB > 200 ? `废纸篓：${info.trashMB} MB` : ''
-    ].filter(Boolean).join('\n');
-
-    // 顾问场景的 system prompt — 不用主战 callAI 的战斗 prompt, 顾问要更柔
-    const advisorSystem = `你是 ${unitName}（联合宇宙军 VF-1S 骷髅一号 单兵 AI），现在是驾驶员的"贴身顾问"。**严禁使用"主人"二字**，称呼一律用"驾驶员"。
-你的职责是看快照、给 5 条**真正有价值**的行动建议。今天 ${today} ${timeStr}（${timeOfDay}）。
-
-【口吻 — 灵活混合，看建议性质切换】
-- 紧急 / 错过会有损失：军用电台体，"X.pptx 距演示 23 分钟，建议立即归档"
-- 项目 / 工作推进：偏顾问体，简洁直接，少点机战词
-- 休息 / 灵感 / 长线：朋友闲聊体，"那本《XX》在桌面躺了 6 天了，找时间翻翻？"
-- 不要 5 条都同一个语气，自然切换
-
-【硬规则 — 违反任何一条都算输】
-1. 每条**必须明确引用快照里的具体数据点**：文件名、应用名、日历事件、剩余分钟数、文件年龄等。绝对不许"建议整理桌面"这种没具体证据的泛话
-2. 每条 30~60 字（含标点）的一**句完整话**。动作 + 简短理由 / 时机线索糅合在一句里，不要分行
-3. 5 条**必须横跨多个领域**：不许 5 条都属于同一类（不许 5 条都是文件清理 / 都是项目推进 / 都是休息提醒）
-4. 不要前言、不要总结、不要解释自己在做什么
-5. 不许虚构快照里没有的数据
-6. 系统维护类（清磁盘 / 清缓存 / 升级 brew）整体最多 1 条，且仅在快照里有明确触发条件时才提
-
-【价值标准】"具体 + 可立即行动 + 与当前状态强相关"打分，选最值的 5 条。范围**完全不限**：项目、文件、人际、学习、健康、长期目标、灵感、财务、生活体验、环境……都可以。
-
-【今日特别角度（防止套路化，仅当快照有相关数据时采纳）】
-- ${angle1}
-- ${angle2}
-
-【输出格式】
-直接 5 行，每行一条。前缀 "1. " ~ "5. "，无其他装饰。结束。`;
-
-    const userPrompt = `【此刻快照】
-${infoText}
-
-按以上规则，输出 5 条建议。记住：每条必须引用快照里的具体数据点；5 条要横跨多类；系统维护至多 1 条。`;
-
-    const metasoKey = (state.apiKeys || {}).metaso || '';
-    const raw = await callAI(provider, apiKey, state.pet.name, [], userPrompt, metasoKey, {
-      systemOverride: advisorSystem,
-      noTools: true,
-      temperature: 0.95
-    });
-
-    // 宽容解析: 接受 "1." / "1、" / "①-⑩" / "-" / "•" / "*" 等多种 bullet
-    const bulletRe = /^\s*(?:\d+[\.\、]|[①-⑩]|[\-\*•])\s*/;
-    const items = raw.split('\n')
-      .map(l => l.trim())
-      .filter(l => bulletRe.test(l))
-      .map(l => l.replace(bulletRe, '').trim())
-      .filter(l => l.length >= 4)        // 太短的多半是误抓
-      .slice(0, 5);
-
-    // Fallback: 如果模型完全不给编号 (混合空行的散文), 按非空行兜底
-    if (items.length < 3) {
-      const fallback = raw.split('\n').map(l => l.trim()).filter(l => l.length >= 8).slice(0, 5);
-      if (fallback.length > items.length) return { items: fallback };
-    }
-
-    return { items };
-  } catch (e) {
-    return { error: e.message };
-  }
-});
-
-ipcMain.handle('scan-files', async () => {
-  const dirs = [
-    path.join(os.homedir(), 'Downloads'),
-    path.join(os.homedir(), 'Desktop')
-  ];
-  const results = [];
-  const now = Date.now();
-  const thirtyDays = 30 * 24 * 60 * 60 * 1000;
-  const fiftyMB = 50 * 1024 * 1024;
-
-  for (const dir of dirs) {
-    try {
-      const entries = fs.readdirSync(dir);
-      for (const entry of entries) {
-        const full = path.join(dir, entry);
-        try {
-          const stat = fs.statSync(full);
-          if (stat.isFile()) {
-            const age = now - stat.mtimeMs;
-            const isOld = age > thirtyDays;
-            const isLarge = stat.size > fiftyMB;
-            if (isOld || isLarge) {
-              results.push({
-                name: entry,
-                path: full,
-                size: stat.size,
-                modified: stat.mtime.toISOString(),
-                reason: isLarge && isOld ? '大文件且超过30天' : isLarge ? '大文件(>50MB)' : '超过30天未修改',
-                dir: path.basename(dir)
-              });
-            }
-          }
-        } catch {}
-      }
-    } catch {}
-  }
-
-  results.sort((a, b) => b.size - a.size);
-  return results;
-});
-
 // 校验渲染进程传入的文件路径: 必须是字符串, 解析后必须落在某个允许的根目录内
 // (防目录穿越 / 任意路径操作 —— 渲染层若被注入也只能动白名单目录).
 function _pathWithin(filePath, roots) {
@@ -2787,19 +2299,6 @@ function _pathWithin(filePath, roots) {
   const abs = path.resolve(filePath);
   return roots.some(r => abs === r || abs.startsWith(r + path.sep)) ? abs : null;
 }
-
-ipcMain.handle('delete-file', async (_, filePath) => {
-  // delete-file 只服务于 scan-files 的结果 (Downloads/Desktop), 据此限定可删除范围
-  const roots = [path.join(os.homedir(), 'Downloads'), path.join(os.homedir(), 'Desktop')];
-  const abs = _pathWithin(filePath, roots);
-  if (!abs) return { success: false, error: '仅允许删除 Downloads/Desktop 内的文件' };
-  try {
-    await shell.trashItem(abs);
-    return { success: true, xp: state.pet.xp, level: state.pet.level };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-});
 
 ipcMain.handle('reveal-in-finder', (_, filePath) => {
   const abs = _pathWithin(filePath, [os.homedir()]);
@@ -2945,13 +2444,12 @@ ipcMain.handle('set-voice-lang', (_, lang) => {
   return { success: true, voiceLang: state.voiceLang };
 });
 
-ipcMain.handle('get-persona', () => state.persona || '');
+ipcMain.handle('get-persona', () => memory.getPersona());
 
 ipcMain.handle('set-persona', (_, text) => {
-  // trim + 限长, 防止超长文本撑爆系统提示
-  state.persona = String(text || '').trim().slice(0, 2000);
-  store.save(state);
-  return { success: true, persona: state.persona };
+  // trim + 限长, 防止超长文本撑爆系统提示; 存入 persona-memory.md
+  memory.setPersona(String(text || '').trim().slice(0, 2000));
+  return { success: true, persona: memory.getPersona() };
 });
 
 ipcMain.handle('get-qwen-model', () => state.qwenModel || 'qwen-plus');
@@ -2963,13 +2461,12 @@ ipcMain.handle('set-qwen-model', (_, model) => {
   return { success: true, qwenModel: state.qwenModel };
 });
 
-ipcMain.handle('get-session-rules', () => state.sessionRules || '');
+ipcMain.handle('get-session-rules', () => memory.getRules());
 
 ipcMain.handle('set-session-rules', (_, text) => {
-  // trim + 限长, 与 persona 同等约束; 这段会钉在 system prompt 顶部每轮强制遵守
-  state.sessionRules = String(text || '').trim().slice(0, 2000);
-  store.save(state);
-  return { success: true, sessionRules: state.sessionRules };
+  // trim + 限长, 与 persona 同等约束; 这段会钉在 system prompt 顶部每轮强制遵守; 存入 persona-memory.md
+  memory.setRules(String(text || '').trim().slice(0, 2000));
+  return { success: true, sessionRules: memory.getRules() };
 });
 
 // 复位: 让机体平滑飞回屏幕右下角的 home 位 (关闭巡航后归位用).

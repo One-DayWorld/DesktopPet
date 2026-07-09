@@ -151,15 +151,6 @@
     border-bottom-color: #00c8ec;
     text-shadow: 0 0 9px rgba(0, 200, 235, 0.55);
   }
-  .tab-badge {
-    position: absolute; top: 4px; right: 4px;
-    width: 6px; height: 6px; border-radius: 50%;
-    background: #ff4040;
-    box-shadow: 0 0 6px rgba(255, 60, 60, 0.9);
-    display: none;
-    animation: term-badge-pulse 1.2s ease-in-out infinite;
-  }
-  .tab-badge.active { display: block; }
 
   /* ── Tab Content ── */
   #tab-content {
@@ -349,25 +340,6 @@
   .refresh-btn.spinning { animation: spin 0.7s linear infinite; }
 
   /* ── Files ── */
-  .scan-btn {
-    width: 100%; padding: 9px;
-    background: rgba(0, 95, 140, 0.28);
-    border: 1px solid rgba(0, 178, 220, 0.28);
-    border-radius: 9px;
-    color: rgba(155, 218, 240, 0.88);
-    font-size: 12px; font-weight: 500;
-    cursor: pointer;
-    margin-bottom: 10px;
-    transition: all 0.2s;
-    font-family: inherit;
-    letter-spacing: 0.03em;
-  }
-  .scan-btn:hover {
-    background: rgba(0, 125, 175, 0.38);
-    box-shadow: 0 0 12px rgba(0, 172, 218, 0.18);
-    border-color: rgba(0, 200, 240, 0.4);
-  }
-  .scan-btn:disabled { opacity: 0.32; cursor: default; box-shadow: none; }
   .scan-hint { font-size: 11px; color: rgba(135, 192, 218, 0.88); text-align: center; margin-bottom: 8px; line-height: 1.55; }
   .section-header {
     font-size: 10px; font-weight: 600;
@@ -376,200 +348,6 @@
     margin-bottom: 8px; margin-top: 2px;
   }
   .section-divider { border: none; border-top: 1px solid rgba(0, 115, 158, 0.14); margin: 12px 0; }
-
-  .suggestion-item {
-    display: flex; align-items: flex-start; gap: 9px;
-    padding: 8px 10px;
-    background: rgba(0, 20, 42, 0.70);
-    border: 1px solid rgba(0, 115, 155, 0.14);
-    border-radius: 9px; margin-bottom: 5px;
-    cursor: pointer; transition: all 0.15s;
-  }
-  .suggestion-item:hover {
-    background: rgba(0, 48, 82, 0.48);
-    border-color: rgba(0, 188, 228, 0.32);
-    box-shadow: 0 0 10px rgba(0, 168, 214, 0.1);
-  }
-  .suggestion-num {
-    width: 19px; height: 19px; flex-shrink: 0;
-    background: rgba(0, 115, 165, 0.45);
-    border: 1px solid rgba(0, 178, 220, 0.28);
-    border-radius: 50%;
-    font-size: 10px; font-weight: 700;
-    color: #78d4f0;
-    display: flex; align-items: center; justify-content: center;
-    margin-top: 1px;
-  }
-  .suggestion-num.high { background: rgba(195, 55, 48, 0.38); border-color: rgba(255, 75, 58, 0.45); color: #ffaaa2; }
-  .suggestion-num.mid { background: rgba(178, 118, 0, 0.32); border-color: rgba(238, 158, 38, 0.42); color: #ffd078; }
-  .suggestion-text { font-size: 12px; color: rgba(200, 232, 245, 0.95); line-height: 1.5; flex: 1; }
-  .suggestion-arrow { font-size: 11px; color: rgba(120, 185, 215, 0.8); align-self: center; flex-shrink: 0; }
-  .suggestion-item:hover .suggestion-arrow { color: rgba(0, 198, 232, 0.65); }
-  .suggestions-loading { text-align: center; color: rgba(140, 198, 225, 0.88); font-size: 12.5px; padding: 18px 0; }
-
-  .file-item {
-    display: flex; align-items: center; gap: 8px;
-    padding: 7px 10px;
-    background: rgba(0, 18, 38, 0.70);
-    border: 1px solid rgba(0, 108, 148, 0.14);
-    border-radius: 8px; margin-bottom: 4px;
-  }
-  .file-icon { font-size: 17px; flex-shrink: 0; }
-  .file-info { flex: 1; overflow: hidden; }
-  .file-name { font-size: 11.5px; color: rgba(200, 232, 245, 0.95); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .file-meta { font-size: 10px; color: rgba(135, 188, 215, 0.88); margin-top: 1px; }
-  .file-reason { font-size: 10px; color: rgba(218, 178, 58, 0.68); }
-  .del-file-btn {
-    background: rgba(0, 18, 38, 0.6);
-    border: 1px solid rgba(0, 118, 158, 0.24);
-    color: rgba(125, 192, 218, 0.68);
-    border-radius: 6px; padding: 3px 8px;
-    font-size: 10.5px; cursor: pointer;
-    flex-shrink: 0; transition: all 0.15s;
-    white-space: nowrap; font-family: inherit;
-  }
-  .del-file-btn:hover { background: rgba(175, 38, 38, 0.32); border-color: rgba(255, 75, 68, 0.38); color: #ff9080; }
-  .files-empty { text-align: center; color: rgba(140, 195, 225, 0.88); font-size: 12.5px; padding: 28px 0; }
-
-  /* ── Suggestion file action button ── */
-  .suggestion-file-btn {
-    display: inline-flex; align-items: center; gap: 3px;
-    margin-top: 5px;
-    padding: 3px 8px;
-    background: rgba(0, 88, 128, 0.35);
-    border: 1px solid rgba(0, 172, 218, 0.30);
-    border-radius: 5px;
-    color: rgba(130, 205, 238, 0.92);
-    font-size: 10.5px; cursor: pointer;
-    transition: all 0.15s; font-family: inherit; line-height: 1.4;
-  }
-  .suggestion-file-btn:hover { background: rgba(0, 115, 165, 0.45); border-color: rgba(0, 200, 240, 0.42); color: rgba(160, 225, 248, 1); }
-
-  /* ── File Manager Overlay ── */
-  #file-manager-overlay {
-    position: absolute;
-    top: 40px; left: 0; right: 0; bottom: 0;
-    z-index: 800;
-    display: none; flex-direction: column;
-    background: rgba(0, 7, 20, 0.97);
-    border-top: 1px solid rgba(0, 160, 210, 0.22);
-    border-radius: 0 0 14px 14px;
-    overflow: hidden;
-  }
-  #file-manager-overlay.open { display: flex; }
-  #fm-header {
-    padding: 11px 14px 9px;
-    display: flex; align-items: center; justify-content: space-between;
-    border-bottom: 1px solid rgba(0, 115, 155, 0.18);
-    flex-shrink: 0;
-  }
-  #fm-title { font-size: 13px; font-weight: 600; color: rgba(175, 228, 248, 0.95); }
-  #fm-close-btn {
-    width: 22px; height: 22px;
-    background: rgba(0, 28, 52, 0.6);
-    border: 1px solid rgba(0, 115, 155, 0.22);
-    border-radius: 50%;
-    color: rgba(140, 195, 225, 0.75);
-    font-size: 14px; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    transition: all 0.15s; font-family: inherit; line-height: 1;
-  }
-  #fm-close-btn:hover { background: rgba(165, 42, 38, 0.35); border-color: rgba(255, 75, 68, 0.38); color: #ff9080; }
-  #fm-filters {
-    display: flex; gap: 5px;
-    padding: 8px 12px;
-    border-bottom: 1px solid rgba(0, 115, 155, 0.12);
-    flex-shrink: 0;
-  }
-  .fm-filter-btn {
-    padding: 3px 11px;
-    background: rgba(0, 18, 38, 0.65);
-    border: 1px solid rgba(0, 108, 148, 0.22);
-    border-radius: 20px;
-    color: rgba(135, 188, 215, 0.78);
-    font-size: 11px; cursor: pointer;
-    transition: all 0.15s; font-family: inherit;
-  }
-  .fm-filter-btn.active { background: rgba(0, 95, 145, 0.45); border-color: rgba(0, 188, 228, 0.42); color: rgba(165, 225, 248, 0.98); }
-  #fm-toolbar {
-    padding: 7px 12px;
-    display: flex; align-items: center; gap: 6px;
-    border-bottom: 1px solid rgba(0, 115, 155, 0.12);
-    flex-shrink: 0;
-  }
-  .fm-sel-btn {
-    padding: 3px 9px;
-    background: rgba(0, 28, 52, 0.55);
-    border: 1px solid rgba(0, 108, 148, 0.22);
-    border-radius: 6px;
-    color: rgba(130, 188, 215, 0.78);
-    font-size: 10.5px; cursor: pointer;
-    transition: all 0.15s; font-family: inherit; flex-shrink: 0;
-  }
-  .fm-sel-btn:hover { background: rgba(0, 55, 88, 0.55); border-color: rgba(0, 178, 220, 0.3); color: rgba(155, 215, 238, 0.92); }
-  #fm-count { font-size: 11px; color: rgba(140, 195, 228, 0.85); flex: 1; }
-  #fm-delete-btn {
-    padding: 4px 11px;
-    background: rgba(155, 38, 32, 0.35);
-    border: 1px solid rgba(218, 58, 48, 0.35);
-    border-radius: 7px;
-    color: rgba(255, 145, 125, 0.92);
-    font-size: 11px; cursor: pointer;
-    transition: all 0.18s; font-family: inherit; flex-shrink: 0;
-  }
-  #fm-delete-btn:hover:not(:disabled) { background: rgba(195, 48, 40, 0.52); border-color: rgba(255, 75, 65, 0.52); box-shadow: 0 0 10px rgba(218, 58, 48, 0.2); }
-  #fm-delete-btn:disabled { opacity: 0.32; cursor: default; }
-  #fm-list { flex: 1; overflow-y: auto; padding: 8px 12px 12px; }
-  .fm-item {
-    display: flex; align-items: center; gap: 9px;
-    padding: 8px 10px;
-    background: rgba(0, 18, 38, 0.68);
-    border: 1px solid rgba(0, 108, 148, 0.14);
-    border-radius: 9px; margin-bottom: 5px;
-    cursor: pointer; transition: all 0.15s; user-select: none;
-  }
-  .fm-item:hover { background: rgba(0, 35, 65, 0.72); border-color: rgba(0, 155, 198, 0.25); }
-  .fm-item.fm-selected { background: rgba(0, 52, 88, 0.72); border-color: rgba(0, 188, 228, 0.38); box-shadow: 0 0 8px rgba(0, 168, 214, 0.1); }
-  .fm-checkbox {
-    width: 16px; height: 16px; flex-shrink: 0;
-    border: 1.5px solid rgba(0, 155, 195, 0.45);
-    border-radius: 4px;
-    background: rgba(0, 18, 38, 0.65);
-    display: flex; align-items: center; justify-content: center;
-    transition: all 0.15s;
-  }
-  .fm-item.fm-selected .fm-checkbox { background: rgba(0, 155, 198, 0.55); border-color: rgba(0, 198, 240, 0.72); }
-  .fm-item.fm-selected .fm-checkbox::after { content: '✓'; font-size: 10px; font-weight: 700; color: rgba(200, 238, 252, 0.95); }
-  .fm-thumb {
-    width: 40px; height: 40px; flex-shrink: 0;
-    border-radius: 6px; overflow: hidden;
-    background: rgba(0, 28, 52, 0.6);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 20px;
-    border: 1px solid rgba(0, 108, 148, 0.18);
-  }
-  .fm-thumb img { width: 100%; height: 100%; object-fit: cover; }
-  .fm-info { flex: 1; overflow: hidden; min-width: 0; }
-  .fm-name { font-size: 11.5px; color: rgba(205, 235, 248, 0.95); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .fm-meta { font-size: 10px; color: rgba(130, 188, 215, 0.85); margin-top: 2px; }
-  .fm-tags { display: flex; gap: 4px; margin-top: 3px; align-items: center; flex-wrap: wrap; }
-  .fm-tag { font-size: 9.5px; padding: 1px 6px; border-radius: 3px; line-height: 1.6; }
-  .fm-tag.old { background: rgba(178, 128, 0, 0.25); color: rgba(228, 178, 48, 0.88); border: 1px solid rgba(218, 158, 28, 0.25); }
-  .fm-tag.large { background: rgba(0, 78, 128, 0.32); color: rgba(108, 188, 228, 0.92); border: 1px solid rgba(0, 148, 198, 0.28); }
-  .fm-tag.loc { background: rgba(0, 48, 78, 0.42); color: rgba(120, 188, 218, 0.85); border: 1px solid rgba(0, 118, 168, 0.22); }
-  .fm-reveal-btn {
-    padding: 2px 7px;
-    background: transparent;
-    border: 1px solid rgba(0, 108, 148, 0.28);
-    border-radius: 4px;
-    color: rgba(110, 178, 215, 0.72);
-    font-size: 9.5px; cursor: pointer;
-    transition: all 0.15s; font-family: inherit; white-space: nowrap; flex-shrink: 0;
-  }
-  .fm-reveal-btn:hover { border-color: rgba(0, 178, 220, 0.42); color: rgba(155, 215, 240, 0.95); background: rgba(0, 55, 88, 0.38); }
-  .fm-empty { text-align: center; color: rgba(140, 195, 225, 0.85); font-size: 12.5px; padding: 32px 0; line-height: 1.8; }
-
-  .fm-scanning { text-align: center; color: rgba(140, 195, 225, 0.85); font-size: 12.5px; padding: 32px 0; }
 
   /* ── Settings ── */
   .setting-row { margin-bottom: 13px; }
@@ -598,72 +376,6 @@
   .setting-note { font-size: 10.5px; color: rgba(130, 188, 215, 0.85); margin-top: 4px; line-height: 1.5; }
   .setting-section { font-size: 10px; font-weight: 600; color: rgba(0, 205, 245, 0.92); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; margin-top: 4px; }
   .setting-success { color: #00e5a0; font-size: 11.5px; margin-top: 4px; display: none; }
-
-  /* ── 记忆面板 ── */
-  .memory-bond {
-    font-size: 12px; font-weight: 600; color: var(--accent-gold, #ffd070);
-    letter-spacing: 0.04em; margin-bottom: 8px;
-    display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    cursor: pointer; user-select: none; outline: none;
-  }
-  .memory-bond:hover { color: #ffe39a; }
-  .mem-caret {
-    font-size: 10px; font-weight: 600; color: rgba(0, 205, 245, 0.8);
-    letter-spacing: 0.06em; flex: 0 0 auto;
-  }
-  /* 折叠态: 藏起内容, 只留标题行, 防止旁人窥见 (memory / persona 共用) */
-  .mem-collapse { overflow: hidden; }
-  .hud-frame.mem-collapsed .mem-collapse { display: none; }
-  .hud-frame.mem-collapsed .memory-bond { margin-bottom: 0; }
-  .persona-input {
-    width: 100%; box-sizing: border-box; min-height: 96px; resize: vertical;
-    background: rgba(0, 18, 40, 0.6); border: 1px solid rgba(0, 145, 185, 0.28);
-    border-radius: 6px; padding: 8px 10px; margin-bottom: 10px;
-    font-size: 12px; color: #c8e4f0; line-height: 1.5; font-family: inherit;
-  }
-  .persona-input:focus { outline: none; border-color: rgba(0, 205, 245, 0.6); }
-  .mem-group { margin-bottom: 12px; }
-  .mem-group-title {
-    font-size: 10px; font-weight: 600; color: rgba(0, 205, 245, 0.85);
-    letter-spacing: 0.08em; margin-bottom: 6px;
-  }
-  .mem-item {
-    display: flex; align-items: flex-start; gap: 6px;
-    background: rgba(0, 18, 40, 0.6); border: 1px solid rgba(0, 145, 185, 0.18);
-    border-radius: 6px; padding: 5px 8px; margin-bottom: 5px;
-    font-size: 11.5px; color: #c8e4f0; line-height: 1.45;
-  }
-  .mem-item span { flex: 1; word-break: break-word; }
-  .mem-del {
-    flex-shrink: 0; cursor: pointer; color: rgba(255, 130, 130, 0.6);
-    font-size: 12px; line-height: 1; padding: 1px 3px; border-radius: 3px;
-    background: none; border: none; transition: color 0.15s;
-  }
-  .mem-del:hover { color: #ff7070; }
-  .mem-edit {
-    flex-shrink: 0; cursor: pointer; color: rgba(120, 200, 235, 0.6);
-    font-size: 12px; line-height: 1; padding: 1px 3px; border-radius: 3px;
-    background: none; border: none; transition: color 0.15s;
-  }
-  .mem-edit:hover { color: #7cd8f0; }
-  .mem-readonly {
-    font-size: 11px; color: rgba(150, 200, 225, 0.7); line-height: 1.6;
-    background: rgba(0, 14, 32, 0.5); border-radius: 6px; padding: 6px 9px;
-  }
-  .mem-add-row { display: flex; gap: 6px; margin-top: 4px; }
-  .mem-add-input {
-    flex: 1; padding: 5px 9px; background: rgba(0, 12, 30, 0.7);
-    border: 1px solid rgba(0, 155, 195, 0.22); border-radius: 6px;
-    color: #c8e4f0; font-size: 11.5px; outline: none; font-family: inherit;
-  }
-  .mem-add-input:focus { border-color: rgba(0, 200, 235, 0.45); }
-  .mem-add-btn {
-    flex-shrink: 0; padding: 4px 11px; border-radius: 6px; cursor: pointer;
-    background: rgba(0, 155, 200, 0.2); border: 1px solid rgba(0, 200, 235, 0.35);
-    color: #88d8f0; font-size: 14px; line-height: 1; transition: all 0.15s;
-  }
-  .mem-add-btn:hover { background: rgba(0, 155, 200, 0.35); }
-  .mem-empty { font-size: 10.5px; color: rgba(110, 165, 190, 0.5); font-style: italic; }
 
   .provider-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 13px; }
   .provider-card {
@@ -1089,36 +801,7 @@
   .msg-bubble.md .md-table td { color: var(--text-hi); }
   .msg-bubble.md .md-table tbody tr:hover { background: rgba(255, 200, 80, 0.06); }
 
-  /* ── Quick prompt sidebar (COMM 右侧) ── */
-  #pane-chat.active { flex-direction: row; gap: 12px; }
   #chat-main { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
-  #chat-side {
-    width: 200px; flex-shrink: 0;
-    display: flex; flex-direction: column; gap: 6px;
-    padding-left: 10px; border-left: 1px solid var(--border-faint);
-    overflow-y: auto;
-  }
-  .qp-section-title {
-    font-size: 9px; color: var(--text-lo);
-    letter-spacing: 0.12em; text-transform: uppercase;
-    padding: 4px 0 2px; margin-top: 4px;
-  }
-  .qp-btn {
-    text-align: left;
-    background: var(--bg-card);
-    border: 1px solid var(--border-soft);
-    color: var(--text-md);
-    border-radius: 6px;
-    padding: 6px 9px;
-    font-size: 11px; cursor: pointer;
-    transition: all 0.15s; font-family: inherit;
-    line-height: 1.35;
-  }
-  .qp-btn:hover {
-    background: var(--bg-card-hover);
-    border-color: var(--border-medium);
-    color: var(--text-hi);
-  }
 
   .refresh-btn {
     background: rgba(110, 255, 200, 0.16);
@@ -1127,19 +810,10 @@
   }
 
   /* ── Files / Suggestions ── */
-  .section-header, .section-title, .file-section h3, .wf-header {
+  .section-header, .section-title, .wf-header {
     color: var(--text-md); letter-spacing: 0.06em; font-size: 10px;
   }
   .scan-hint { color: var(--text-lo); }
-  .file-item, .suggestion-item {
-    background: var(--bg-card); border-color: var(--border-faint);
-  }
-  .file-item:hover, .suggestion-item:hover {
-    border-color: var(--border-medium);
-    background: var(--bg-card-hover);
-  }
-  .file-size { color: var(--text-lo); }
-  .file-name { color: var(--text-hi); }
 
   /* ── Settings ── */
   .settings-label { color: var(--text-md); font-size: 10px; letter-spacing: 0.06em; }
@@ -1190,61 +864,6 @@
   #tab-content { position: relative; }
 
   /* ── 760px 拉宽后的网格布局 ───────────────────────────────── */
-  /* FILES: 智能建议 2 列网格 */
-  #suggestion-list {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-    align-content: start;
-  }
-  /* CHAT 侧栏空间窄: 单列布局, 间距收紧 */
-  #chat-side #suggestion-list {
-    grid-template-columns: 1fr;
-    gap: 6px;
-    margin-top: 6px;
-  }
-  #chat-side #suggestion-list .suggestion-item { padding: 6px 8px; }
-  #chat-side #suggestion-list .suggestion-text { font-size: 11px; }
-  #chat-side .scan-btn { padding: 6px 8px; font-size: 11.5px; margin-bottom: 0; }
-  /* 边界态(loading/error)占整行 */
-  #suggestion-list .suggestions-loading { grid-column: 1 / -1; }
-  .suggestion-item { margin-bottom: 0 !important; }
-  .suggestion-num {
-    background: rgba(110, 255, 200, 0.18);
-    border-color: var(--border-medium);
-    color: var(--accent-gold);
-  }
-  .suggestion-num.high { background: rgba(220, 95, 60, 0.4); border-color: rgba(255, 130, 90, 0.55); color: #ffb497; }
-  .suggestion-num.mid  { background: rgba(195, 130, 30, 0.4); border-color: rgba(255, 175, 60, 0.55); color: #ffd693; }
-  .suggestion-text { color: var(--text-hi); font-size: 12px; line-height: 1.55; }
-  .suggestion-arrow { color: var(--text-lo); }
-  .suggestion-item:hover .suggestion-arrow { color: var(--accent-gold); }
-
-  /* TERM: 会话卡片 2 列网格 */
-  #term-sessions-container {
-    display: grid !important;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-    flex: 1; min-height: 0;
-    overflow-y: auto;
-  }
-  .term-session-card { flex-shrink: 1; }
-  .term-prompt-preview {
-    color: var(--text-md);
-    background: var(--bg-input);
-    border-bottom-color: var(--border-faint);
-    max-height: 110px;
-  }
-  .term-card-header {
-    background: rgba(180, 90, 60, 0.2);
-    border-bottom-color: rgba(255, 100, 70, 0.3);
-    color: rgba(255, 175, 145, 0.92);
-  }
-  .term-alert-tag {
-    background: rgba(255, 100, 70, 0.25);
-    border-color: rgba(255, 130, 90, 0.5);
-    color: #ffb597;
-  }
 
   /* SETTINGS: 卡片化 - 表单组成片状容器, 段落清晰 */
   .settings-card {
@@ -1382,23 +1001,13 @@
   }
   /* CHAT */
   #chat-main.hud-frame  { padding: 26px 12px 12px; }
-  #chat-side.hud-frame  {
-    border-left: none !important;       /* 原本的左侧细线让位给 HUD 边 */
-    padding: 26px 10px 12px;
-  }
-  /* TERM — 单框包整个 tab 内容 */
-  #pane-terminal > .hud-frame { padding: 24px 10px 12px; }
-  /* TERM 内部子标题/状态条 — 紧贴 pill 下方 */
-  #pane-terminal > .hud-frame .term-header { margin-bottom: 6px; }
-  /* WORKFLOW — 单框 (AI 智能建议已移到 CHAT 侧栏) */
+  /* WORKFLOW — 单框 */
   #pane-files > .hud-frame { padding: 22px 14px 14px; }
   /* CONFIG — 设置项分两组 (PET / AI), 每组一个框 */
   #pane-settings > .hud-frame { padding: 22px 14px 14px; margin-bottom: 12px; }
   #pane-settings > .hud-frame:last-child { margin-bottom: 0; }
 
   /* 通用: 让所有按钮悬停的辉光更暖 */
-  .file-action-btn,
-  .scan-files-btn,
   .refresh-btn:hover {
     box-shadow: 0 0 8px var(--accent-dim);
   }
@@ -1458,74 +1067,6 @@
   }
   .axw-dismiss:hover { color: #ff8a55; }
 
-  /* ── Terminal Monitor ── */
-  #pane-terminal { gap: 8px; }
-  .term-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 6px 9px;
-    background: rgba(0, 25, 45, 0.7);
-    border: 1px solid rgba(0, 175, 215, 0.18);
-    border-radius: 4px;
-    font-size: 10px; color: rgba(130, 190, 220, 0.7);
-    letter-spacing: 0.08em; flex-shrink: 0;
-  }
-  .term-status-dot {
-    display: inline-block; width: 6px; height: 6px;
-    border-radius: 50%; margin-right: 5px; vertical-align: middle;
-    background: rgba(0, 200, 235, 0.7);
-    box-shadow: 0 0 5px rgba(0, 200, 235, 0.5);
-    animation: term-dot-pulse 2s ease-in-out infinite;
-  }
-  .term-status-dot.alert { background: #ff4040; box-shadow: 0 0 7px rgba(255, 50, 50, 0.8); animation: term-badge-pulse 0.9s ease-in-out infinite; }
-  @keyframes term-dot-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-  @keyframes term-badge-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-  #term-sessions-container { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; flex: 1; min-height: 0; }
-  .term-session-card {
-    background: rgba(0, 15, 30, 0.9);
-    border: 1px solid rgba(255, 55, 55, 0.4);
-    border-radius: 5px; overflow: hidden;
-    box-shadow: 0 0 14px rgba(255, 50, 50, 0.1);
-    flex-shrink: 0;
-  }
-  .term-card-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 5px 9px;
-    background: rgba(255, 50, 50, 0.1);
-    border-bottom: 1px solid rgba(255, 55, 55, 0.25);
-    font-size: 9px; letter-spacing: 0.08em; color: rgba(255, 140, 140, 0.85);
-  }
-  .term-alert-tag {
-    background: rgba(255, 50, 50, 0.25); border: 1px solid rgba(255, 60, 60, 0.45);
-    border-radius: 3px; padding: 1px 5px; font-size: 9px; color: #ff9999;
-  }
-  .term-prompt-preview {
-    padding: 7px 9px;
-    font-family: 'SF Mono', 'Menlo', monospace;
-    font-size: 9.5px; line-height: 1.55;
-    color: rgba(190, 230, 210, 0.85);
-    background: rgba(0, 5, 12, 0.75);
-    border-bottom: 1px solid rgba(0, 160, 200, 0.12);
-    white-space: pre; overflow-x: auto;
-    max-height: 90px; overflow-y: hidden;
-  }
-  .term-card-actions { display: flex; gap: 6px; padding: 7px 9px; }
-  .term-action-btn {
-    flex: 1; padding: 5px 6px; border-radius: 4px;
-    font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
-    cursor: pointer; border: 1px solid transparent; transition: all 0.14s;
-  }
-  .term-action-btn.yes { background: rgba(0, 170, 90, 0.18); border-color: rgba(0, 200, 110, 0.4); color: #66ddaa; }
-  .term-action-btn.yes:hover { background: rgba(0, 170, 90, 0.32); }
-  .term-action-btn.no { background: rgba(200, 45, 45, 0.18); border-color: rgba(220, 70, 70, 0.4); color: #ff9999; }
-  .term-action-btn.no:hover { background: rgba(200, 45, 45, 0.32); }
-  .term-action-btn.enter { background: rgba(0, 100, 175, 0.18); border-color: rgba(0, 155, 215, 0.4); color: #88ccee; }
-  .term-action-btn.enter:hover { background: rgba(0, 100, 175, 0.32); }
-  .term-action-btn:active { transform: scale(0.96); }
-  .term-action-btn:disabled { opacity: 0.38; cursor: default; transform: none; }
-  .term-idle-msg {
-    text-align: center; padding: 28px 12px;
-    color: rgba(90, 150, 175, 0.4); font-size: 10px; letter-spacing: 0.12em;
-  }
 
 </style>
 </head>
@@ -1563,7 +1104,6 @@
 <div id="tabs">
   <div class="tab active" data-tab="chat">CHAT</div>
   <div class="tab" data-tab="files">WORKFLOW</div>
-  <div class="tab" data-tab="terminal">YES BOT<span class="tab-badge" id="term-badge"></span></div>
   <div class="tab" data-tab="settings">CONFIG</div>
 </div>
 
@@ -1580,31 +1120,9 @@
         <button id="send-btn" title="发送 (⌘↵)">↑</button>
       </div>
     </div>
-    <div id="chat-side" class="hud-frame">
-      <div class="hud-pill">QUICK ORDERS</div>
-      <div class="qp-section-title">快捷指令</div>
-      <button class="qp-btn" data-prompt="今天天气怎么样？">☁ 今天天气</button>
-      <button class="qp-btn" data-prompt="帮我看下今天的日历有什么安排">📅 今日日程</button>
-      <button class="qp-btn" data-prompt="查一下昨天的新闻，挑3条重要的">📰 昨日要闻</button>
-      <div class="qp-section-title">AI 助手</div>
-      <button class="qp-btn" data-url="https://chatgpt.com">✨ ChatGPT</button>
-      <button class="qp-btn" data-url="https://chat.deepseek.com">🌊 DeepSeek</button>
-      <button class="qp-btn" data-url="https://chat.qwen.ai">🦅 千问</button>
-      <button class="qp-btn" data-url="https://claude.ai">🧠 Claude</button>
-      <button class="qp-btn" data-url="https://nextgen-beta.ica.ibm.com/ica/chat">🔷 ICA</button>
-      <div class="qp-section-title">体育</div>
-      <button class="qp-btn" data-prompt="昨晚 CBA 总决赛比分和球员数据">🏀 CBA 战报</button>
-      <button class="qp-btn" data-prompt="昨天中超有什么比赛？比分多少？">⚽ 中超战报</button>
-      <button class="qp-btn" data-prompt="昨天英超有什么比赛？比分多少？">⚽ 英超战报</button>
-      <div class="qp-section-title">系统</div>
-      <button class="qp-btn" data-prompt="检查下我电脑磁盘和内存还剩多少？">💻 系统状态</button>
-      <div class="qp-section-title">AI 智能建议</div>
-      <button class="qp-btn" id="suggest-btn" onclick="getSuggestions()">✦ 分析电脑，获取建议</button>
-      <div id="suggestion-list"></div>
-    </div>
   </div>
 
-  <!-- Workflow (原 FILES, AI 智能建议已移到 CHAT 侧栏) -->
+  <!-- Workflow (原 FILES) -->
   <div class="tab-pane" id="pane-files">
     <div class="hud-frame">
       <div class="hud-pill">WORKFLOWS</div>
@@ -1623,27 +1141,6 @@
     </div>
   </div>
 
-  <!-- Terminal Monitor -->
-  <div class="tab-pane" id="pane-terminal">
-    <div class="hud-frame flex-fill">
-      <div class="hud-pill">TERMINAL MONITOR</div>
-      <div class="term-header">
-        <span><span class="term-status-dot" id="term-status-dot"></span><span id="term-status-text">初始化中...</span></span>
-        <span style="display:flex;gap:4px">
-          <button class="refresh-btn" id="term-sound-btn" onclick="termToggleAlertSound()" title="警报音：开">🔔</button>
-          <button class="refresh-btn" onclick="termPollNow()" title="立即扫描">↻</button>
-          <button class="refresh-btn" id="term-diag-btn" onclick="termToggleDiag()" title="诊断：显示所有会话原始内容">⚙</button>
-        </span>
-      </div>
-      <div id="term-ax-hint" style="display:none;padding:6px 10px;font-size:10px;color:rgba(255,200,80,0.85);background:rgba(255,180,0,0.08);border-bottom:1px solid rgba(255,180,0,0.15)">
-        ⚠ 需要辅助功能权限才能读取终端当前屏幕（Claude Code等全屏UI）。请前往
-        <b>系统设置 → 隐私与安全 → 辅助功能</b>，将本应用加入列表并启用。
-      </div>
-      <div id="term-sessions-container">
-        <div class="term-idle-msg">[ 点击标签页开始监控 ]</div>
-      </div>
-    </div>
-  </div>
 
   <!-- Windows manager — 列出 macOS 当前所有可见应用 + 它们的窗口 -->
 
@@ -1728,47 +1225,14 @@
 
     </div><!-- /PET CONFIG hud-frame -->
 
-    <div class="hud-frame mem-collapsed" id="memory-frame">
-      <div class="hud-pill">MEMORY · 记忆</div>
-      <div id="memory-bond" class="memory-bond" role="button" tabindex="0" onclick="toggleMemoryCollapse()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleMemoryCollapse()}">
-        <span id="memory-bond-text">羁绊 Lv.1 · 新驾驶员</span>
-        <span class="mem-caret" id="memory-caret">🔒 点击展开</span>
-      </div>
-      <div id="memory-collapse" class="mem-collapse">
-        <div class="setting-note" style="margin-bottom:10px">骷髅一号通过聊天和你投喂的文章逐渐了解你。以下是它记住的一切——你可随时删除单条或全部清空。</div>
-        <div id="memory-body"><div class="setting-note">加载中...</div></div>
-        <button class="save-btn" id="memory-clear-btn" style="margin-top:12px;background:rgba(200,45,45,0.16);border-color:rgba(220,70,70,0.4);color:#ff9999" onclick="clearMemoryConfirm()">🗑 从头开始（清空对话＋记忆）</button>
-        <div class="setting-note" style="margin-top:6px;opacity:0.7">清空近期对话、长期画像、本场规则与羁绊等级（回 Lv.1），让它彻底重新认识你。仅保留你设的性格人设；原始归档不动。</div>
-        <div class="setting-success" id="memory-cleared-msg">✓ 已从头开始</div>
-      </div>
-    </div>
-
-    <div class="hud-frame mem-collapsed" id="persona-frame">
-      <div class="hud-pill">PERSONA · 性格</div>
-      <div class="memory-bond" role="button" tabindex="0" onclick="togglePersonaCollapse()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();togglePersonaCollapse()}">
-        <span>自定义性格人设</span>
-        <span class="mem-caret" id="persona-caret">🔒 点击展开</span>
-      </div>
-      <div class="mem-collapse">
-        <div class="setting-note" style="margin-bottom:10px">写一段性格描述，聊天时骷髅一号会完全照此说话（语气 / 自称 / 怎么称呼你）。留空＝默认军事简报风。语音播报、反幻觉与工具能力不受影响。</div>
-        <textarea class="persona-input" id="persona-input" placeholder="例：高冷女王风的女性 AI，说话简短克制，带点居高临下的慵懒，偶尔毒舌但其实在意你。自称『本王』，称你『你』而不是『驾驶员』。"></textarea>
-        <button class="save-btn" onclick="savePersona()">保存性格</button>
-        <div class="setting-success" id="persona-success">✓ 已保存</div>
-      </div>
-    </div>
-
-    <div class="hud-frame mem-collapsed" id="rules-frame">
-      <div class="hud-pill">RULES · 本场规则</div>
-      <div class="memory-bond" role="button" tabindex="0" onclick="toggleRulesCollapse()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleRulesCollapse()}">
-        <span>本场规则（置顶）</span>
-        <span class="mem-caret" id="rules-caret">🔒 点击展开</span>
-      </div>
-      <div class="mem-collapse">
-        <div class="setting-note" style="margin-bottom:10px">写下本场对话的硬性规则（如游戏/扮演的约束）。它会被钉在最前面，<b>每一轮都强制遵守，无论聊多长都不会被挤掉、不会忘</b>。也可在聊天框直接输入「/规则 你的规则…」快速设定，「/规则 清除」取消。留空＝无规则。</div>
-        <textarea class="persona-input" id="rules-input" placeholder="例：你只能用你身上的物品，不能用其他东西；我若在10分钟内挣脱就算我赢。严格按规则走，不许找漏洞变通。"></textarea>
-        <button class="save-btn" onclick="saveSessionRules()">保存规则</button>
-        <div class="setting-success" id="rules-success">✓ 已保存</div>
-      </div>
+    <div class="hud-frame">
+      <div class="hud-pill">SETTINGS FILE · 设定文件</div>
+      <div class="setting-note" style="margin-bottom:10px">性格、本场规则、长期记忆现在统一存于一个文本文件。点下方按钮直接打开编辑，改完保存即生效——记忆段骷髅一号会自动更新，你也可以随时手改。</div>
+      <button class="save-btn" onclick="openConfigFile()">📂 打开设定文件</button>
+      <div style="height:14px"></div>
+      <button class="save-btn" id="memory-clear-btn" style="background:rgba(200,45,45,0.16);border-color:rgba(220,70,70,0.4);color:#ff9999" onclick="clearMemoryConfirm()">🗑 从头开始（清空对话＋记忆）</button>
+      <div class="setting-note" style="margin-top:6px;opacity:0.7">清空近期对话、长期记忆、本场规则与羁绊等级（回 Lv.1），让它彻底重新认识你。仅保留你设的性格；原始归档不动。</div>
+      <div class="setting-success" id="memory-cleared-msg">✓ 已从头开始</div>
     </div>
 
     <div class="hud-frame" id="ai-backend-frame">
@@ -1864,29 +1328,6 @@
 
 </div>
 
-<!-- File Manager Overlay -->
-<div id="file-manager-overlay">
-  <div id="fm-header">
-    <div id="fm-title">文件清理</div>
-    <div style="display:flex;gap:6px;align-items:center">
-      <button class="fm-sel-btn" onclick="fmFiles=[];fmSelected.clear();fmScan()" style="font-size:10px;padding:2px 8px">↻ 重扫</button>
-      <button id="fm-close-btn" onclick="closeFM()">×</button>
-    </div>
-  </div>
-  <div id="fm-filters">
-    <button class="fm-filter-btn active" data-fm-filter="all" onclick="fmSetFilter('all')">全部</button>
-    <button class="fm-filter-btn" data-fm-filter="Desktop" onclick="fmSetFilter('Desktop')">桌面</button>
-    <button class="fm-filter-btn" data-fm-filter="Downloads" onclick="fmSetFilter('Downloads')">下载</button>
-  </div>
-  <div id="fm-toolbar">
-    <button class="fm-sel-btn" onclick="fmSelectAll()">全选</button>
-    <button class="fm-sel-btn" onclick="fmDeselectAll()">取消</button>
-    <span id="fm-count">未扫描</span>
-    <button id="fm-delete-btn" onclick="fmDeleteSelected()" disabled>移至废纸篓</button>
-  </div>
-  <div id="fm-list"></div>
-</div>
-
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1932,8 +1373,8 @@ async function applyLite() {
   });
   const ai = document.getElementById('ai-backend-frame');
   if (ai) ai.style.display = 'none';
-  // 默认激活的 CHAT 被隐藏了 → 切到第一个可见标签 (YES BOT)
-  const def = document.querySelector('.tab[data-tab="terminal"]');
+  // 默认激活的 CHAT 被隐藏了 → 切到 CONFIG (YES BOT tab 已移除)
+  const def = document.querySelector('.tab[data-tab="settings"]');
   if (def) def.click();
 }
 
@@ -1955,12 +1396,6 @@ async function init() {
     if (data.pet) updateStatus(data.pet, data.xpProgress);
     if (data.aiProvider) { state.aiProvider = data.aiProvider; renderProviderCards(data.aiProvider); }
     if (data.petVisible !== undefined) setPetVisibleBtn(!!data.petVisible);   // ⌘⌥H 切换时同步按钮文案
-    // Claude Code 权限告警 → 更新 YES BOT badge (TERM_SCAN_DISABLED 时 termPoll 不更新 badge, 此处兜底)
-    if (data.termAlert !== undefined) _termIpcAlert(!!data.termAlert);
-    // Claude Code 任务完成 (Stop 事件)
-    if (data.taskDoneAvailable !== undefined) _ccDoneIpcAlert(!!data.taskDoneAvailable);
-    // OpenCode 任务完成告警
-    if (data.ocAlert !== undefined) _ocIpcAlert(!!data.ocAlert, data.ocTitle || '');
   });
 }
 
@@ -1997,9 +1432,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     tab.classList.add('active');
     document.getElementById('pane-' + tab.dataset.tab).classList.add('active');
-    if (tab.dataset.tab === 'settings') { loadBreakReminder(); loadEdgePatrol(); loadPetVisible(); loadVoiceLang(); renderMemoryPanel(); loadPersona(); loadSessionRules(); loadQwenModel(); }
-    if (tab.dataset.tab === 'terminal') { termActive = true; termPollNow(); }
-    else termActive = false;
+    if (tab.dataset.tab === 'settings') { loadBreakReminder(); loadEdgePatrol(); loadPetVisible(); loadVoiceLang(); loadQwenModel(); }
   });
 });
 
@@ -2157,142 +1590,8 @@ async function ingestUrlFlow(url) {
 
 document.getElementById('send-btn').addEventListener('click', sendChat);
 
-// ── 记忆面板 (CONFIG) ──
-const MEM_GROUPS = [
-  { key: 'facts',        title: '关于你的事实',           ph: '手动添加一条事实...' },
-  { key: 'interests',    title: '兴趣领域',               ph: '添加一个兴趣...' },
-  { key: 'toneContract', title: '语气契约（该怎么和你说话）', ph: '添加一条语气规则...' },
-];
-let _memProfile = null;
+// ── 从头开始 / 设定文件 (CONFIG) ──
 let _clearArmed = false;
-let _memEdit = { key: null, idx: -1 };   // 当前正在行内编辑的条目
-
-async function renderMemoryPanel() {
-  const body = document.getElementById('memory-body');
-  if (!body) return;
-  // 每次进入 config 都强制收起, 避免上次展开后偏好一直晾着
-  const frame = document.getElementById('memory-frame');
-  const caret = document.getElementById('memory-caret');
-  if (frame) frame.classList.add('mem-collapsed');
-  if (caret) caret.textContent = '🔒 点击展开';
-  let res;
-  try { res = await window.petAPI.getMemoryProfile(); }
-  catch (e) { body.innerHTML = `<div class="mem-empty">读取记忆失败: ${escHtml(e.message)}</div>`; return; }
-  _memProfile = res.profile || {};
-  const lvl = res.level || 1;
-  const ac = _memProfile.articleCount || 0;
-  document.getElementById('memory-bond-text').textContent =
-    `羁绊 Lv.${lvl} · ${bondTitle(lvl)}` + (ac ? ` · 已读 ${ac} 篇文章` : '');
-
-  let html = '';
-  for (const g of MEM_GROUPS) {
-    const arr = Array.isArray(_memProfile[g.key]) ? _memProfile[g.key] : [];
-    html += `<div class="mem-group"><div class="mem-group-title">${g.title}</div>`;
-    html += arr.length
-      ? arr.map((it, i) => {
-          if (_memEdit.key === g.key && _memEdit.idx === i) {
-            // 编辑态: input 的值在渲染后由 JS 注入 (零注入风险), 不写进 value 属性
-            return `<div class="mem-item"><input class="mem-add-input" id="mem-edit-input" onkeydown="if(event.key==='Enter')memSaveEdit();else if(event.key==='Escape')memCancelEdit()"><button class="mem-add-btn" onclick="memSaveEdit()" title="保存">✓</button><button class="mem-del" onclick="memCancelEdit()" title="取消">✕</button></div>`;
-          }
-          return `<div class="mem-item"><span>${escHtml(String(it))}</span><button class="mem-edit" onclick="memEditItem('${g.key}',${i})" title="修改">✎</button><button class="mem-del" onclick="memDelItem('${g.key}',${i})" title="删除">✕</button></div>`;
-        }).join('')
-      : `<div class="mem-empty">（暂无）</div>`;
-    html += `<div class="mem-add-row"><input class="mem-add-input" id="mem-add-${g.key}" placeholder="${g.ph}" onkeydown="if(event.key==='Enter')memAddItem('${g.key}')"><button class="mem-add-btn" onclick="memAddItem('${g.key}')" title="添加">+</button></div></div>`;
-  }
-  // 沟通偏好: 自动总结, 只读
-  const cs = _memProfile.commStyle || {};
-  const bits = [];
-  if (cs.length) bits.push('详略: ' + cs.length);
-  if (cs.tone)   bits.push('语气: ' + cs.tone);
-  if (cs.emoji === true)  bits.push('可用 emoji'); else if (cs.emoji === false) bits.push('不用 emoji');
-  if ((cs.dislikes || []).length) bits.push('反感: ' + cs.dislikes.join('、'));
-  html += `<div class="mem-group"><div class="mem-group-title">沟通偏好（自动总结）</div>`;
-  html += bits.length ? `<div class="mem-readonly">${escHtml(bits.join(' · '))}</div>` : `<div class="mem-empty">（还在观察中）</div>`;
-  html += `</div>`;
-  body.innerHTML = html;
-
-  // 编辑态: 渲染后用 JS 注入原文 + 聚焦 (避免把文本拼进 HTML 属性)
-  if (_memEdit.key && Array.isArray(_memProfile[_memEdit.key])) {
-    const inp = document.getElementById('mem-edit-input');
-    if (inp) { inp.value = _memProfile[_memEdit.key][_memEdit.idx] || ''; inp.focus(); inp.select(); }
-  }
-}
-
-// 折叠/展开记忆区 — 默认收起, 防止打开 config 时偏好被旁人看到
-function toggleMemoryCollapse() {
-  const frame = document.getElementById('memory-frame');
-  const caret = document.getElementById('memory-caret');
-  if (!frame) return;
-  const collapsed = frame.classList.toggle('mem-collapsed');
-  if (caret) caret.textContent = collapsed ? '🔒 点击展开' : '🔓 点击收起';
-}
-
-function memEditItem(key, idx) {
-  _memEdit = { key, idx };
-  renderMemoryPanel();
-}
-
-// ── 自定义性格人设 (PERSONA) ──
-function togglePersonaCollapse() {
-  const frame = document.getElementById('persona-frame');
-  const caret = document.getElementById('persona-caret');
-  if (!frame) return;
-  const collapsed = frame.classList.toggle('mem-collapsed');
-  if (caret) caret.textContent = collapsed ? '🔒 点击展开' : '🔓 点击收起';
-}
-
-async function loadPersona() {
-  // 每次进入 config 强制收起, 避免性格设定被旁人看到
-  const frame = document.getElementById('persona-frame');
-  const caret = document.getElementById('persona-caret');
-  if (frame) frame.classList.add('mem-collapsed');
-  if (caret) caret.textContent = '🔒 点击展开';
-  const inp = document.getElementById('persona-input');
-  if (!inp) return;
-  try { inp.value = await window.petAPI.getPersona() || ''; }
-  catch (e) { console.log('[PERSONA] load failed', e); }
-}
-
-async function savePersona() {
-  const inp = document.getElementById('persona-input');
-  if (!inp) return;
-  try {
-    const res = await window.petAPI.setPersona(inp.value);
-    inp.value = (res && res.persona) || '';
-    const msg = document.getElementById('persona-success');
-    if (msg) { msg.style.display = 'block'; setTimeout(() => { msg.style.display = 'none'; }, 2000); }
-  } catch (e) { console.log('[PERSONA] save failed', e); }
-}
-
-// ── 本场规则 (RULES) ── 与 persona 同款折叠/读写; 这段会钉在 system prompt 顶部每轮强制遵守
-function toggleRulesCollapse() {
-  const frame = document.getElementById('rules-frame');
-  const caret = document.getElementById('rules-caret');
-  const collapsed = frame.classList.toggle('mem-collapsed');
-  if (caret) caret.textContent = collapsed ? '🔒 点击展开' : '🔓 点击收起';
-}
-
-async function loadSessionRules() {
-  const frame = document.getElementById('rules-frame');
-  const caret = document.getElementById('rules-caret');
-  if (frame) frame.classList.add('mem-collapsed');
-  if (caret) caret.textContent = '🔒 点击展开';
-  const inp = document.getElementById('rules-input');
-  if (!inp) return;
-  try { inp.value = await window.petAPI.getSessionRules() || ''; }
-  catch (e) { console.log('[RULES] load failed', e); }
-}
-
-async function saveSessionRules() {
-  const inp = document.getElementById('rules-input');
-  if (!inp) return;
-  try {
-    const res = await window.petAPI.setSessionRules(inp.value);
-    inp.value = (res && res.sessionRules) || '';
-    const msg = document.getElementById('rules-success');
-    if (msg) { msg.style.display = 'block'; setTimeout(() => { msg.style.display = 'none'; }, 2000); }
-  } catch (e) { console.log('[RULES] save failed', e); }
-}
 
 // ── 千问型号 (qwen-plus / qwen-max) ──
 function updateQwenCardModel(m) {
@@ -2321,40 +1620,6 @@ async function saveQwenModel() {
   } catch (e) { console.log('[QWEN] save failed', e); }
 }
 
-function memCancelEdit() {
-  _memEdit = { key: null, idx: -1 };
-  renderMemoryPanel();
-}
-
-async function memSaveEdit() {
-  const inp = document.getElementById('mem-edit-input');
-  const { key, idx } = _memEdit;
-  if (!inp || !key || !_memProfile || !Array.isArray(_memProfile[key])) return;
-  const v = inp.value.trim();
-  _memEdit = { key: null, idx: -1 };
-  if (!v) { _memProfile[key].splice(idx, 1); }   // 清空内容 = 删除该条
-  else    { _memProfile[key][idx] = v; }
-  await window.petAPI.updateMemoryProfile(_memProfile);
-  renderMemoryPanel();
-}
-
-async function memAddItem(key) {
-  const inp = document.getElementById('mem-add-' + key);
-  const v = (inp?.value || '').trim();
-  if (!v || !_memProfile) return;
-  _memProfile[key] = Array.isArray(_memProfile[key]) ? _memProfile[key] : [];
-  _memProfile[key].push(v);
-  await window.petAPI.updateMemoryProfile(_memProfile);
-  renderMemoryPanel();
-}
-
-async function memDelItem(key, idx) {
-  if (!_memProfile || !Array.isArray(_memProfile[key])) return;
-  _memProfile[key].splice(idx, 1);
-  await window.petAPI.updateMemoryProfile(_memProfile);
-  renderMemoryPanel();
-}
-
 // 两步确认清空 (不依赖 window.confirm — Electron 可能禁用)
 function clearMemoryConfirm() {
   const btn = document.getElementById('memory-clear-btn');
@@ -2371,13 +1636,16 @@ function clearMemoryConfirm() {
 }
 
 async function doClearMemory() {
-  // 从头开始: 清对话历史 + 提炼缓冲 + 本场规则 + 长期画像 (保留性格/羁绊/归档)
+  // 从头开始: 清对话历史 + 提炼缓冲 + 本场规则 + 长期记忆 (保留性格/归档), 羁绊回 Lv.1
   await window.petAPI.resetConversation();
   const msg = document.getElementById('memory-cleared-msg');
   if (msg) { msg.style.display = 'block'; setTimeout(() => { msg.style.display = 'none'; }, 2500); }
-  renderMemoryPanel();
-  // 本场规则已被清空, 同步刷新规则输入框
-  try { loadSessionRules(); } catch (_) {}
+}
+
+// 打开三合一设定文件 (性格 / 本场规则 / 长期记忆) 供直接编辑
+async function openConfigFile() {
+  try { await window.petAPI.openConfigFile(); }
+  catch (e) { console.log('[CONFIG] open file failed', e); }
 }
 document.getElementById('chat-input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.metaKey) { e.preventDefault(); sendChat(); }
@@ -2387,239 +1655,6 @@ document.getElementById('chat-input').addEventListener('input', function() {
   this.style.height = Math.min(this.scrollHeight, 80) + 'px';
 });
 
-// 快捷指令侧栏:
-//   data-url   → 直接调系统默认浏览器打开 (打开 X 类按钮, 不走 AI, 零延迟)
-//   data-prompt → 灌到输入框并发起 AI 对话 (信息查询类按钮)
-document.querySelectorAll('#chat-side .qp-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const url = btn.dataset.url;
-    if (url) { window.petAPI.openExternal(url); return; }
-    const prompt = btn.dataset.prompt;
-    if (!prompt || isChatting) return;
-    const input = document.getElementById('chat-input');
-    input.value = prompt;
-    sendChat();
-  });
-});
-
-// ── Files / AI Suggestions ──
-async function getSuggestions() {
-  const btn = document.getElementById('suggest-btn');
-  const list = document.getElementById('suggestion-list');
-  btn.disabled = true;
-  btn.textContent = '◌ 分析中...';
-  list.innerHTML = '<div class="suggestions-loading">正在检测电脑状态并询问 AI，请稍候...</div>';
-
-  const result = await window.petAPI.getAiSuggestions();
-  btn.disabled = false;
-  btn.textContent = '✦ 重新分析';
-
-  if (result.error) {
-    list.innerHTML = `<div class="suggestions-loading">⚠️ ${result.error}</div>`;
-    return;
-  }
-
-  if (!result.items?.length) {
-    list.innerHTML = '<div class="suggestions-loading">未获取到建议，请重试</div>';
-    return;
-  }
-
-  // AI 生成的 text 通过 data-* 属性传递 (经 escHtml 做属性转义), 不再拼进 onclick → 杜绝 JS 注入
-  list.innerHTML = result.items.map((text, i) => {
-    const numClass = i < 3 ? 'high' : i < 6 ? 'mid' : '';
-    const fileFilter = /桌面/.test(text) ? 'Desktop' : /下载/.test(text) ? 'Downloads' : 'all';
-    const isFileTopic = /文件|旧文件|大文件/.test(text) && /清理|整理|删除|移除/.test(text);
-    const fileBtn = isFileTopic
-      ? `<button class="suggestion-file-btn" data-filter="${fileFilter}">查看文件 →</button>`
-      : '';
-    return `<div class="suggestion-item" data-suggestion="${escHtml(text)}">
-      <div class="suggestion-num ${numClass}">${i + 1}</div>
-      <div class="suggestion-text">${escHtml(text)}${fileBtn ? '<br>' + fileBtn : ''}</div>
-      <div class="suggestion-arrow">↗</div>
-    </div>`;
-  }).join('');
-
-  // 事件委托 (绑一次, innerHTML 重渲染后仍有效): 优先文件按钮, 否则整条触发 sendSuggestion
-  if (!list.dataset.delegated) {
-    list.dataset.delegated = '1';
-    list.addEventListener('click', (e) => {
-      const fileEl = e.target.closest('.suggestion-file-btn');
-      if (fileEl) { e.stopPropagation(); openFileManager(fileEl.dataset.filter || 'all'); return; }
-      const item = e.target.closest('.suggestion-item');
-      if (item) sendSuggestion(item.dataset.suggestion || '');
-    });
-  }
-}
-
-function sendSuggestion(text) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-  document.querySelector('.tab[data-tab="chat"]').classList.add('active');
-  document.getElementById('pane-chat').classList.add('active');
-  const input = document.getElementById('chat-input');
-  input.value = text;
-  input.focus();
-  sendChat();
-}
-
-async function deleteFile(filePath, btn) {
-  btn.disabled = true;
-  btn.textContent = '...';
-  const result = await window.petAPI.deleteFile(filePath);
-  if (result.success) {
-    const row = btn.closest('.file-item');
-    row.style.opacity = '0.3';
-    setTimeout(() => row.remove(), 400);
-    showToast('+10 XP 文件已移至废纸篓 🗑');
-  } else {
-    btn.disabled = false;
-    btn.textContent = '移到废纸篓';
-    showToast('删除失败：' + result.error);
-  }
-}
-
-// ── File Manager ──
-let fmFiles = [];
-let fmSelected = new Set();
-let fmFilter = 'all';
-const FM_IMG_EXTS = new Set(['jpg','jpeg','png','gif','webp','heic','heif','bmp','tiff','tif']);
-const FM_ICONS = { pdf:'📄', mp4:'🎬', mov:'🎬', avi:'🎬', mkv:'🎬', zip:'📦', rar:'📦', gz:'📦', '7z':'📦', dmg:'💿', pkg:'💿', app:'📱', psd:'🎨', ai:'🎨', sketch:'🎨', fig:'🎨', xls:'📊', xlsx:'📊', csv:'📊', doc:'📝', docx:'📝', ppt:'📽', pptx:'📽', key:'📽', numbers:'📊', pages:'📝', txt:'📝', md:'📝', mp3:'🎵', m4a:'🎵', wav:'🎵', aac:'🎵' };
-
-async function openFileManager(filter) {
-  fmFilter = filter || 'all';
-  document.getElementById('file-manager-overlay').classList.add('open');
-  fmUpdateFilterBtns();
-  if (!fmFiles.length) {
-    document.getElementById('fm-list').innerHTML = '<div class="fm-scanning">◌ 扫描文件中...</div>';
-    document.getElementById('fm-count').textContent = '扫描中...';
-    await fmScan();
-  } else {
-    fmRender();
-  }
-}
-
-function closeFM() {
-  document.getElementById('file-manager-overlay').classList.remove('open');
-}
-
-async function fmScan() {
-  fmSelected.clear();
-  fmFiles = await window.petAPI.scanFiles();
-  fmRender();
-}
-
-function fmSetFilter(filter) {
-  fmFilter = filter;
-  fmUpdateFilterBtns();
-  fmDeselectAll();
-}
-
-function fmUpdateFilterBtns() {
-  document.querySelectorAll('.fm-filter-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.fmFilter === fmFilter);
-  });
-}
-
-function fmVisible() {
-  return fmFilter === 'all' ? fmFiles : fmFiles.filter(f => f.dir === fmFilter);
-}
-
-function fmItemId(path) {
-  return 'fmi-' + path.replace(/[^a-zA-Z0-9]/g, '_');
-}
-
-function fmRender() {
-  const visible = fmVisible();
-  const list = document.getElementById('fm-list');
-
-  if (!fmFiles.length) {
-    list.innerHTML = '<div class="fm-empty">太棒了！没有发现需要清理的文件 ✨</div>';
-    document.getElementById('fm-count').textContent = '暂无文件';
-    document.getElementById('fm-delete-btn').disabled = true;
-    return;
-  }
-  if (!visible.length) {
-    list.innerHTML = '<div class="fm-empty">该分类下暂无文件</div>';
-    document.getElementById('fm-count').textContent = '0 个文件';
-    document.getElementById('fm-delete-btn').disabled = true;
-    return;
-  }
-
-  list.innerHTML = visible.map(f => {
-    const ext = f.name.split('.').pop().toLowerCase();
-    const isImg = FM_IMG_EXTS.has(ext);
-    const escapedPath = f.path.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-    const thumb = isImg
-      ? `<div class="fm-thumb"><img src="file://${encodeURI(f.path)}" onerror="this.parentNode.textContent='🖼'"></div>`
-      : `<div class="fm-thumb">${FM_ICONS[ext] || '📁'}</div>`;
-    const sizeFmt = f.size > 1e9 ? (f.size/1e9).toFixed(1)+' GB' : (f.size/1e6).toFixed(1)+' MB';
-    const date = new Date(f.modified).toLocaleDateString('zh-CN');
-    const isOld = f.reason.includes('30天');
-    const isLarge = f.reason.includes('大文件');
-    const sel = fmSelected.has(f.path);
-    return `<div class="fm-item${sel ? ' fm-selected' : ''}" id="${fmItemId(f.path)}" onclick="fmToggle('${escapedPath}')">
-      <div class="fm-checkbox"></div>
-      ${thumb}
-      <div class="fm-info">
-        <div class="fm-name" title="${escHtml(f.path)}">${escHtml(f.name)}</div>
-        <div class="fm-meta">${sizeFmt} · ${date}</div>
-        <div class="fm-tags">
-          ${isOld ? '<span class="fm-tag old">超30天</span>' : ''}
-          ${isLarge ? '<span class="fm-tag large">大文件</span>' : ''}
-          <span class="fm-tag loc">${f.dir}</span>
-          <button class="fm-reveal-btn" onclick="event.stopPropagation();fmReveal('${escapedPath}')">在Finder中查看</button>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-
-  fmUpdateToolbar();
-}
-
-function fmToggle(path) {
-  if (fmSelected.has(path)) fmSelected.delete(path);
-  else fmSelected.add(path);
-  const el = document.getElementById(fmItemId(path));
-  if (el) el.classList.toggle('fm-selected', fmSelected.has(path));
-  fmUpdateToolbar();
-}
-
-function fmSelectAll() {
-  fmVisible().forEach(f => fmSelected.add(f.path));
-  fmRender();
-}
-
-function fmDeselectAll() {
-  fmSelected.clear();
-  fmRender();
-}
-
-function fmUpdateToolbar() {
-  const n = fmSelected.size;
-  const total = fmVisible().length;
-  document.getElementById('fm-count').textContent = n > 0 ? `已选 ${n} / ${total} 个` : `共 ${total} 个文件`;
-  document.getElementById('fm-delete-btn').disabled = n === 0;
-}
-
-async function fmDeleteSelected() {
-  if (!fmSelected.size) return;
-  const btn = document.getElementById('fm-delete-btn');
-  btn.disabled = true;
-  btn.textContent = '移动中...';
-  const paths = [...fmSelected];
-  let ok = 0;
-  for (const p of paths) {
-    const res = await window.petAPI.deleteFile(p);
-    if (res.success) { ok++; fmFiles = fmFiles.filter(f => f.path !== p); fmSelected.delete(p); }
-  }
-  btn.textContent = '移至废纸篓';
-  showToast(`+${ok * 10} XP · ${ok} 个文件已移至废纸篓 🗑`);
-  fmRender();
-}
-
-async function fmReveal(path) {
-  await window.petAPI.revealInFinder(path);
-}
 
 // ── Workflows ──
 let workflows = [];
@@ -3024,561 +2059,6 @@ function renderTable(lines) {
   return html;
 }
 
-// ── Terminal Monitor ──
-// 终端文字扫描的全局禁用开关 — 扫屏方案误报多 (任何窗口里出现 Yes/No、Allow、(Y/n) 等
-// 字样都会触发, 包括代码片段/日志/文档). Claude Code 已通过 PermissionRequest hook 给
-// 出零误报的告警通道, 不再需要扫屏兜底. 想恢复扫屏改成 false 即可.
-const TERM_SCAN_DISABLED = true;
-let termActive = false;
-let _termDiag = false;
-let _termAlertActive = false;   // Claude Code 权限请求告警状态 (IPC 驱动)
-let _ccDoneAlert = false;       // Claude Code 任务完成等待回复状态
-let _ocAlertPanel = false;      // OpenCode 告警状态
-let _ocAlertTitle = '';         // OpenCode 当前会话标题
-
-// 通用 badge/dot 更新 — 取三个告警的 OR
-function _updateTermBadge() {
-  const active = _termAlertActive || _ccDoneAlert || _ocAlertPanel;
-  const badge = document.getElementById('term-badge');
-  const dot   = document.getElementById('term-status-dot');
-  if (!badge || !dot) return;
-  badge.classList.toggle('active', active);
-  dot.classList.toggle('alert', active);
-}
-
-// 处理来自 main.js 的 termAlert IPC (Claude Code)
-function _termIpcAlert(active) {
-  if (active === _termAlertActive) return;
-  _termAlertActive = active;
-  _updateTermBadge();
-  _renderCcCard();
-  if (termActive && !active) {
-    const statusEl = document.getElementById('term-status-text');
-    if (statusEl && statusEl.textContent.startsWith('Claude Code')) statusEl.textContent = '监控中';
-  }
-}
-
-// 在 #term-sessions-container 顶部渲染(或移除) Claude Code 状态卡片
-function _renderCcCard() {
-  const container = document.getElementById('term-sessions-container');
-  if (!container) return;
-  const existing = container.querySelector('.cc-status-card');
-  if (!_termAlertActive) {
-    if (existing) existing.remove();
-    return;
-  }
-  const html = `<div class="cc-status-card term-session-card" style="border-color:rgba(255,80,80,0.45);box-shadow:0 0 14px rgba(255,50,50,0.12)">
-    <div class="term-card-header" style="background:rgba(255,60,60,0.10);border-bottom-color:rgba(255,80,80,0.25);color:rgba(255,150,150,0.9)">
-      <span>CLAUDE CODE</span>
-      <span class="term-alert-tag" style="background:rgba(255,60,60,0.25);border-color:rgba(255,80,80,0.45);color:#ff8080">待确认 · 等待回复</span>
-    </div>
-    <div class="term-prompt-preview" style="color:rgba(255,180,180,0.8)">[ permission request ] Claude Code 请求权限确认，等待您在终端中回复。</div>
-  </div>`;
-  if (existing) {
-    existing.outerHTML = html;
-  } else {
-    const idleMsg = container.querySelector('.term-idle-msg');
-    if (idleMsg) idleMsg.remove();
-    container.insertAdjacentHTML('afterbegin', html);
-  }
-  if (termActive) {
-    document.getElementById('term-status-text').textContent = 'Claude Code 待确认 ⚠';
-  }
-}
-
-// 处理来自 main.js 的 ocAlert IPC (OpenCode)
-function _ocIpcAlert(active, title) {
-  _ocAlertPanel = active;
-  if (active) _ocAlertTitle = title;
-  _updateTermBadge();
-  _renderOcCard();
-  if (termActive && !active) {
-    const statusEl = document.getElementById('term-status-text');
-    if (statusEl && statusEl.textContent.startsWith('OpenCode')) statusEl.textContent = '监控中';
-  }
-}
-
-// 处理来自 main.js 的 taskDoneAvailable IPC (Claude Code 任务完成)
-function _ccDoneIpcAlert(active) {
-  if (active === _ccDoneAlert) return;
-  _ccDoneAlert = active;
-  _updateTermBadge();
-  _renderCcDoneCard();
-  if (termActive && !active) {
-    const statusEl = document.getElementById('term-status-text');
-    if (statusEl && statusEl.textContent.startsWith('Claude Code')) statusEl.textContent = '监控中';
-  }
-}
-
-// 在 #term-sessions-container 渲染(或移除) Claude Code 任务完成卡片
-function _renderCcDoneCard() {
-  const container = document.getElementById('term-sessions-container');
-  if (!container) return;
-  const existing = container.querySelector('.cc-done-card');
-  if (!_ccDoneAlert) {
-    if (existing) existing.remove();
-    return;
-  }
-  const html = `<div class="cc-done-card term-session-card" style="border-color:rgba(180,120,255,0.45);box-shadow:0 0 14px rgba(150,80,255,0.12)">
-    <div class="term-card-header" style="background:rgba(120,60,220,0.10);border-bottom-color:rgba(180,120,255,0.25);color:rgba(200,160,255,0.9)">
-      <span>CLAUDE CODE</span>
-      <span class="term-alert-tag" style="background:rgba(140,80,255,0.25);border-color:rgba(180,120,255,0.45);color:#c8a0ff">已完成 · 等待回复</span>
-    </div>
-    <div class="term-prompt-preview" style="color:rgba(210,180,255,0.8)">[ stop ] 模型已完成本轮输出，等待您在 Claude Code 中继续输入。</div>
-  </div>`;
-  if (existing) {
-    existing.outerHTML = html;
-  } else {
-    const idleMsg = container.querySelector('.term-idle-msg');
-    if (idleMsg) idleMsg.remove();
-    container.insertAdjacentHTML('afterbegin', html);
-  }
-  if (termActive) {
-    document.getElementById('term-status-text').textContent = 'Claude Code 已完成 · 等待回复';
-  }
-}
-
-// 在 #term-sessions-container 顶部渲染(或移除) OpenCode 状态卡片
-function _renderOcCard() {
-  const container = document.getElementById('term-sessions-container');
-  if (!container) return;
-  const existing = container.querySelector('.oc-status-card');
-  if (!_ocAlertPanel) {
-    if (existing) existing.remove();
-    return;
-  }
-  const title = _ocAlertTitle || 'OpenCode 会话';
-  const html = `<div class="oc-status-card term-session-card" style="border-color:rgba(80,200,255,0.45);box-shadow:0 0 14px rgba(40,180,255,0.12)">
-    <div class="term-card-header" style="background:rgba(40,160,255,0.10);border-bottom-color:rgba(80,200,255,0.25);color:rgba(120,210,255,0.9)">
-      <span>OPENCODE · ${escHtml(title)}</span>
-      <span class="term-alert-tag" style="background:rgba(40,160,255,0.25);border-color:rgba(80,200,255,0.45);color:#80d8ff">已完成 · 等待回复</span>
-    </div>
-    <div class="term-prompt-preview" style="color:rgba(150,220,255,0.8)">[ step-finish ] 模型已完成本轮输出，等待您在 OpenCode 中继续输入。</div>
-  </div>`;
-  if (existing) {
-    existing.outerHTML = html;
-  } else {
-    const idleMsg = container.querySelector('.term-idle-msg');
-    if (idleMsg) idleMsg.remove();
-    container.insertAdjacentHTML('afterbegin', html);
-  }
-  if (termActive) {
-    document.getElementById('term-status-text').textContent = 'OpenCode 已完成 · 等待回复';
-  }
-}
-
-let _termAlertHeadKey = null;   // 当前点击目标的 session key, 序集变化时驱动 IPC 刷新
-let _termAllSessions = [];     // cached sessions for diag mode
-let _termPromptSessions = [];
-let _termBusyMap = new Map();
-let _termNotifiedPrompts = new Set();
-// Stability cache for initial detection: streaming output changes every poll; real prompts stay static.
-// key → { content, stableCount }
-let _termContentCache = new Map();
-// Latch cache: once a prompt is detected, keep it until the pattern leaves the content.
-// key → { session, prompt }
-let _termLatchedPrompts = new Map();
-// Cooldown cache: after user acts on a prompt, suppress re-detection for a few seconds
-// while the terminal UI transitions. key → expiry timestamp (ms)
-let _termCooldown = new Map();
-
-const TERM_DONE_MSGS = [
-  '任务执行完毕。',
-  '作战完成——等待下一步指令。',
-  '[ 终端进程结束 ] 随时待命。',
-  '报告：终端任务已完成。',
-  '作业完成。骷髅一号待机中。',
-];
-
-// strict=true  → match anywhere in last 15 lines (the pattern is highly specific)
-// strict=false → only match in last 3 lines  (broad pattern; real prompts are always at cursor/bottom)
-const TERM_PROMPT_PATTERNS = [
-  // ── Claude Code 独占 footer (新版交互式 UI) ──
-  // 这一行在 Claude Code 等待用户选择时永远存在, 是最可靠的检测锚点.
-  { re: /Esc to cancel.*Tab to amend/i,                          type: 'enter', label: 'Claude 待确认',  strict: true },
-  { re: /Tab to amend.*ctrl\+e to explain/i,                     type: 'enter', label: 'Claude 待确认',  strict: true },
-
-  // ── Claude Code 编号选项格式: "❯ 1. Yes" / "❯ 2. No" ──
-  // 修复: 之前 [❯›]\s*(Yes|...) 漏掉了指针和 Yes 之间的"1."编号
-  { re: /[❯›●▶]\s*\d+[\.\)]\s*(Yes|Allow|Proceed|Continue|Apply|Run|Try|Accept|Approve|Confirm|OK|Send)/i,
-    type: 'enter', label: 'Claude 权限', strict: true },
-  // ASCII 指针变体: "> 1. Yes"
-  { re: /^\s*>\s+\d+[\.\)]\s*(Yes|Allow|Proceed|Continue|Apply|Run|Try|Accept|Approve|Confirm|OK)/im,
-    type: 'enter', label: 'Claude 权限', strict: true },
-  // 跨行的 "1. Yes ... 2. No" 组合 (无论指针在哪行) — 高度特异
-  { re: /\b1\.\s*Yes\b[\s\S]{0,40}\b2\.\s*No\b/i,                type: 'enter', label: 'Yes/No 选择',  strict: true },
-
-  // ── Claude Code permission dialogs ("Allow once / Allow always / Yes / No") ──
-  { re: /\bAllow\s+(once|always(\s+for\s+session)?)\b/i,         type: 'enter', label: 'Claude 权限', strict: true },
-  { re: /[❯›●▶]\s*Allow\b/i,                                     type: 'enter', label: 'Claude 权限', strict: true },
-  // ── Claude Code / agent selection cursor (❯ U+276F or › U+203A) ──
-  { re: /[❯›]\s*(Yes|Allow|Proceed|Continue|Apply|Run|Try|Accept)/i, type: 'enter', label: 'Agent 确认', strict: true },
-  // > selector — must be in last 3 lines to avoid matching file diffs or prose
-  { re: /^\s*>\s*(Yes|Allow|Proceed|Continue|Apply|Run|Try|Accept)\s*$/im, type: 'enter', label: 'Agent 确认', strict: false },
-  // Standalone "Yes / No" selection line (Claude Code box UI) — last 3 lines only
-  { re: /^\s*\bYes\b.{0,20}\bNo\b\s*$/im,                     type: 'enter', label: 'Agent 确认', strict: false },
-  // Standard Y/n bracket forms — highly specific, safe to check wider window
-  { re: /\[Y\/n\]/,                                            type: 'yn',    label: '确认',       defaultY: true,  strict: true },
-  { re: /\(Y\/n\)/,                                            type: 'yn',    label: '确认',       defaultY: true,  strict: true },
-  { re: /\[y\/N\]/,                                            type: 'yn',    label: '确认',       defaultY: false, strict: true },
-  { re: /\(y\/N\)/,                                            type: 'yn',    label: '确认',       defaultY: false, strict: true },
-  { re: /\[y\/n\]/i,                                           type: 'yn',    label: '确认',       defaultY: true,  strict: true },
-  { re: /\? .+\(Y\/n\)/,                                       type: 'yn',    label: '确认',       defaultY: true,  strict: true },
-  { re: /\? .+\(y\/N\)/,                                       type: 'yn',    label: '确认',       defaultY: false, strict: true },
-  // "Do you want to …?" — 提升为 strict (扩窗到 15 行), Claude Code 的提问行常被菜单挤出 narrow 窗口
-  { re: /Do you want to (allow|proceed|continue|run|try|use|apply|delete|overwrite|install|update|remove|edit|stop)\??/i,
-    type: 'yn', label: '操作确认', defaultY: true, strict: true },
-  // "Would you like to …?" — strict 同理
-  { re: /Would you like to (allow|proceed|continue|run|try|use|apply|edit|stop|delete|install|update)/i,
-    type: 'yn', label: '操作确认', defaultY: true, strict: true },
-  // "Try …?" — only last 3 lines
-  { re: /\bTry .+\?/i,                                         type: 'yn',    label: '尝试?',      defaultY: true,  strict: false },
-  // Press return/enter — specific enough
-  { re: /Press RETURN to continue/i,                           type: 'enter', label: '按回车继续',               strict: true },
-  { re: /press enter to continue/i,                            type: 'enter', label: '按回车继续',               strict: true },
-  // Overwrite/Are you sure — specific enough
-  { re: /Are you sure\?/i,                                     type: 'yn',    label: '确认操作',   defaultY: false, strict: true },
-  { re: /Continue\? \[/i,                                      type: 'yn',    label: '继续?',      defaultY: true,  strict: true },
-  { re: /Overwrite\?/i,                                        type: 'yn',    label: '覆盖文件?',  defaultY: false, strict: true },
-];
-
-// Strip ANSI escape codes so contaminated t.contents() output doesn't break regexes
-function stripAnsi(s) {
-  return s.replace(/\x1b\[[0-9;]*[A-Za-z]/g, '').replace(/\x1b[()][A-B0-2]/g, '').replace(/[\x00-\x08\x0e-\x1f\x7f]/g, '');
-}
-
-function detectTermPrompt(rawLines) {
-  const cleaned = stripAnsi(rawLines);
-  const lines = cleaned.split('\n').filter(l => l.trim());
-  const wideLines  = lines.slice(-15).join('\n');  // for strict patterns
-  const narrowLines = lines.slice(-3).join('\n');  // for loose patterns (last 3 lines = near cursor)
-  for (const pat of TERM_PROMPT_PATTERNS) {
-    const haystack = pat.strict ? wideLines : narrowLines;
-    if (pat.re.test(haystack)) {
-      const preview = lines.slice(-15).join('\n');
-      return { type: pat.type, label: pat.label, defaultY: pat.defaultY, preview };
-    }
-  }
-  return null;
-}
-
-// Checks only strict patterns — safe to call every poll without stability pre-filter.
-function termDetectStrict(rawLines) {
-  const cleaned = stripAnsi(rawLines);
-  const lines = cleaned.split('\n').filter(l => l.trim());
-  const wideLines = lines.slice(-15).join('\n');
-  for (const pat of TERM_PROMPT_PATTERNS) {
-    if (!pat.strict) continue;
-    if (pat.re.test(wideLines)) {
-      return { type: pat.type, label: pat.label, defaultY: pat.defaultY, preview: lines.slice(-15).join('\n') };
-    }
-  }
-  return null;
-}
-
-// Checks only non-strict patterns — only call after content has stabilised.
-function termDetectLoose(rawLines) {
-  const cleaned = stripAnsi(rawLines);
-  const lines = cleaned.split('\n').filter(l => l.trim());
-  const narrowLines = lines.slice(-3).join('\n');
-  for (const pat of TERM_PROMPT_PATTERNS) {
-    if (pat.strict) continue;
-    if (pat.re.test(narrowLines)) {
-      return { type: pat.type, label: pat.label, defaultY: pat.defaultY, preview: lines.slice(-15).join('\n') };
-    }
-  }
-  return null;
-}
-
-async function termPoll() {
-  // 全局短路: 关闭终端文字扫描 (方案 A — 改用 PermissionRequest hook)
-  // 仍然清掉本地告警状态, 防止已 latch 的告警卡住雷达
-  if (TERM_SCAN_DISABLED) {
-    // 扫屏已禁用，告警状态由 IPC (_termIpcAlert/_ocIpcAlert) 管理，不在此处干预
-    _termAlertHeadKey = null;
-    _termLatchedPrompts.clear();
-    _termContentCache.clear();
-    _termNotifiedPrompts.clear();
-    return;
-  }
-  const result = await window.petAPI.getTerminalSessions();
-  const badge = document.getElementById('term-badge');
-  const dot = document.getElementById('term-status-dot');
-
-  // Surface accessibility permission hint once per session
-  if (result && result.axTrusted === false && termActive) {
-    const hint = document.getElementById('term-ax-hint');
-    if (hint) hint.style.display = '';
-  } else {
-    const hint = document.getElementById('term-ax-hint');
-    if (hint) hint.style.display = 'none';
-  }
-
-  if (!result || (result.error && !result.sessions?.length)) {
-    badge.classList.remove('active');
-    dot.classList.remove('alert');
-    if (termActive) {
-      document.getElementById('term-status-text').textContent = '未检测到终端应用';
-      document.getElementById('term-sessions-container').innerHTML = '<div class="term-idle-msg">[ 未检测到运行中的终端 ]</div>';
-    }
-    return;
-  }
-
-  const sessions = result.sessions || [];
-  _termAllSessions = sessions;
-
-  // Detect busy → idle transitions (task completed) for Terminal.app sessions
-  if (_termBusyMap.size > 0) {
-    for (const s of sessions) {
-      if (s.app !== 'Terminal') continue;
-      const key = `Terminal-${s.windowId || s.windowIndex}-${s.tabIndex}`;
-      const wasBusy = _termBusyMap.get(key);
-      if (wasBusy === true && !s.busy) {
-        const label = s.tabName || s.windowName || `窗口${s.windowIndex}`;
-        const msg = TERM_DONE_MSGS[Math.floor(Math.random() * TERM_DONE_MSGS.length)];
-        window.petAPI.notifyPet(`[${label}] ${msg}`);
-      }
-    }
-  }
-  // Update busy state map
-  for (const s of sessions) {
-    if (s.app !== 'Terminal') continue;
-    const key = `Terminal-${s.windowId || s.windowIndex}-${s.tabIndex}`;
-    _termBusyMap.set(key, s.busy);
-  }
-
-  // Evict stale cache entries for sessions that no longer exist
-  const activeKeys = new Set(sessions.map(s => `${s.app}-${s.windowId || s.windowIndex}-${s.tabIndex}`));
-  for (const k of _termContentCache.keys())    { if (!activeKeys.has(k)) _termContentCache.delete(k); }
-  for (const k of _termLatchedPrompts.keys())  { if (!activeKeys.has(k)) _termLatchedPrompts.delete(k); }
-
-  for (const s of sessions) {
-    const key = `${s.app}-${s.windowId || s.windowIndex}-${s.tabIndex}`;
-    const content = stripAnsi(s.lastLines || '');
-
-    if (_termLatchedPrompts.has(key)) {
-      // 重新校验: 如果当前内容里已经检测不到任何 prompt 模式, 说明用户已经
-      // 在终端里操作过了 (绕过面板按了 y/Enter, 或 prompt 自动消失). 自动释放
-      // latch 并设短 cooldown, 避免一闪一灭.
-      const stillMatches = !!detectTermPrompt(content);
-      if (!stillMatches) {
-        console.log('[TERM] latch auto-release', key);
-        _termLatchedPrompts.delete(key);
-        _termNotifiedPrompts.delete(key);
-        _termContentCache.delete(key);
-        _termCooldown.set(key, Date.now() + 3000);
-        continue;
-      }
-      // 仍匹配 ── 只刷新 session 引用 (按钮回调要用最新数据)
-      const latch = _termLatchedPrompts.get(key);
-      _termLatchedPrompts.set(key, { ...latch, session: s });
-      continue;
-    }
-
-    // After user acts on a prompt, suppress re-detection while the terminal UI transitions.
-    // Without this the card immediately reappears because the pattern is still visible.
-    if (_termCooldown.has(key)) {
-      if (Date.now() < _termCooldown.get(key)) continue;
-      _termCooldown.delete(key);
-    }
-
-    // Strict patterns are highly specific → latch immediately, no stability check needed.
-    // This fixes Claude Code / Ink-based UIs whose dynamic rendering prevents the content
-    // from ever being identical across two consecutive polls.
-    const pStrict = termDetectStrict(content);
-    if (pStrict) {
-      console.log('[TERM] strict match', key, pStrict.label);
-      _termLatchedPrompts.set(key, { session: s, prompt: pStrict });
-      continue;
-    }
-
-    // Non-strict patterns are broader (can false-positive on prose/diffs) → require
-    // 2 identical consecutive snapshots to confirm the terminal is actually waiting.
-    const prev = _termContentCache.get(key);
-    if (!prev || prev.content !== content) {
-      _termContentCache.set(key, { content, stableCount: 1 });
-      continue;
-    }
-    const stableCount = prev.stableCount + 1;
-    _termContentCache.set(key, { content, stableCount });
-    if (stableCount < 2) continue;
-
-    // 稳定后检查所有模式（strict + non-strict），防止 termDetectStrict 在内容抖动时漏掉的 strict 模式
-    const p = detectTermPrompt(content);
-    if (p) {
-      console.log('[TERM] loose match', key, p.label);
-      _termLatchedPrompts.set(key, { session: s, prompt: p });
-    }
-  }
-
-  const promptSessions = Array.from(_termLatchedPrompts.values())
-    .map(({ session, prompt }) => ({ ...session, prompt }));
-
-  const newAlert = promptSessions.length > 0;
-  // 计算"头部"会话作为点击目标 ── 序集变化时也需要刷新, 不是只在 transition 时.
-  const headSession = newAlert ? promptSessions[0] : null;
-  const headKey = headSession ? `${headSession.app}-${headSession.windowId || headSession.windowIndex}-${headSession.tabIndex}` : null;
-  const stateChanged = newAlert !== _termAlertActive;
-  const sessionChanged = newAlert && headKey !== _termAlertHeadKey;
-  if (stateChanged || sessionChanged) {
-    _termAlertActive = newAlert;
-    _termAlertHeadKey = headKey;
-    const alertSession = headSession ? {
-      app: headSession.app,
-      windowIndex: headSession.windowIndex,
-      windowId: headSession.windowId,
-      windowName: headSession.windowName,
-      tabIndex: headSession.tabIndex,
-    } : null;
-    console.log('[TERM] setTermAlert', newAlert, alertSession);
-    window.petAPI.setTermAlert(newAlert, alertSession);
-  }
-
-  if (promptSessions.length > 0) {
-    badge.classList.add('active');
-    dot.classList.add('alert');
-    // Notify pet for newly detected prompts (once per session, not every poll)
-    for (const s of promptSessions) {
-      const key = `${s.app}-${s.windowId || s.windowIndex}-${s.tabIndex}`;
-      if (!_termNotifiedPrompts.has(key)) {
-        _termNotifiedPrompts.add(key);
-        const label = s.tabName || s.windowName || `窗口${s.windowIndex}`;
-        window.petAPI.notifyPet(`[${label}] 终端需要您确认！`);
-      }
-    }
-  } else {
-    badge.classList.remove('active');
-    dot.classList.remove('alert');
-    // Clear notified set when no prompts remain so future prompts fire again
-    _termNotifiedPrompts.clear();
-  }
-
-  _termPromptSessions = promptSessions;
-
-  if (!termActive) return;
-  const statusEl = document.getElementById('term-status-text');
-  const container = document.getElementById('term-sessions-container');
-
-  if (sessions.length === 0) {
-    statusEl.textContent = '未检测到终端窗口';
-    container.innerHTML = '<div class="term-idle-msg">[ 未检测到运行中的终端 ]</div>';
-    return;
-  }
-
-  if (_termDiag) {
-    statusEl.textContent = `诊断模式 · ${sessions.length} 个会话`;
-    container.innerHTML = sessions.length === 0
-      ? '<div class="term-idle-msg">[ 未检测到终端窗口 ]</div>'
-      : sessions.map(s => {
-          const label = s.tabName || s.windowName || (s.app === 'Terminal' ? `窗口${s.windowIndex}·标签${s.tabIndex}` : `iTerm2 ${s.windowIndex}-${s.tabIndex}`);
-          const raw = s.lastLines.split('\n').filter(l => l.trim()).slice(-6).join('\n') || '（无内容）';
-          const p = detectTermPrompt(s.lastLines);
-          const border = p ? '1px solid rgba(255,80,80,0.6)' : '1px solid rgba(255,255,255,0.08)';
-          return `<div class="term-session-card" style="border:${border}">
-            <div class="term-card-header"><span>${escHtml(label)}</span><span style="font-size:10px;opacity:0.6">${s.busy ? '● 运行中' : '○ 空闲'}${p ? ' ⚠已匹配' : ''}</span></div>
-            <div class="term-prompt-preview" style="white-space:pre-wrap;font-size:10px">${escHtml(raw)}</div>
-          </div>`;
-        }).join('');
-    return;
-  }
-
-  if (promptSessions.length === 0) {
-    statusEl.textContent = `监控中 · ${sessions.length} 个会话 · 无待确认`;
-    container.innerHTML = '<div class="term-idle-msg">[ 所有终端运行正常，无需确认 ]</div>';
-    return;
-  }
-
-  statusEl.textContent = `⚠ ${promptSessions.length} 个会话需要确认`;
-
-  container.innerHTML = promptSessions.map((s, idx) => {
-    const sessionLabel = s.tabName || s.windowName || (s.app === 'Terminal' ? `窗口 ${s.windowIndex}` : `会话 ${s.sessionId}`);
-    const appLabel = `${s.app} · ${sessionLabel}`;
-    const type = s.prompt.type;
-    const confirmBtn = type === 'yn'
-      ? `<button class="term-action-btn yes" onclick="termConfirm(${idx})">✓ 确认 (y)</button>`
-      : type === 'tab'
-        ? `<button class="term-action-btn enter" onclick="termConfirm(${idx})">↹ 接受编辑 (Tab)</button>`
-        : `<button class="term-action-btn enter" onclick="termConfirm(${idx})">↵ 确认 (Enter)</button>`;
-    const denyBtn = type === 'yn'
-      ? `<button class="term-action-btn no" onclick="termDeny(${idx})">✗ 拒绝 (n)</button>`
-      : type === 'tab'
-        ? `<button class="term-action-btn no" onclick="termDeny(${idx})">✗ 中断 (Esc)</button>`
-        : '';
-    return `
-      <div class="term-session-card" id="term-card-${idx}">
-        <div class="term-card-header">
-          <span>${escHtml(appLabel)}</span>
-          <span class="term-alert-tag">⚠ ${escHtml(s.prompt.label)}</span>
-        </div>
-        <div class="term-prompt-preview">${escHtml(s.prompt.preview)}</div>
-        <div class="term-card-actions">${confirmBtn}${denyBtn}</div>
-      </div>`;
-  }).join('');
-}
-
-async function termSend(idx, text) {
-  const s = _termPromptSessions[idx];
-  if (!s) return;
-  const card = document.getElementById(`term-card-${idx}`);
-  if (card) { card.style.opacity = '0.5'; card.querySelectorAll('button').forEach(b => b.disabled = true); }
-  const result = await window.petAPI.sendTerminalInput({ app: s.app, windowIndex: s.windowIndex, windowId: s.windowId, tabIndex: s.tabIndex, sessionId: s.sessionId, text });
-  if (result && result.ok) {
-    showToast('✓ 已发送');
-    const latchKey = `${s.app}-${s.windowId || s.windowIndex}-${s.tabIndex}`;
-    _termLatchedPrompts.delete(latchKey);
-    _termNotifiedPrompts.delete(latchKey);
-    _termContentCache.delete(latchKey);                  // force fresh read next poll
-    _termCooldown.set(latchKey, Date.now() + 8000);      // 8s: time for Ink UI to clear
-    setTimeout(termPoll, 1500);
-  } else {
-    showToast('发送失败：' + (result?.error || '未知错误'));
-    if (card) { card.style.opacity = ''; card.querySelectorAll('button').forEach(b => b.disabled = false); }
-  }
-}
-
-function termConfirm(idx) {
-  const s = _termPromptSessions[idx];
-  const type = s?.prompt.type;
-  termSend(idx, type === 'yn' ? 'y\n' : type === 'tab' ? '\t' : '\n');
-}
-function termDeny(idx) {
-  const s = _termPromptSessions[idx];
-  termSend(idx, s?.prompt.type === 'tab' ? '\x1b' : 'n\n');
-}
-function termPollNow() { termPoll(); }
-function termToggleDiag() {
-  _termDiag = !_termDiag;
-  const btn = document.getElementById('term-diag-btn');
-  if (btn) btn.style.opacity = _termDiag ? '1' : '0.5';
-  termPoll();
-}
-
-// 警报音开关 — 持久化到 store, 主进程广播给 pet 窗口
-let _alertSoundEnabled = true;
-function _renderAlertSoundBtn() {
-  const btn = document.getElementById('term-sound-btn');
-  if (!btn) return;
-  btn.textContent = _alertSoundEnabled ? '🔔' : '🔕';
-  btn.title = '警报音：' + (_alertSoundEnabled ? '开 (点击关闭)' : '关 (点击开启)');
-  btn.style.opacity = _alertSoundEnabled ? '1' : '0.5';
-}
-async function termToggleAlertSound() {
-  _alertSoundEnabled = !_alertSoundEnabled;
-  _renderAlertSoundBtn();
-  try { await window.petAPI.setAlertSoundEnabled(_alertSoundEnabled); }
-  catch (e) { console.log('[TERM] toggle alert sound failed', e); }
-}
-async function _initAlertSoundBtn() {
-  try {
-    const r = await window.petAPI.getAlertSoundEnabled();
-    _alertSoundEnabled = r && r.enabled !== false;
-  } catch {}
-  _renderAlertSoundBtn();
-}
-_initAlertSoundBtn();
-
-// Background polling for badge (always on)
-setInterval(termPoll, 2500);
 
 // ── 辅助功能权限横幅: 启动 + 30s 轮询, 用户授权后自动消失 ─────────
 let _axDismissed = false;       // 本次会话是否被用户主动关闭过(只是隐藏当前显示, 下次仍会重检)
