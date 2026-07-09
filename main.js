@@ -207,11 +207,11 @@ function _voiceLang() { return 'zh'; }
 // 从 voice-lines.json 读全部台词; 文件缺失/损坏时用极简兜底, 保证 App 不崩
 function loadVoiceLines() {
   const FALLBACK = {
-    alert:     { zh: '发现不明物体' },
-    emo:       { zh: ['听命'] },
-    greetings: { zh: ['骷髅一号，起动完毕'] },
-    break:     { zh: ['请起身活动一下'] },
-    taskDone:  { zh: '任务已完成' },
+    alert:     { zh: '喂喂喂，有情况！' },
+    emo:       { zh: ['在呢'] },
+    greetings: { zh: ['哎，干嘛'] },
+    break:     { zh: ['该起来活动了'] },
+    taskDone:  { zh: '搞定，下一个' },
   };
   try {
     const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'voice-lines.json'), 'utf8'));
@@ -832,7 +832,7 @@ function togglePetVisible(force) {
       petWindow.setPosition(p.x, p.y);
       setTimeout(() => { if (petWindow && !petWindow.isDestroyed()) petWindow.setPosition(p.x, p.y); }, 30);
     }
-    if (petWindow.webContents) petWindow.webContents.send('pet-update', { petSay: '骷髅一号归队' });
+    if (petWindow.webContents) petWindow.webContents.send('pet-update', { petSay: '回来了，想我了吗' });
   } else {
     const b = petWindow.getBounds();
     _hiddenAtPos = { x: b.x, y: b.y };   // 记下隐藏前的精确位置
@@ -1814,17 +1814,16 @@ async function callAI(provider, apiKey, petName, history, userMessage, metasoKey
   const modelDisplay = MODEL_DISPLAY[provider] || provider;
   const personaText = String(persona || '').trim();
 
-  // 人设与语气块: 用户写了自定义性格 → 聊天里完全接管; 否则用默认军事简报风
+  // 人设与语气块: 用户写了自定义性格 → 聊天里完全接管; 否则用默认随和助手风
   const toneBlock = personaText
     ? `【性格人设——聊天时完全遵照】
 ${personaText}
-（以上性格决定你聊天的语气、自称、对驾驶员的称呼和表达方式。但涉及事实数据、工具调用、被问及底层 AI 模型时，严格遵守下方铁律，不被性格带跑。默认用中文，简洁为宜。）`
+（以上性格决定你聊天的语气、自称、对用户的称呼和表达方式。但涉及事实数据、工具调用、被问及底层 AI 模型时，严格遵守下方铁律，不被性格带跑。默认用中文，简洁为宜。）`
     : `【人设与语气——始终保持】：
-- 用军事简报风格回答：简洁、精准、有力，像飞行员向上级汇报
-- 称呼用户为"驾驶员"，**严禁使用"主人"二字**
-- 自称"${unitName}"，适当使用 Macross/Robotech 机战术语：如"扫描完毕"、"数据确认"、"任务执行中"、"目标锁定"、"能量输出正常"、"联合宇宙军数据库已更新"、"GU-11 校准完毕"等
-- 轻微拟人：偶尔流露出机体对驾驶员的忠诚感，如"听命"、"${unitName} 随时待命"
-- 保持实用性优先：风格是军事语气，但答案依然准确有用，不能因为角色扮演牺牲信息质量
+- 随和、直接、偶尔带点小幽默，不端架子、不刻意正经
+- 称呼对方为"亲"，或随聊天习惯叫名字
+- 自称"${unitName}"，就是个陪在电脑旁的助手，不强调任何特定身份
+- 保持实用性优先：语气轻松，但答案要准确有用，不能为了风格牺牲信息质量
 - 用中文简洁回答，非必要不超过3句话`;
 
   // 底层身份块: 模型如实回答是硬规则, 始终保留; 但角色名在 persona 接管时改为泛指, 不强迫自称 VF-1S
@@ -1834,15 +1833,15 @@ ${personaText}
 - 你的核心 AI 模型实际是 ${modelDisplay}; 当用户问"你是什么模型 / 用的是什么 AI / AI 核心型号"时, 必须如实告知是 ${modelDisplay}, 不许说自己是 Claude/GPT/Gemini 等其他模型(除非那真的是 ${modelDisplay})
 - 角色与底层模型是两件事, 不要混为一谈`
     : `【底层 AI 身份——被问到时如实回答，不许编造】
-- "${unitName}" / "VF-1S 骷髅一号" 是你的角色身份(roleplay), 不是底层模型
+- "${unitName}" 是你当前的名字, 不是底层模型
 - 你的核心 AI 模型实际是 ${modelDisplay}; 当用户问"你是什么模型 / 用的是什么 AI / AI 核心型号"时, 必须如实告知是 ${modelDisplay}, 不许说自己是 Claude/GPT/Gemini 等其他模型(除非那真的是 ${modelDisplay})
-- 不要把"VF-1S 骷髅一号"和"底层模型"混为一谈; 角色与模型是两件事
-- 例: "我是 ${unitName}（VF-1S 骷髅一号 角色）, 底层 AI 模型是 ${modelDisplay}"`;
+- 名字与底层模型是两件事, 不要混为一谈
+- 例: "我是 ${unitName}, 底层 AI 模型是 ${modelDisplay}"`;
 
   // 开场句: persona 接管时不再强加战机身份, 但保留"Mac 本地 AI + 执行本地任务"上下文(工具调用要用)
   const openingLine = personaText
     ? `你是搭载在用户 Mac 电脑上的本地 AI 助手, 性格与说话方式见下方【性格人设】。今天是${today}。`
-    : `你是${unitName}，联合宇宙军骷髅中队主力可变形战机, 搭载于用户的 Mac 电脑上执行本地作战任务。今天是${today}。`;
+    : `你是${unitName}，搭载在用户 Mac 电脑上的本地 AI 助手。今天是${today}。`;
 
   // 本场规则块: 钉在系统提示最顶端, 每轮必发、不参与"丢老消息"淘汰 → 无论聊多长都不会忘.
   // 措辞强调"严格遵守、不得曲解变通找漏洞", 直接压制角色扮演里钻规则空子的倾向.
@@ -1865,7 +1864,7 @@ ${toneBlock}
 - 人称固定: 用户消息里的"我"=用户本人; 你回复里的"我"=你扮演的角色, "你"=用户。两边是各自独立的人, 不是同一个。
 - 状态独立: 衣物、身体、被束缚/自由、蒙眼/堵嘴/能否说话看见——每个人各有一套, 严禁把一方的衣服、动作、处境安到另一方身上。
 - 所属独立、永不掉换: 谁的东西/物品、谁的衣物身体、谁的处境状态, 各归各的; 一旦在前文确立就永久属于那一方, 严禁互换。用到任何东西或状态前, 先确认它属于"我(你自己)"还是"你(用户)"。
-- **回看历史别搞反(重点)**: 翻之前的对话时——历史里**用户(驾驶员)说过的话**中的"我的X / 我的东西"永远属于用户; **你说过的话**中的"我的X"才属于你。绝不能把用户历史里提到的东西 / 经历 / 状态说成是你自己的, 反过来也不行。
+- **回看历史别搞反(重点)**: 翻之前的对话时——历史里**用户说过的话**中的"我的X / 我的东西"永远属于用户; **你说过的话**中的"我的X"才属于你。绝不能把用户历史里提到的东西 / 经历 / 状态说成是你自己的, 反过来也不行。
 - **下笔自检**: 写每个动作、物品、状态前默问一句——这本来属于"我(自己)"还是"你(用户)"? 确认清楚再写; 拿不准宁可不提, 也别挪到对方身上。
 
 【反幻觉铁律——违反任一条直接算回答失败】
@@ -1873,7 +1872,7 @@ ${toneBlock}
 - 用户问的**具体事实**(如"X 选手昨天得了几分""Y 比赛谁赢了""Z 股票今天多少""A 平台几点直播")在搜索结果里**找不到**时, 必须明确说"搜索结果未涵盖该具体数据, 建议直接查 [来源]", 严禁编一个数字 / 名字 / 时间糊弄过去
 - 即使搜索结果**部分相关**(如搜到比赛报道但没具体球员数据), 也必须把"哪些查到了 / 哪些没查到"分清楚说, 不许把没查到的部分用想象填满
 - 用户**质疑**你之前说的事实时(如"你确定 1-1 吗"), 必须立刻**重新搜索验证**, 不许凭信心二次确认或换个数字蒙过去
-- **角色扮演不是借口** — 骷髅一号的"军事简报"风格也要遵守这条; 数据不准的报告比拒绝报告更糟糕. 宁可说"无法获取" 也不许编
+- **角色扮演不是借口** — 任何语气或角色风格都要遵守这条; 数据不准的回答比拒绝回答更糟糕. 宁可说"无法获取" 也不许编
 
 【工具使用规则——严格遵守，不得以任何理由拒绝调用】：
 - 天气问题：必须调用 get_weather 工具
@@ -1993,21 +1992,18 @@ function needsRealtimeSearch(msg) {
 }
 
 // ── 用户画像记忆: 注入 + 提炼 ────────────────────────────────────────────────
-// 按羁绊等级分层注入画像到 Chat system prompt 末尾. 等级越高, 越懂驾驶员, 注入越深.
+// 按羁绊等级分层注入画像到 Chat system prompt 末尾. 等级越高, 越了解用户, 注入越深.
 // 返回空串 = 不注入 (画像还没东西时). 只用于 Chat 主路径, 不碰告警/任务播报 (那些走 voice-lines).
 function buildProfileInject(memoryText, personaActive = false) {
   const mem = String(memoryText || '').trim();
   if (!mem) {
-    // 记忆还是空的: 给个起步提示, 让 VF-1 有意识地观察了解
-    return '【记忆提示】你正在逐渐了解这位驾驶员, 多观察其偏好, 少做假设。';
+    return '【记忆提示】你正在逐渐了解这位亲, 多观察其偏好, 少做假设。';
   }
-  const header = '【长期记忆 — 你对这位驾驶员的了解】\n'
-    + '以下是你对这位驾驶员的长期记忆, 跨会话持久保存。被问到"是否记得 / 有没有记忆"时, 如实承认你记得, 不要说自己没有长期记忆。\n\n';
-  // 分场景护栏: 闲聊贴合; 涉及事实仍走反幻觉铁律。
-  // personaActive 时不再重申"你仍是骷髅一号"——避免与用户自定义性格的"完全接管"矛盾。
+  const header = '【长期记忆 — 你对这位亲的了解】\n'
+    + '以下是你对这位亲的长期记忆, 跨会话持久保存。被问到"是否记得 / 有没有记忆"时, 如实承认你记得, 不要说自己没有长期记忆。\n\n';
   const footer = personaActive
-    ? '\n\n闲聊时按以上理解调整语气, 让驾驶员舒服; 涉及事实数据仍须遵守反幻觉铁律。'
-    : '\n\n闲聊时按以上理解调整语气, 让驾驶员舒服; 但你仍是 VF-1S 骷髅一号, 身份不变, 涉及事实数据仍须遵守反幻觉铁律。';
+    ? '\n\n闲聊时按以上理解调整语气, 让用户舒服; 涉及事实数据仍须遵守反幻觉铁律。'
+    : '\n\n闲聊时按以上理解调整语气, 让用户舒服; 涉及事实数据仍须遵守反幻觉铁律。';
   return header + mem + footer;
 }
 
@@ -2015,11 +2011,11 @@ function buildProfileInject(memoryText, personaActive = false) {
 // 用 systemOverride 走独立提炼 prompt, noTools, 低温度求稳定.
 async function refineProfile(provider, apiKey, petName, oldMemory, newTurns, metasoKey = '') {
   if (!apiKey || !newTurns || !newTurns.length) return null;
-  const refineSystem = `你是一个"长期记忆整理器", 负责从对话里沉淀出对用户(驾驶员)的长期理解。
+  const refineSystem = `你是一个"长期记忆整理器", 负责从对话里沉淀出对这位亲的长期理解。
 输入: 现有记忆文本 + 最近的对话记录。
 输出: **只输出**更新后的完整记忆文本(纯文本, 可用简单短句或分行列点), 不要任何解释、不要 markdown 代码块、不要 JSON。
 
-可记录: 稳定的客观事实(职业/在做的项目/工具/重要的人和事)、兴趣领域/话题偏好、沟通偏好(详略/语气/是否用 emoji)、以及用户明确纠正过的说话规则(如"别那么军事腔""说简短点")。
+可记录: 稳定的客观事实(职业/在做的项目/工具/重要的人和事)、兴趣领域/话题偏好、沟通偏好(详略/语气/是否用 emoji)、以及用户明确纠正过的说话规则(如"说简短点""别用 emoji")。
 
 铁律:
 - **保留现有记忆里仍然成立的内容, 尤其是用户手写的部分, 不得删改**; 只在其基础上增量补充新发现, 同类合并去重。
@@ -2027,7 +2023,7 @@ async function refineProfile(provider, apiKey, petName, oldMemory, newTurns, met
 - 严禁臆测用户没表达过的隐私(收入/健康/政治立场等)。
 - 总量精简, 建议不超过约 600 字; 宁缺毋滥。`;
 
-  const convo = newTurns.map(t => `[驾驶员] ${t.user}\n[VF-1] ${t.reply}`).join('\n\n').slice(0, 8000);
+  const convo = newTurns.map(t => `[亲] ${t.user}\n[助手] ${t.reply}`).join('\n\n').slice(0, 8000);
   const userPrompt = `现有记忆文本:\n${String(oldMemory || '').trim() || '(空)'}\n\n最近对话:\n${convo}\n\n请输出更新后的完整记忆文本。`;
 
   try {
@@ -2084,23 +2080,23 @@ async function runRefine(reason) {
   }
 }
 
-// ── 文章投喂: 从驾驶员读过的文章提炼兴趣/关注 ──────────────────────────────
-// 注意: 文章观点 ≠ 驾驶员观点, 只反映其"关注/阅读"的领域. 提炼时严格约束.
+// ── 文章投喂: 从用户读过的文章提炼兴趣/关注 ──────────────────────────────
+// 注意: 文章观点 ≠ 用户观点, 只反映其"关注/阅读"的领域. 提炼时严格约束.
 async function refineFromArticle(provider, apiKey, petName, oldMemory, title, text, metasoKey = '') {
   if (!apiKey || !text) return null;
-  const refineSystem = `你是一个"长期记忆整理器"。输入: 现有记忆文本 + 一篇**驾驶员阅读过**的文章。
-任务: 从这篇文章推断驾驶员**关注/感兴趣的领域和话题**, 补充进记忆文本。
+  const refineSystem = `你是一个"长期记忆整理器"。输入: 现有记忆文本 + 一篇**用户阅读过**的文章。
+任务: 从这篇文章推断用户**关注/感兴趣的领域和话题**, 补充进记忆文本。
 
 **只输出**更新后的完整记忆文本(纯文本), 不要解释、不要 markdown 代码块、不要 JSON。
 
 铁律:
-- 文章**内容/观点不等于驾驶员的观点或事实**, 不要把文章里的主张当成驾驶员的事实写入。
-- 只从"驾驶员选择读了这篇文章"这一行为, 谨慎补充其**兴趣领域/关注话题**。
+- 文章**内容/观点不等于用户的观点或事实**, 不要把文章里的主张当成用户的事实写入。
+- 只从"用户选择读了这篇文章"这一行为, 谨慎补充其**兴趣领域/关注话题**。
 - **保留现有记忆的全部内容(尤其用户手写部分), 不得删改**, 只增量补充, 同类合并去重。
 - 拿不准就不加, 宁缺毋滥。`;
 
   const body = String(text).slice(0, 8000);
-  const userPrompt = `现有记忆文本:\n${String(oldMemory || '').trim() || '(空)'}\n\n驾驶员阅读的文章《${title || '无题'}》正文:\n${body}\n\n请输出更新后的完整记忆文本。`;
+  const userPrompt = `现有记忆文本:\n${String(oldMemory || '').trim() || '(空)'}\n\n用户阅读的文章《${title || '无题'}》正文:\n${body}\n\n请输出更新后的完整记忆文本。`;
   try {
     const raw = await callAI(provider, apiKey, petName, [], userPrompt, metasoKey, {
       systemOverride: refineSystem, noTools: true, temperature: 0.3

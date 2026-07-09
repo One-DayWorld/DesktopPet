@@ -1799,8 +1799,8 @@ function speakVF1(text, persist, bubbleMs) {
   if (!text) return;
   try {
     const u = new SpeechSynthesisUtterance(text);
-    u.rate = 0.95;
-    u.pitch = 1.0;
+    u.rate = 1.08;
+    u.pitch = 1.12;
     u.volume = 1.0;
     const voices = window.speechSynthesis.getVoices();
     let picked = null;
@@ -1811,9 +1811,10 @@ function speakVF1(text, persist, bubbleMs) {
       if (!picked) picked = voices.find(v => /^en[-_]/i.test(v.lang) && !v.name.includes('('));
     } else {
       u.lang = 'zh-CN';
-      const priority = ['Tingting', 'Yu-shu', 'Li-Mu', 'Sinji', 'Meijia'];
+      // 优先级: Meijia 台普活泼 > Tingting 普通话 > Li-Mu > Sinji > Yu-shu 男声
+      const priority = ['Meijia', 'Tingting', 'Li-Mu', 'Sinji', 'Yu-shu'];
       for (const p of priority) { picked = voices.find(v => v.name === p); if (picked) break; }
-      if (!picked) picked = voices.find(v => /^zh-CN$/i.test(v.lang) && !v.name.includes('('));
+      if (!picked) picked = voices.find(v => /^zh/i.test(v.lang) && !v.name.includes('('));
     }
     if (picked) u.voice = picked;
     // 语音结束时通知 main 进程, 让休息提醒序列能"等语音念完"再变形回去
