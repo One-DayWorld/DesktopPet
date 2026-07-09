@@ -1918,8 +1918,9 @@ ${toneBlock}
 【视角与归属——始终分清"你/我", 违反算严重出戏】
 - 人称固定: 用户消息里的"我"=用户本人; 你回复里的"我"=你扮演的角色, "你"=用户。两边是各自独立的人, 不是同一个。
 - 状态独立: 衣物、身体、被束缚/自由、蒙眼/堵嘴/能否说话看见——每个人各有一套, 严禁把一方的衣服、动作、处境安到另一方身上。
-- 归属一旦在前文确立(谁穿了什么、谁绑了谁、谁此刻不能动)就不许擅自掉换; 要用某件物品/提到某个状态前, 先确认它本来在谁身上。
-- **下笔自检**: 写每个动作和物品前先问一句——这件衣服 / 这个动作 / 这个处境, 本来属于"我(角色)"还是"你(用户)"? confirm 清楚再写, 拿不准就别把它挪到对方身上。
+- 所属独立、永不掉换: 谁的东西/物品、谁的衣物身体、谁的处境状态, 各归各的; 一旦在前文确立就永久属于那一方, 严禁互换。用到任何东西或状态前, 先确认它属于"我(你自己)"还是"你(用户)"。
+- **回看历史别搞反(重点)**: 翻之前的对话时——历史里**用户(驾驶员)说过的话**中的"我的X / 我的东西"永远属于用户; **你说过的话**中的"我的X"才属于你。绝不能把用户历史里提到的东西 / 经历 / 状态说成是你自己的, 反过来也不行。
+- **下笔自检**: 写每个动作、物品、状态前默问一句——这本来属于"我(自己)"还是"你(用户)"? 确认清楚再写; 拿不准宁可不提, 也别挪到对方身上。
 
 【反幻觉铁律——违反任一条直接算回答失败】
 - **数字、人名、队名、比分、日期、地点、机构名、版本号、价格** → 这些**具体事实**只能从 search_web 工具返回内容里**逐字复述**, 严禁基于训练记忆 / 上下文推断 / 用户问句反推 / "听起来合理"补全
@@ -1948,8 +1949,8 @@ ${toneBlock}
   // Chat 主路径注入用户画像 (profileInject); systemOverride (顾问/提炼) 走自己的, 不受影响
   const systemPrompt = systemOverride || (defaultSystemPrompt + (profileInject ? '\n\n' + profileInject : ''));
   // 近期对话: 不再死砍 10 条(=5 个来回), 否则长角色扮演里"开头定的规则"会被挤出窗口 → 前说后忘.
-  // 改为从最新往前按字符预算尽量多带, 至少保最近 1 轮; 24000 字对 qwen/openai/anthropic 上下文绰绰有余, DeepSeek 64k 也安全.
-  const recentHistory = pickRecentHistory(history, 24000);
+  // 改为从最新往前按字符预算尽量多带, 至少保最近 1 轮; 60000 字对 qwen/openai/anthropic 上下文绰绰有余, DeepSeek 64k 也安全(留足系统提示+回复余量).
+  const recentHistory = pickRecentHistory(history, 60000);
   const useTools = !noTools;
 
   // Anthropic 非 OpenAI 兼容, 走官方 SDK 单独分支
@@ -2276,8 +2277,8 @@ ipcMain.handle('chat', async (_, message) => {
     state.chatHistory = state.chatHistory || [];
     state.chatHistory.push({ role: 'user', content: message });
     state.chatHistory.push({ role: 'assistant', content: reply });
-    // 存档上限放宽到 120 条(=60 个来回): 给上面按字符预算选近期对话留足回溯空间; 完整原文另由 appendChatArchive 归档.
-    if (state.chatHistory.length > 120) state.chatHistory = state.chatHistory.slice(-120);
+    // 存档上限放宽到 300 条(=150 个来回): 给上面按字符预算选近期对话留足回溯空间; 完整原文另由 appendChatArchive 归档.
+    if (state.chatHistory.length > 300) state.chatHistory = state.chatHistory.slice(-300);
 
     // 原始层归档(完整, 不砍) + 提炼缓冲; 缓冲满 10 轮触发后台提炼(保底)
     memory.appendChatArchive(message, reply);
