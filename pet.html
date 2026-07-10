@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { width: 180px; height: 290px; overflow: hidden; background: transparent; user-select: none; }
+  html, body { width: 117px; height: 189px; overflow: hidden; background: transparent; user-select: none; }
 
   #pet-container {
     width: 180px;
@@ -13,6 +13,8 @@
     cursor: pointer;
     display: flex;
     flex-direction: column;
+    transform: scale(0.65);
+    transform-origin: top left;
   }
 
   /* ── Canvas area ────────────────────────────────────────── */
@@ -200,7 +202,7 @@
   /* ── 飞弹全屏舞台: 起身播报开火时, 主进程把窗口临时放大到整屏, 机体仍固定居中,
      飞弹便能飞满全屏; 停火后窗口收回 180×290 ── */
   html.arena, html.arena body { width: 100vw; height: 100vh; }
-  html.arena #pet-container { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+  html.arena #pet-container { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(0.65); transform-origin: center center; }
 
   /* ── 推进器尾焰 — Gerwalk 形态垂直巡航时点亮 ────────── */
   /* 两条蓝白冷焰从机体脚底向下喷, scale + 抖动模拟燃烧 */
@@ -1328,7 +1330,7 @@ let _pendingClickTimer = null;
 // 也会吸收鼠标点击 → 把不点到机体的区域设为穿透, 让点击落到底层应用.
 // HIT_ZONE 由 updateHitZone() 在渲染循环里动态投影更新, 贴合机甲实体包围盒.
 // 初始值覆盖全画布兜底 (模型加载前也能捕获到第一次鼠标移动).
-let HIT_ZONE = { x: 0, y: 0, w: 180, h: 260 };
+let HIT_ZONE = { x: 0, y: 0, w: 117, h: 169 };
 
 // 把 modelGroup 世界包围盒投影到屏幕像素, 更新 HIT_ZONE.
 // 仅在模型加载后执行; 调用方每 5 帧调一次, throttle 掉高频 Box3 计算.
@@ -1336,7 +1338,7 @@ function updateHitZone() {
   if (!modelGroup) return;
   const box = new THREE.Box3().setFromObject(modelGroup);
   if (box.isEmpty()) return;
-  const W = 180, H = 260, PAD = 8;
+  const W = 117, H = 169, PAD = 5;
   // 包围盒 8 个角逐一投影到 NDC, 转为屏幕像素坐标
   const corners = [
     new THREE.Vector3(box.min.x, box.min.y, box.min.z),

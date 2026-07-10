@@ -107,8 +107,8 @@ function ensureClaudeHooksInstalled() {
 
 // 机体 "home" / 复位位置: 屏幕左下角 (相对传入显示器的整块 bounds 计算, 含 dock/菜单栏).
 // 启动初始位置与 reset-pet-position 共用此函数, 保证两者完全一致.
-const PET_W = 180, PET_H = 290;
-const PET_HOME_DX = -4, PET_HOME_DY = 60;  // 在贴边基础上的微调 (左移 / 下移)
+const PET_W = 117, PET_H = 189;
+const PET_HOME_DX = -3, PET_HOME_DY = 39;  // 在贴边基础上的微调 (左移 / 下移)
 function homePetPosition(display) {
   const { x: sx, y: sy, width: sw, height: sh } = display.bounds;
   return {
@@ -125,8 +125,8 @@ function createPetWindow() {
   console.log('[PET STARTUP] home pos:', pos);
 
   petWindow = new BrowserWindow({
-    width: 180,
-    height: 290,
+    width: 117,
+    height: 189,
     x: pos.x,
     y: pos.y,
     transparent: true,
@@ -260,7 +260,7 @@ async function runBreakAnimation() {
   if (!petWindow || petWindow.isDestroyed()) return;
   const display = screen.getDisplayMatching(petWindow.getBounds());
   const { x: sx, y: sy, width: sw, height: sh } = display.workArea;
-  const PW = 180, PH = 290;
+  const PW = 117, PH = 189;
   const startBounds = petWindow.getBounds();
   const targetX = Math.round(sx + (sw - PW) / 2);
   const targetY = Math.round(sy + (sh - PH) / 2);
@@ -317,7 +317,7 @@ async function runBreakAnimation() {
   }
   send({ firing: false });  // 语音完且已打满保底时长, 停火
 
-  // 收回全屏舞台: 窗口回到居中 180×290, 恢复鼠标命中
+  // 收回全屏舞台: 窗口回到居中 117×189, 恢复鼠标命中
   petWindow.setBounds({ x: targetX, y: targetY, width: PW, height: PH });
   petWindow.setIgnoreMouseEvents(false);
   send({ fireArena: false });
@@ -369,10 +369,10 @@ function tweenWindow(x0, y0, x1, y1, durationMs) {
 // 角落到屏幕边的内缩, 横纵分开:
 //   X (左右) = 12px → 不让飞机太贴左/右屏幕边
 //   Y (顶底) = 0    → 顶/底飞行紧贴菜单栏 / dock (用户偏好)
-const PATROL_PAD_X = 12;
+const PATROL_PAD_X = 8;
 const PATROL_PAD_Y = 0;
-const PATROL_BOTTOM_EXTRA = 60;   // 底边左右飞行额外下移 (BR/BL 两角的 y), 让下边巡航贴更低
-const PATROL_TOP_EXTRA    = -100; // 顶边左右飞行额外偏移 (TL/TR 两角的 y), 负值=上移
+const PATROL_BOTTOM_EXTRA = 39;   // 底边左右飞行额外下移 (BR/BL 两角的 y), 让下边巡航贴更低
+const PATROL_TOP_EXTRA    = -65; // 顶边左右飞行额外偏移 (TL/TR 两角的 y), 负值=上移
 const PATROL_LEG_MS        = 28000;  // 单条边的飞行时间 (~30s)
 const PATROL_DWELL_MS      = 0;      // 角落停顿 = 0, 飞到角立刻接下一条 leg, 中间不停留
 const PATROL_USER_GRACE_MS = 6000;   // 用户拖完后多久不打扰
@@ -403,12 +403,12 @@ function _patrolCorners() {
   const display = screen.getDisplayMatching(petWindow.getBounds());
   const { x: sx, y: sy, width: sw, height: sh } = display.workArea;
   const b = display.bounds;   // 物理屏幕范围 (含菜单栏/dock), 用于把角点钳到屏幕内
-  const PW = 180, PH = 290;
+  const PW = 117, PH = 189;
   // 顶边角点不能高过屏幕物理上端 (b.y), 否则窗口跑到屏幕外, macOS getBounds 会返回越界值
   // 导致后续 setPosition 抛 "conversion failure" 并让巡航循环崩在角上.
   const topY    = Math.max(b.y, sy + PATROL_PAD_Y + PATROL_TOP_EXTRA);
   // 底边角点最多让窗口底缘略微越过屏幕下端一点点 (留 PH-30 可见), 同样避免越界过多.
-  const bottomY = Math.min(b.y + b.height - 30, sy + sh - PH - PATROL_PAD_Y + PATROL_BOTTOM_EXTRA);
+  const bottomY = Math.min(b.y + b.height - 20, sy + sh - PH - PATROL_PAD_Y + PATROL_BOTTOM_EXTRA);
   return [
     { x: sx + PATROL_PAD_X,           y: topY },     // 0 TL
     { x: sx + sw - PW - PATROL_PAD_X, y: topY },     // 1 TR
@@ -868,8 +868,15 @@ app.whenReady().then(() => {
   startEdgePatrolLoop().catch(e => console.error('[PATROL] loop crashed:', e));
 
   // 全局快捷键 ⌘⌥H: 隐藏 / 显示机体 (机体挡住要点的区域时, 按一下藏起来, 用完再按显示)
+  // 全局快捷键 ⌘⌥Enter: 跳转到需要确认的终端窗口 (termAlert / taskDone / ocClick)
   try {
     globalShortcut.register('CommandOrControl+Alt+H', () => togglePetVisible());
+    globalShortcut.register('CommandOrControl+Alt+Enter', () => {
+      // 只有在有实际待处理跳转时才响应快捷键
+      if (_termAlertActive || _taskDoneSession || _ocClickSession) {
+        handleFocusTerminalAlert();
+      }
+    });
   } catch (e) { console.error('[HOTKEY] 注册失败:', e.message); }
   app.on('will-quit', () => { try { globalShortcut.unregisterAll(); } catch (_) {} });
 
@@ -2461,7 +2468,7 @@ ipcMain.handle('set-term-alert', (_, active, session) => {
   return {};
 });
 
-ipcMain.handle('focus-terminal-alert', async () => {
+async function handleFocusTerminalAlert() {
   // 优先 termAlert (权限等待) — 那是更紧急的状态
   // 其次 taskDone (任务完成) — 用一次就清掉, 避免后续点击重复跳
   const wasTermAlert = _termAlertActive;   // 点击时正处于"待授权告警", 跳转后要立即解除
@@ -2539,7 +2546,9 @@ end tell`;
   } catch (e) {
     return { ok: false, error: e.message };
   }
-});
+}
+
+ipcMain.handle('focus-terminal-alert', handleFocusTerminalAlert);
 
 ipcMain.handle('get-terminal-sessions', async () => {
   const tmpScript = path.join(os.tmpdir(), `term_get_${Date.now()}.js`);
