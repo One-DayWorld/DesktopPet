@@ -2,7 +2,7 @@ const { app, BrowserWindow, ipcMain, screen, shell, session: electronSession, sy
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { exec, execFile } = require('child_process');
+const { exec, execFile, execSync } = require('child_process');
 const util = require('util');
 const execAsync = util.promisify(exec);
 // execFile 不经 shell, 参数以数组传入 → 从根上杜绝命令注入. 凡是把外部/AI 传入的
@@ -106,9 +106,126 @@ function ensureClaudeHooksInstalled() {
 
     // 分别给 Claude 和 OpenCode 都注入 hook
     installHooks(path.join(homedir, '.claude', 'settings.json'));
-    installHooks(path.join(homedir, '.config', 'opencode', 'opencode.json'));
+
+    // OpenCode 不原生支持 Claude Code hooks — 往 opencode.json 写 hooks 会
+    // 导致 OpenCode 解析配置失败 (不认 hooks key). 正确的做法:
+    //   - hooks 写到 ~/.config/opencode/hooks.json (opencode-claude-hooks 插件读取)
+    //   - plugin 写到 opencode.json (OpenCode 原生支持)
+    // PreToolUse 对插件是 ✅ Full 支持 (vs PermissionRequest 的 ⚠️ Partial),
+    // hook 脚本内置白名单+bypass过滤, 不会为只读工具误报.
+    ensureOpenCodePlugin(homedir, q);
   } catch (e) {
     console.error('[HOOK] auto-install failed:', e.message);
+  }
+}
+
+// 确保 opencode-claude-hooks (或 opencode-cc-hooks) 插件在 OpenCode 中已启用.
+// OpenCode 不原生支持 Claude Code hooks —— 它需要通过 npm 全局安装的桥接插件,
+// 该插件读取以下文件中的 hooks:
+//   - ~/.claude/settings.json (上面已写入, 含 PermissionRequest/PostToolUse/Stop)
+//   - ~/.config/opencode/hooks.json (本函数写入, 额外加 PreToolUse)
+// 映射: PermissionRequest→permission.asked(Partial), PreToolUse→tool.execute.before(Full),
+//       PostToolUse→tool.execute.after(Full), Stop→session.idle(Partial).
+//
+// ⚠ 绝不往 opencode.json 写 hooks key — OpenCode 不认, 会导致配置解析失败.
+//    opencode.json 只写 plugin 字段 (OpenCode 原生支持).
+function ensureOpenCodePlugin(homedir, scriptQ) {
+  try {
+    const ocConfigPath = path.join(homedir, '.config', 'opencode', 'opencode.json');
+    if (!fs.existsSync(ocConfigPath)) return;
+
+    // ── 1) opencode.json: 只写 plugin, 不写 hooks ──
+    let config = {};
+    try { config = JSON.parse(fs.readFileSync(ocConfigPath, 'utf8')); } catch (_) { return; }
+
+    let plugins = config.plugin || [];
+    if (!Array.isArray(plugins)) plugins = [plugins];
+    const hasPlugin = (name) => plugins.some(p => (typeof p === 'string' && p === name));
+
+    // 检测已安装的 npm 包 (优先 opencode-claude-hooks, 其次 opencode-cc-hooks)
+    let pkgName = 'opencode-claude-hooks';
+    let npmOk = false;
+    try {
+      const s = execSync(
+        `npm list -g ${pkgName} --depth=0 2>/dev/null`, { encoding: 'utf8', timeout: 5000 }
+      );
+      npmOk = s.includes(`${pkgName}@`);
+    } catch (_) {}
+    if (!npmOk) {
+      pkgName = 'opencode-cc-hooks';
+      try {
+        const s = execSync(
+          `npm list -g ${pkgName} --depth=0 2>/dev/null`, { encoding: 'utf8', timeout: 5000 }
+        );
+        npmOk = s.includes(`${pkgName}@`);
+      } catch (_) {}
+    }
+
+    if (!hasPlugin(pkgName)) {
+      plugins.push(pkgName);
+      config.plugin = plugins;
+      // 确保不把 hooks key 带入 opencode.json
+      if ('hooks' in config) {
+        console.log('[HOOK] ⚠ Removing stray "hooks" key from opencode.json (OpenCode rejects unknown keys)');
+        delete config.hooks;
+      }
+      fs.writeFileSync(ocConfigPath, JSON.stringify(config, null, 2), 'utf8');
+      console.log('[HOOK] OpenCode plugin', pkgName, 'added to', ocConfigPath);
+    } else {
+      console.log('[HOOK] OpenCode plugin', pkgName, 'already in', ocConfigPath);
+    }
+
+    if (!npmOk) {
+      console.log('[HOOK] ⚠ OpenCode hook support needs:', `npm install -g ${pkgName}`);
+      console.log('[HOOK]    Without it, VF-1 can only detect OpenCode task-complete events (via DB poll),');
+      console.log('[HOOK]    NOT tool-confirmation (permission) events.');
+    }
+
+    // ── 2) ~/.config/opencode/hooks.json: OpenCode 专用 hooks ──
+    // 插件读取此文件获取 hooks. PreToolUse 对插件是 Full 支持,
+    // hook 脚本内置白名单+bypass过滤, 安全工具自动跳过.
+    const hooksPath = path.join(homedir, '.config', 'opencode', 'hooks.json');
+    const ocDesired = {
+      PreToolUse:      [{ matcher: '.*', hooks: [{ type: 'command', command: `${scriptQ} pending $PPID` }] }],
+      PostToolUse:     [{ matcher: '.*', hooks: [{ type: 'command', command: `${scriptQ} pending-clear` }] }],
+      PermissionDenied:[{ matcher: '.*', hooks: [{ type: 'command', command: `${scriptQ} pending-clear` }] }],
+      Stop:            [{ hooks: [
+        { type: 'command', command: `${scriptQ} pending-clear` },
+        { type: 'command', command: `${scriptQ} task-done $PPID` },
+      ] }],
+    };
+
+    let hooksConfig = {};
+    if (fs.existsSync(hooksPath)) {
+      try { hooksConfig = JSON.parse(fs.readFileSync(hooksPath, 'utf8')); } catch (_) {}
+    }
+    hooksConfig.hooks = hooksConfig.hooks || {};
+
+    const isNotifyHook = (cmd) => /(?:zaku|vf1)-notify\.sh/.test(cmd || '');
+    let hooksChanged = false;
+    for (const evt of Object.keys(ocDesired)) {
+      const oldGroups = hooksConfig.hooks[evt] || [];
+      const filteredGroups = oldGroups.map(g => ({
+        ...g,
+        hooks: (g.hooks || []).filter(h => !isNotifyHook(h.command)),
+      })).filter(g => (g.hooks || []).length > 0);
+      const newGroups = [...filteredGroups, ...ocDesired[evt]];
+      if (JSON.stringify(hooksConfig.hooks[evt]) !== JSON.stringify(newGroups)) {
+        hooksConfig.hooks[evt] = newGroups;
+        hooksChanged = true;
+      }
+    }
+    if (hooksChanged) {
+      if (!fs.existsSync(path.dirname(hooksPath))) {
+        fs.mkdirSync(path.dirname(hooksPath), { recursive: true });
+      }
+      fs.writeFileSync(hooksPath, JSON.stringify(hooksConfig, null, 2), 'utf8');
+      console.log('[HOOK] OpenCode hooks installed/updated in', hooksPath);
+    } else {
+      console.log('[HOOK] OpenCode hooks already up-to-date in', hooksPath);
+    }
+  } catch (e) {
+    console.error('[HOOK] OpenCode plugin setup failed:', e.message);
   }
 }
 
@@ -797,6 +914,12 @@ async function checkOpenCodeActivity() {
     let topData;
     try { topData = typeof top.data === 'string' ? JSON.parse(top.data) : top.data; } catch (_) { return; }
 
+    // 调试: 记录未知 part type 帮助发现新事件类型
+    if (topData.type && !['step-finish','step-start','text','tool','tool-invocation',
+      'reasoning','patch','file','subtask','retry','compaction','agent','snapshot'].includes(topData.type)) {
+      console.log('[OC] unknown part type:', topData.type, 'reason:', topData.reason, 'id:', top.id);
+    }
+
     if (topData.type === 'step-finish' && topData.reason === 'stop') {
       // 模型完成一轮回复, 正在等待用户输入
       if (!_ocAlertActive) {
@@ -810,16 +933,47 @@ async function checkOpenCodeActivity() {
         if (petWindow   && !petWindow.isDestroyed())   petWindow.webContents.send('pet-update', { speakText: msg, speakPersist: false, ocAlert: true });
         if (panelWindow && !panelWindow.isDestroyed()) panelWindow.webContents.send('pet-update', { ocAlert: true, ocTitle: top.title || top.session_id });
       }
-    } else if (topData.type !== 'step-finish') {
-      // step-start / text / tool → OpenCode 正在运行, 清掉告警
+    } else if (topData.type === 'tool' || topData.type === 'tool-invocation') {
+      // 工具调用 — OpenCode 正在执行工具.
+      // 同时检查 pending flag: 如果 opencode-claude-hooks 插件已配置,
+      // PreToolUse/PermissionRequest 事件会通过 hook 脚本写入 flag 文件.
+      // 这里用 flag 作为 cross-reference — flag 存在 + DB 显示 tool 调用 = 确认事件.
+      if (!_ocAlertActive && fs.existsSync(CLAUDE_PENDING_FLAG)) {
+        // Hook 写入的 pending flag 包含了 tty, 复用 Claude Code 的 findFrontTerminalSession
+        if (!_termAlertActive) {
+          _ocClickSession = await findFrontTerminalSession();
+          _ocAlertActive = true;
+          if (petWindow   && !petWindow.isDestroyed())   petWindow.webContents.send('pet-update', { ocAlert: true });
+          if (panelWindow && !panelWindow.isDestroyed()) panelWindow.webContents.send('pet-update', { ocAlert: true, ocTitle: top.title || top.session_id });
+        }
+      }
+      // 工具正在运行, 且没有 pending flag → 清掉之前的 oc 告警 (如果有)
+      if (_ocAlertActive && !fs.existsSync(CLAUDE_PENDING_FLAG)) {
+        _ocAlertActive = false;
+        _ocClickSession = null;
+        if (petWindow   && !petWindow.isDestroyed())   petWindow.webContents.send('pet-update', { ocAlert: false });
+        if (panelWindow && !panelWindow.isDestroyed()) panelWindow.webContents.send('pet-update', { ocAlert: false });
+      }
+    } else if (topData.type === 'step-start' || topData.type === 'text' || topData.type === 'reasoning') {
+      // OpenCode 正在运行 (新的 step/text/reasoning) → 清掉告警
       if (_ocAlertActive) {
         _ocAlertActive = false;
         _ocClickSession = null;
         if (petWindow   && !petWindow.isDestroyed())   petWindow.webContents.send('pet-update', { ocAlert: false });
         if (panelWindow && !panelWindow.isDestroyed()) panelWindow.webContents.send('pet-update', { ocAlert: false });
       }
+    } else if (topData.type === 'step-finish' && topData.reason === 'tool-calls') {
+      // step-finish reason:tool-calls → 即将调用工具, 可能触发确认.
+      // 同时检查 pending flag 作为 cross-reference.
+      // 不覆盖 Claude Code 的红灯告警 (_termAlertActive 优先级更高).
+      if (!_ocAlertActive && !_termAlertActive && fs.existsSync(CLAUDE_PENDING_FLAG)) {
+        _ocClickSession = await findFrontTerminalSession();
+        _ocAlertActive = true;
+        if (petWindow   && !petWindow.isDestroyed())   petWindow.webContents.send('pet-update', { ocAlert: true });
+        if (panelWindow && !panelWindow.isDestroyed()) panelWindow.webContents.send('pet-update', { ocAlert: true, ocTitle: top.title || top.session_id });
+      }
     }
-    // step-finish reason:tool-calls → 即将调用工具, 保持当前状态
+    // 其他 type → 保持当前状态不变
   } catch (_) {
     // sqlite3 不可用 / DB 被锁 / 格式错误 — 静默跳过
   }

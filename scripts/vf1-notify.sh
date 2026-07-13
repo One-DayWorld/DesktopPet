@@ -45,25 +45,31 @@ case "$SUBCMD" in
     # 读 stdin JSON 并把完整内容写到 debug log 帮助排查
     if command -v python3 &>/dev/null; then
       eval_result=$(python3 -c "
-import sys, json, os
+import sys, json, os, pathlib
 try:
     data = json.load(sys.stdin)
-    # 把完整 JSON 写到 debug log (与 flag 同处私有目录)
+    # 把完整 JSON 写到 debug log (与 flag 同处私有目录), 包含事件名辅助排查
     with open(os.path.expanduser('~/.macross/run/vf1_debug.log'), 'a') as f:
         f.write(json.dumps(data, ensure_ascii=False) + '\n')
     if data.get('agent_id') or data.get('tool_name') in ('Agent','Task'):
-        import pathlib
         pathlib.Path(os.path.expanduser('~/.macross/run/vf1_subagent_active')).touch()
     tool = data.get('tool_name', '')
     pmode = data.get('permission_mode', '')
-    print(tool + '|' + pmode)
+    # OpenCode (opencode-claude-hooks plugin) 的 PreToolUse 事件:
+    # hook_event_name 可能是 'PreToolUse' 或 'PermissionRequest'.
+    # PreToolUse 比 PermissionRequest 更可靠 (Full vs Partial 兼容),
+    # 但会为更多工具触发. 这里不做区分, 统一走下面的白名单+bypass过滤.
+    event = data.get('hook_event_name', '')
+    print(tool + '|' + pmode + '|' + event)
 except:
-    print('|')
-" 2>/dev/null || echo "|")
+    print('||')
+" 2>/dev/null || echo "||")
       tool_name="${eval_result%%|*}"
-      permission_mode="${eval_result##*|}"
+      rest="${eval_result#*|}"
+      permission_mode="${rest%%|*}"
+      hook_event="${rest#*|}"
     else
-      tool_name=""; permission_mode=""
+      tool_name=""; permission_mode=""; hook_event=""
     fi
 
     # 1) 内部工具白名单 → 不需要用户介入, 跳过
@@ -74,6 +80,19 @@ except:
     # 2) bypassPermissions 模式 → 全部自动通过, 不弹任何框, 跳过
     if [ "$permission_mode" = "bypassPermissions" ]; then
       exit 0
+    fi
+
+    # 3) PreToolUse 事件 (OpenCode 主要路径): 额外检查 —
+    #    只对"通常需要确认"的工具报警. Read/Glob/Grep 等只读工具几乎总是自动通过,
+    #    在这里跳过可以避免噪音. 如果 permission_mode 已经是 ask 则无论如何都报.
+    #    Claude Code 的 PermissionRequest 事件天然只在需要确认时触发, 不受此影响.
+    if [ "$hook_event" = "PreToolUse" ]; then
+      # 只读/浏览类工具 — 几乎不需要确认, 跳过 (除非显式 ask 模式)
+      if [ "$permission_mode" != "ask" ]; then
+        if echo "$tool_name" | grep -qE "^(Read|Glob|Grep|BashOutput|TaskOutput|TaskList|TaskGet|ListMcpResourcesTool|ReadMcpResourceTool|ReadMcpResourceDirTool|CronList|EnterPlanMode|ExitPlanMode)$"; then
+          exit 0
+        fi
+      fi
     fi
 
     get_tty_line "$parent_pid" > "$PENDING_FLAG"
