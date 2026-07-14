@@ -182,14 +182,17 @@ function ensureOpenCodePlugin(homedir, scriptQ) {
     }
 
     // ── 2) ~/.config/opencode/hooks.json: OpenCode 专用 hooks ──
-    // 插件读取此文件获取 hooks. PreToolUse 对插件是 Full 支持,
-    // hook 脚本内置白名单+bypass过滤, 安全工具自动跳过.
+    // 插件读取此文件获取 hooks.
+    // 之前错误地使用 PreToolUse 来触发 pending，导致长时间运行的免确认工具也会报警。
+    // 现在改用 PermissionRequest (映射到 permission.ask) 触发 pending，
+    // 并在 PreToolUse 和 PostToolUse 时清理 flag，确保只在真正需要确认时报警。
     const hooksPath = path.join(homedir, '.config', 'opencode', 'hooks.json');
     const ocDesired = {
-      PreToolUse:      [{ matcher: '.*', hooks: [{ type: 'command', command: `${scriptQ} pending $PPID` }] }],
-      PostToolUse:     [{ matcher: '.*', hooks: [{ type: 'command', command: `${scriptQ} pending-clear` }] }],
-      PermissionDenied:[{ matcher: '.*', hooks: [{ type: 'command', command: `${scriptQ} pending-clear` }] }],
-      Stop:            [{ hooks: [
+      PermissionRequest: [{ matcher: '.*', hooks: [{ type: 'command', command: `${scriptQ} pending $PPID` }] }],
+      PreToolUse:        [{ matcher: '.*', hooks: [{ type: 'command', command: `${scriptQ} pending-clear` }] }],
+      PostToolUse:       [{ matcher: '.*', hooks: [{ type: 'command', command: `${scriptQ} pending-clear` }] }],
+      PermissionDenied:  [{ matcher: '.*', hooks: [{ type: 'command', command: `${scriptQ} pending-clear` }] }],
+      Stop:              [{ hooks: [
         { type: 'command', command: `${scriptQ} pending-clear` },
         { type: 'command', command: `${scriptQ} task-done $PPID` },
       ] }],
@@ -918,6 +921,20 @@ async function checkOpenCodeActivity() {
     let topData;
     try { topData = typeof top.data === 'string' ? JSON.parse(top.data) : top.data; } catch (_) { return; }
 
+    // 如果 OpenCode 当前不在等待工具授权（最后一条 part 不是 step-finish:tool-calls），
+    // 且当前 pending flag 是由 OpenCode 的 tty 写入的，则安全清理掉 flag，防止拒绝授权后 flag 悬空导致红灯不灭
+    if (!(topData.type === 'step-finish' && topData.reason === 'tool-calls')) {
+      try {
+        if (fs.existsSync(CLAUDE_PENDING_FLAG)) {
+          const flagTty = fs.readFileSync(CLAUDE_PENDING_FLAG, 'utf8').trim();
+          const ocTty = await findOpenCodeTty();
+          if (flagTty && ocTty && flagTty === ocTty) {
+            fs.unlinkSync(CLAUDE_PENDING_FLAG);
+          }
+        }
+      } catch (_) {}
+    }
+
     // 调试: 记录未知 part type 帮助发现新事件类型
     if (topData.type && !['step-finish','step-start','text','tool','tool-invocation',
       'reasoning','patch','file','subtask','retry','compaction','agent','snapshot'].includes(topData.type)) {
@@ -938,21 +955,8 @@ async function checkOpenCodeActivity() {
         if (panelWindow && !panelWindow.isDestroyed()) panelWindow.webContents.send('pet-update', { ocAlert: true, ocTitle: top.title || top.session_id });
       }
     } else if (topData.type === 'tool' || topData.type === 'tool-invocation') {
-      // 工具调用 — OpenCode 正在执行工具.
-      // 同时检查 pending flag: 如果 opencode-claude-hooks 插件已配置,
-      // PreToolUse/PermissionRequest 事件会通过 hook 脚本写入 flag 文件.
-      // 这里用 flag 作为 cross-reference — flag 存在 + DB 显示 tool 调用 = 确认事件.
-      if (!_ocAlertActive && fs.existsSync(CLAUDE_PENDING_FLAG)) {
-        // Hook 写入的 pending flag 包含了 tty, 复用 Claude Code 的 findFrontTerminalSession
-        if (!_termAlertActive) {
-          _ocClickSession = await findFrontTerminalSession();
-          _ocAlertActive = true;
-          if (petWindow   && !petWindow.isDestroyed())   petWindow.webContents.send('pet-update', { ocAlert: true });
-          if (panelWindow && !panelWindow.isDestroyed()) panelWindow.webContents.send('pet-update', { ocAlert: true, ocTitle: top.title || top.session_id });
-        }
-      }
-      // 工具正在运行, 且没有 pending flag → 清掉之前的 oc 告警 (如果有)
-      if (_ocAlertActive && !fs.existsSync(CLAUDE_PENDING_FLAG)) {
+      // 工具调用 — OpenCode 正在执行工具. 清掉之前的 oc 告警 (如果有)
+      if (_ocAlertActive) {
         _ocAlertActive = false;
         _ocClickSession = null;
         if (petWindow   && !petWindow.isDestroyed())   petWindow.webContents.send('pet-update', { ocAlert: false });
@@ -967,15 +971,9 @@ async function checkOpenCodeActivity() {
         if (panelWindow && !panelWindow.isDestroyed()) panelWindow.webContents.send('pet-update', { ocAlert: false });
       }
     } else if (topData.type === 'step-finish' && topData.reason === 'tool-calls') {
-      // step-finish reason:tool-calls → 即将调用工具, 可能触发确认.
-      // 同时检查 pending flag 作为 cross-reference.
-      // 不覆盖 Claude Code 的红灯告警 (_termAlertActive 优先级更高).
-      if (!_ocAlertActive && !_termAlertActive && fs.existsSync(CLAUDE_PENDING_FLAG)) {
-        _ocClickSession = await findFrontTerminalSession();
-        _ocAlertActive = true;
-        if (petWindow   && !petWindow.isDestroyed())   petWindow.webContents.send('pet-update', { ocAlert: true });
-        if (panelWindow && !panelWindow.isDestroyed()) panelWindow.webContents.send('pet-update', { ocAlert: true, ocTitle: top.title || top.session_id });
-      }
+      // step-finish reason:tool-calls → 即将调用工具.
+      // 这里的等待授权状态由 checkClaudePendingFlag() 统一处理 termAlert，
+      // 不需要在这里重复设置 ocAlert。
     }
     // 其他 type → 保持当前状态不变
   } catch (_) {

@@ -82,10 +82,10 @@ except:
       exit 0
     fi
 
-    # 3) PreToolUse 事件 (OpenCode 主要路径): 额外检查 —
-    #    只对"通常需要确认"的工具报警. Read/Glob/Grep 等只读工具几乎总是自动通过,
-    #    在这里跳过可以避免噪音. 如果 permission_mode 已经是 ask 则无论如何都报.
-    #    Claude Code 的 PermissionRequest 事件天然只在需要确认时触发, 不受此影响.
+    # 3) PreToolUse 事件额外检查 (向下兼容旧配置):
+    #    如果是旧版配置传来的 PreToolUse，只对"通常需要确认"的工具报警。
+    #    现在 OpenCode 和 Claude Code 主力都使用 PermissionRequest，
+    #    PermissionRequest 天然只在真正需要确认时触发，不受此白名单影响。
     if [ "$hook_event" = "PreToolUse" ]; then
       # 只读/浏览类工具 — 几乎不需要确认, 跳过 (除非显式 ask 模式)
       if [ "$permission_mode" != "ask" ]; then
