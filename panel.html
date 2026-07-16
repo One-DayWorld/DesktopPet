@@ -400,6 +400,22 @@
   .key-row { display: flex; gap: 7px; align-items: center; margin-top: 6px; }
   .key-row .setting-input { font-size: 13px; letter-spacing: 0; }
   .key-row .setting-input.has-key { letter-spacing: 3px; font-size: 14px; }
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    color: var(--text-main);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .toggle-row input {
+    cursor: pointer;
+    accent-color: var(--accent);
+  }
+  .obsidian-actions {
+    flex-wrap: wrap;
+  }
   .key-save-btn {
     padding: 7px 11px;
     background: rgba(0, 118, 162, 0.32);
@@ -1304,7 +1320,7 @@
       <div class="setting-label">写回目录</div>
       <input class="setting-input" id="obsidian-output-dir" placeholder="Macross" />
 
-      <div class="key-row" style="margin-top:10px">
+      <div class="key-row obsidian-actions" style="margin-top:10px">
         <button class="key-save-btn" onclick="saveObsidianConfig()">保存</button>
         <button class="key-save-btn" onclick="syncObsidianNow()">立即同步</button>
         <button class="key-save-btn" onclick="openObsidianOutputDir()">打开目录</button>
@@ -1661,52 +1677,139 @@ async function openConfigFile() {
   catch (e) { console.log('[CONFIG] open file failed', e); }
 }
 
-async function loadObsidianConfig() {
-  if (!window.petAPI.getObsidianConfig) return;
-  const cfg = await window.petAPI.getObsidianConfig();
-  document.getElementById('obsidian-enabled').checked = !!cfg.enabled;
-  document.getElementById('obsidian-auto-sync').checked = cfg.autoSync !== false;
-  document.getElementById('obsidian-auto-write').checked = cfg.autoWriteBack !== false;
-  document.getElementById('obsidian-vault-path').value = cfg.vaultPath || '/Users/ace/Documents/OneDayWorld';
-  document.getElementById('obsidian-output-dir').value = cfg.outputDir || 'Macross';
-  await refreshObsidianStatus();
+function setObsidianStatus(text) {
+  const el = document.getElementById('obsidian-status');
+  if (el) {
+    el.textContent = text;
+    return true;
+  }
+  console.log('[OBSIDIAN] status unavailable:', text);
+  return false;
 }
 
-async function saveObsidianConfig() {
-  const outputDir = (document.getElementById('obsidian-output-dir').value || 'Macross').trim();
+function getObsidianEls() {
+  const els = {
+    enabled: document.getElementById('obsidian-enabled'),
+    autoSync: document.getElementById('obsidian-auto-sync'),
+    autoWrite: document.getElementById('obsidian-auto-write'),
+    vaultPath: document.getElementById('obsidian-vault-path'),
+    outputDir: document.getElementById('obsidian-output-dir'),
+    status: document.getElementById('obsidian-status')
+  };
+  const missing = Object.entries(els).filter(([, el]) => !el).map(([name]) => name);
+  if (missing.length) {
+    setObsidianStatus('当前版本不支持 Obsidian 配置');
+    console.log('[OBSIDIAN] missing DOM elements:', missing.join(', '));
+    return null;
+  }
+  return els;
+}
+
+function getObsidianError(res, err) {
+  return (res && (res.lastError || res.error)) || (err && err.message) || '未知错误';
+}
+
+async function loadObsidianConfig() {
+  const els = getObsidianEls();
+  if (!els) return;
+  if (!window.petAPI || !window.petAPI.getObsidianConfig) {
+    setObsidianStatus('当前版本不支持 Obsidian 配置');
+    return;
+  }
+  try {
+    const cfg = await window.petAPI.getObsidianConfig();
+    els.enabled.checked = !!cfg.enabled;
+    els.autoSync.checked = cfg.autoSync !== false;
+    els.autoWrite.checked = cfg.autoWriteBack !== false;
+    els.vaultPath.value = cfg.vaultPath || '/Users/ace/Documents/OneDayWorld';
+    els.outputDir.value = cfg.outputDir || 'Macross';
+    await refreshObsidianStatus();
+  } catch (e) {
+    setObsidianStatus(`加载失败: ${getObsidianError(null, e)}`);
+  }
+}
+
+async function saveObsidianConfig(options = {}) {
+  const els = getObsidianEls();
+  if (!els) return false;
+  if (!window.petAPI || !window.petAPI.setObsidianConfig) {
+    setObsidianStatus('当前版本不支持 Obsidian 配置');
+    return false;
+  }
+  const outputDir = ((els.outputDir.value || 'Macross').trim() || 'Macross');
   const cfg = {
-    enabled: document.getElementById('obsidian-enabled').checked,
-    autoSync: document.getElementById('obsidian-auto-sync').checked,
-    autoWriteBack: document.getElementById('obsidian-auto-write').checked,
-    vaultPath: (document.getElementById('obsidian-vault-path').value || '/Users/ace/Documents/OneDayWorld').trim(),
+    enabled: els.enabled.checked,
+    autoSync: els.autoSync.checked,
+    autoWriteBack: els.autoWrite.checked,
+    vaultPath: ((els.vaultPath.value || '/Users/ace/Documents/OneDayWorld').trim() || '/Users/ace/Documents/OneDayWorld'),
     outputDir,
     excludeDirs: ['.obsidian', outputDir]
   };
-  const res = await window.petAPI.setObsidianConfig(cfg);
-  const el = document.getElementById('obsidian-status');
-  el.textContent = res.ok ? '已保存 Obsidian 设置' : '保存失败';
+  try {
+    const res = await window.petAPI.setObsidianConfig(cfg);
+    if (!res || res.ok === false) {
+      setObsidianStatus(`保存失败: ${getObsidianError(res)}`);
+      return false;
+    }
+    if (!options.silentSuccess) setObsidianStatus('已保存 Obsidian 设置');
+    return true;
+  } catch (e) {
+    setObsidianStatus(`保存失败: ${getObsidianError(null, e)}`);
+    return false;
+  }
 }
 
 async function syncObsidianNow() {
-  const el = document.getElementById('obsidian-status');
-  el.textContent = '同步中...';
-  const res = await window.petAPI.obsidianSyncNow();
-  el.textContent = res.ok
-    ? `同步完成: 扫描 ${res.scannedFiles || 0} 个文件, 变更 ${res.changedFiles || 0} 个`
-    : `同步失败: ${res.lastError || res.error || '未知错误'}`;
+  const els = getObsidianEls();
+  if (!els) return;
+  setObsidianStatus('同步前保存设置...');
+  const saved = await saveObsidianConfig({ silentSuccess: true });
+  if (!saved) return;
+  if (!window.petAPI || !window.petAPI.obsidianSyncNow) {
+    setObsidianStatus('当前版本不支持 Obsidian 配置');
+    return;
+  }
+  setObsidianStatus('同步中...');
+  try {
+    const res = await window.petAPI.obsidianSyncNow();
+    setObsidianStatus(res && res.ok !== false
+      ? `同步完成: 扫描 ${res.scannedFiles || 0} 个文件, 变更 ${res.changedFiles || 0} 个`
+      : `同步失败: ${getObsidianError(res)}`);
+  } catch (e) {
+    setObsidianStatus(`同步失败: ${getObsidianError(null, e)}`);
+  }
 }
 
 async function refreshObsidianStatus() {
-  const el = document.getElementById('obsidian-status');
-  if (!el || !window.petAPI.getObsidianStatus) return;
-  const st = await window.petAPI.getObsidianStatus();
-  el.textContent = st.lastSyncAt
-    ? `上次同步: ${st.lastSyncAt} · 扫描 ${st.scannedFiles || 0} · 变更 ${st.changedFiles || 0}`
-    : '尚未同步';
+  if (!getObsidianEls()) return;
+  if (!window.petAPI || !window.petAPI.getObsidianStatus) {
+    setObsidianStatus('当前版本不支持 Obsidian 配置');
+    return;
+  }
+  try {
+    const st = await window.petAPI.getObsidianStatus();
+    setObsidianStatus(st.lastSyncAt
+      ? `上次同步: ${st.lastSyncAt} · 扫描 ${st.scannedFiles || 0} · 变更 ${st.changedFiles || 0}`
+      : '尚未同步');
+  } catch (e) {
+    setObsidianStatus(`状态读取失败: ${getObsidianError(null, e)}`);
+  }
 }
 
 async function openObsidianOutputDir() {
-  await window.petAPI.openObsidianOutputDir();
+  if (!getObsidianEls()) return;
+  if (!window.petAPI || !window.petAPI.openObsidianOutputDir) {
+    setObsidianStatus('当前版本不支持 Obsidian 配置');
+    return;
+  }
+  try {
+    const res = await window.petAPI.openObsidianOutputDir();
+    if (res && res.ok === false) {
+      setObsidianStatus(`打开目录失败: ${getObsidianError(res)}`);
+    }
+  } catch (e) {
+    setObsidianStatus(`打开目录失败: ${getObsidianError(null, e)}`);
+  }
 }
 document.getElementById('chat-input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.metaKey) { e.preventDefault(); sendChat(); }
