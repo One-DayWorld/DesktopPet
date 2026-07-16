@@ -49,6 +49,7 @@ function createObsidianService(deps) {
   const status = { ok: true, lastSyncAt: null, scannedFiles: 0, changedFiles: 0, lastError: '' };
   let writeBackTurns = [];
   let nextTurnId = 1;
+  let pendingWriteBackBatch = null;
 
   function enabled() {
     return !!config.enabled;
@@ -122,11 +123,20 @@ function createObsidianService(deps) {
     return true;
   }
 
+  function createWriteBackBatch(turns) {
+    const batchTurns = turns.slice();
+    const ids = batchTurns.map(t => t.id);
+    return {
+      ids,
+      turns: batchTurns,
+      batchId: ids.length ? ids.join('-') : 'profile'
+    };
+  }
+
   async function flushWriteBack(reason = 'manual') {
     if (!enabled() || !autoWriteBackEnabled()) return { ok: true, skipped: true };
-    const turns = writeBackTurns.slice();
-    const processedIds = new Set(turns.map(t => t.id));
-    const batchId = turns.length ? turns.map(t => t.id).join('-') : 'profile';
+    const batch = pendingWriteBackBatch || createWriteBackBatch(writeBackTurns);
+    const turns = batch.turns;
     try {
       await writeProfile();
       if (!turns.length) return { ok: true, wrote: 1 };
@@ -135,15 +145,18 @@ function createObsidianService(deps) {
       const highlights = Array.isArray(extracted && extracted.highlights) ? extracted.highlights.map(cleanHighlight).filter(Boolean) : [];
       if (inbox.length) {
         const lines = inbox.map(x => `- ${stamp()} [[来源: VF-1 Chat]] ${String(x).trim()}`).join('\n') + '\n';
-        await appendBlockOnce(outputRel('Inbox.md'), `<!-- vf1-writeback:${batchId}:inbox -->`, lines);
+        await appendBlockOnce(outputRel('Inbox.md'), `<!-- vf1-writeback:${batch.batchId}:inbox -->`, lines);
       }
       if (highlights.length) {
         const lines = `\n## ${stamp()} (${reason})\n\n` + highlights.map(h => `- 主题: ${h.topic || ''}\n- 可复用结论: ${h.reusable || ''}\n- 后续行动: ${h.action || ''}`).join('\n\n') + '\n';
-        await appendBlockOnce(outputRel(path.posix.join('Chat Highlights', `${monthName()}.md`)), `<!-- vf1-writeback:${batchId}:highlights -->`, lines);
+        await appendBlockOnce(outputRel(path.posix.join('Chat Highlights', `${monthName()}.md`)), `<!-- vf1-writeback:${batch.batchId}:highlights -->`, lines);
       }
+      const processedIds = new Set(batch.ids);
       writeBackTurns = writeBackTurns.filter(t => !processedIds.has(t.id));
+      pendingWriteBackBatch = null;
       return { ok: true, wrote: 1 + inbox.length + highlights.length };
     } catch (e) {
+      if (turns.length) pendingWriteBackBatch = batch;
       return { ok: false, error: e.message };
     }
   }

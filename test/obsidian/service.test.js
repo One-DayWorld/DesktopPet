@@ -200,6 +200,63 @@ test('flushWriteBack skips already written inbox block when highlights retry suc
   assert.equal((inboxText.match(/vf1-writeback:1:inbox/g) || []).length, 1);
 });
 
+test('flushWriteBack keeps failed retry batch stable when new turns arrive', async () => {
+  const vault = fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-vault-'));
+  const files = {};
+  const seen = [];
+  let failHighlights = true;
+  const adapter = {
+    writeNote: async (noteRef, content) => {
+      files[noteRef.relativePath] = content;
+    },
+    appendToNote: async (noteRef, content) => {
+      if (noteRef.relativePath.includes('Chat Highlights') && failHighlights) {
+        failHighlights = false;
+        throw new Error('highlights failed');
+      }
+      files[noteRef.relativePath] = (files[noteRef.relativePath] || '') + content;
+    },
+    readNote: async (noteRef) => {
+      if (!Object.prototype.hasOwnProperty.call(files, noteRef.relativePath)) {
+        const err = new Error('not found');
+        err.code = 'ENOENT';
+        throw err;
+      }
+      return { content: files[noteRef.relativePath] };
+    }
+  };
+  const service = createObsidianService({
+    config: { enabled: true, vaultPath: vault, outputDir: 'Macross', excludeDirs: ['.obsidian', 'Macross'] },
+    adapter,
+    syncStore: createSyncStateStore(path.join(vault, 'state.json')),
+    getMemoryText: () => '记忆',
+    setMemoryText: () => {},
+    refineNotes: async () => null,
+    extractWriteBack: async (turns) => {
+      seen.push(turns.map(t => t.user));
+      return {
+        inbox: [`inbox ${turns.map(t => t.user).join(',')}`],
+        highlights: [{ topic: 'T', reusable: 'R', action: 'A' }]
+      };
+    }
+  });
+
+  service.bufferChatTurn('old', 'turn');
+  const failed = await service.flushWriteBack('first');
+  service.bufferChatTurn('new', 'turn');
+  const retried = await service.flushWriteBack('second');
+  const next = await service.flushWriteBack('third');
+
+  const inboxText = files['Macross/Inbox.md'] || '';
+  assert.equal(failed.ok, false);
+  assert.equal(retried.ok, true);
+  assert.equal(next.ok, true);
+  assert.deepEqual(seen, [['old'], ['old'], ['new']]);
+  assert.equal((inboxText.match(/vf1-writeback:1:inbox/g) || []).length, 1);
+  assert.equal((inboxText.match(/vf1-writeback:1-2:inbox/g) || []).length, 0);
+  assert.equal((inboxText.match(/vf1-writeback:2:inbox/g) || []).length, 1);
+});
+
 test('flushWriteBack filters and flattens extracted writeback content', async () => {
   const vault = fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-vault-'));
   const appended = [];
