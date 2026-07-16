@@ -98,9 +98,8 @@ class LocalVaultAdapter {
         if (entry.isDirectory()) walk(abs);
         else if (entry.isFile() && entry.name.toLowerCase().endsWith('.md')) {
           const stat = fs.statSync(abs);
-          const content = fs.readFileSync(abs, 'utf8');
           const relativePath = normalizeRel(path.relative(this.vaultPath, abs));
-          out.push({ path: abs, relativePath, mtimeMs: stat.mtimeMs, size: stat.size, hash: hashText(content) });
+          out.push({ path: abs, relativePath, mtimeMs: stat.mtimeMs, size: stat.size });
         }
       }
     };
@@ -128,13 +127,22 @@ class LocalVaultAdapter {
     return resolved;
   }
 
-  async getChangedNotes(previousState) {
+  async getChangedNotes(previousState, listedNotes) {
     const stateNotes = (previousState && previousState.notes) || {};
-    const listed = await this.listNotes();
-    return listed.filter(n => {
+    const listed = listedNotes || await this.listNotes();
+    const changed = [];
+    for (const n of listed) {
       const old = stateNotes[n.relativePath];
-      return !old || old.mtimeMs !== n.mtimeMs || old.size !== n.size || old.hash !== n.hash;
-    });
+      if (old && old.mtimeMs === n.mtimeMs && old.size === n.size && old.hash) {
+        n.hash = old.hash;
+        continue;
+      }
+      const resolved = this.resolveNotePath(n.relativePath, { rejectSymlink: true, requireRealPathInside: true });
+      const hash = hashText(fs.readFileSync(resolved.path, 'utf8'));
+      n.hash = hash;
+      if (!old || old.mtimeMs !== n.mtimeMs || old.size !== n.size || old.hash !== n.hash) changed.push(n);
+    }
+    return changed;
   }
 }
 

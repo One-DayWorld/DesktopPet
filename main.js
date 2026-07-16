@@ -21,6 +21,7 @@ let state = store.load();
 let obsidianService = null;
 let obsidianSyncTimer = null;
 let _obsidianTurnsSinceWrite = 0;
+let _obsidianQuitFlushDone = false;
 // 首次启动: 把旧的 persona/sessionRules(data.json) 与结构化画像(profile.json) 迁移进 persona-memory.md
 memory.migrateIfNeeded(state.persona, state.sessionRules);
 
@@ -1092,6 +1093,29 @@ function initObsidianService() {
   }
 }
 
+function shouldAutoWriteBackObsidian() {
+  return !!(obsidianService && state.obsidian && state.obsidian.enabled && state.obsidian.autoWriteBack !== false);
+}
+
+function requestObsidianWriteBack(reason) {
+  if (!shouldAutoWriteBackObsidian()) return Promise.resolve({ ok: true, skipped: true });
+  return obsidianService.flushWriteBack(reason).then(res => {
+    if (res && res.ok) _obsidianTurnsSinceWrite = 0;
+    else console.warn('[OBSIDIAN] write-back failed:', res && (res.error || res.lastError) || 'unknown');
+    return res;
+  }).catch(e => {
+    console.warn('[OBSIDIAN] write-back failed:', e.message);
+    return { ok: false, error: e.message };
+  });
+}
+
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise(resolve => setTimeout(() => resolve({ ok: false, timeout: true, error: `${label} timed out` }), ms))
+  ]);
+}
+
 app.whenReady().then(() => {
   // 自动安装 Claude Code hooks (首次启动 / app 被搬到新位置 / 脚本更新都会刷新)
   ensureClaudeHooksInstalled();
@@ -1126,6 +1150,14 @@ app.whenReady().then(() => {
       }
     });
   } catch (e) { console.error('[HOTKEY] 注册失败:', e.message); }
+  app.on('before-quit', (event) => {
+    if (_obsidianQuitFlushDone || !shouldAutoWriteBackObsidian()) return;
+    event.preventDefault();
+    withTimeout(requestObsidianWriteBack('app-quit'), 3000, 'Obsidian write-back').finally(() => {
+      _obsidianQuitFlushDone = true;
+      app.quit();
+    });
+  });
   app.on('will-quit', () => { try { globalShortcut.unregisterAll(); } catch (_) {} });
 
   // 合盖/休眠期间不算入休息计时, 否则一晚上 8h 累积下来开盖会连珠播报
@@ -1211,7 +1243,9 @@ ipcMain.handle('get-obsidian-status', () => {
 ipcMain.handle('open-obsidian-output-dir', async () => {
   try {
     const target = resolveObsidianOutputPath(state.obsidian || {});
-    await shell.openPath(target);
+    fs.mkdirSync(target, { recursive: true });
+    const err = await shell.openPath(target);
+    if (err) return { ok: false, error: err };
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e.message };
@@ -1295,6 +1329,7 @@ ipcMain.handle('toggle-panel', () => {
 ipcMain.handle('close-panel', () => {
   if (panelWindow) panelWindow.hide();
   runRefine('panel-close').catch(() => {});   // 会话边界: 关闭 panel 时提炼本段对话
+  requestObsidianWriteBack('panel-close').catch(() => {});
   if (petWindow && !petWindow.isDestroyed()) {
     petWindow.webContents.send('pet-update', { panelOpen: false });
   }
@@ -2574,15 +2609,12 @@ ipcMain.handle('chat', async (_, message) => {
 
     // 原始层归档(完整, 不砍) + 提炼缓冲; 缓冲满 10 轮触发后台提炼(保底)
     memory.appendChatArchive(message, reply);
-    if (obsidianService && state.obsidian && state.obsidian.enabled && state.obsidian.autoWriteBack !== false) {
+    if (shouldAutoWriteBackObsidian()) {
       obsidianService.bufferChatTurn(message, reply);
       _obsidianTurnsSinceWrite += 1;
       const every = Math.max(1, Number(state.obsidian.writeBackEveryTurns) || 10);
       if (_obsidianTurnsSinceWrite >= every) {
-        obsidianService.flushWriteBack('turn-threshold').then(res => {
-          if (res && res.ok) _obsidianTurnsSinceWrite = 0;
-          else console.warn('[OBSIDIAN] write-back failed:', res && (res.error || res.lastError) || 'unknown');
-        }).catch(e => console.warn('[OBSIDIAN] write-back failed:', e.message));
+        requestObsidianWriteBack('turn-threshold');
       }
     }
     _turnsSinceRefine.push({ user: message, reply });

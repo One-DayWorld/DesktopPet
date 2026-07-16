@@ -1706,7 +1706,7 @@ function getObsidianEls() {
 }
 
 function getObsidianError(res, err) {
-  return (res && (res.lastError || res.error)) || (err && err.message) || '未知错误';
+  return (res && (res.lastWriteBackError || res.lastSyncError || res.lastError || res.error)) || (err && err.message) || '未知错误';
 }
 
 async function loadObsidianConfig() {
@@ -1788,9 +1788,14 @@ async function refreshObsidianStatus() {
   }
   try {
     const st = await window.petAPI.getObsidianStatus();
-    setObsidianStatus(st.lastSyncAt
-      ? `上次同步: ${st.lastSyncAt} · 扫描 ${st.scannedFiles || 0} · 变更 ${st.changedFiles || 0}`
-      : '尚未同步');
+    if (st && st.ok === false) {
+      setObsidianStatus(`后台错误: ${getObsidianError(st)}`);
+      return;
+    }
+    const parts = [];
+    if (st && st.lastSyncAt) parts.push(`上次同步: ${st.lastSyncAt} · 扫描 ${st.scannedFiles || 0} · 变更 ${st.changedFiles || 0}`);
+    if (st && st.lastWriteBackAt) parts.push(`上次写回: ${st.lastWriteBackAt}`);
+    setObsidianStatus(parts.length ? parts.join(' · ') : '尚未同步');
   } catch (e) {
     setObsidianStatus(`状态读取失败: ${getObsidianError(null, e)}`);
   }
@@ -1806,6 +1811,8 @@ async function openObsidianOutputDir() {
     const res = await window.petAPI.openObsidianOutputDir();
     if (res && res.ok === false) {
       setObsidianStatus(`打开目录失败: ${getObsidianError(res)}`);
+    } else {
+      setObsidianStatus('已打开 Obsidian 写回目录');
     }
   } catch (e) {
     setObsidianStatus(`打开目录失败: ${getObsidianError(null, e)}`);

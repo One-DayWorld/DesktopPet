@@ -58,6 +58,122 @@ test('syncNow saves fingerprints even when no notes changed', async () => {
   assert.deepEqual(syncStore.load().notes['Stable.md'], { mtimeMs: 10, size: 20, hash: 'a'.repeat(64) });
 });
 
+test('syncNow reuses one scan and refines changed notes in bounded batches', async () => {
+  const stateFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-state-')), 'state.json');
+  const syncStore = createSyncStateStore(stateFile);
+  const listed = [
+    { relativePath: 'A.md', mtimeMs: 1, size: 1, hash: 'a'.repeat(64) },
+    { relativePath: 'B.md', mtimeMs: 2, size: 1, hash: 'b'.repeat(64) },
+    { relativePath: 'C.md', mtimeMs: 3, size: 1, hash: 'c'.repeat(64) }
+  ];
+  let listCalls = 0;
+  const read = [];
+  const batches = [];
+  let memory = 'base';
+  const service = createObsidianService({
+    config: {
+      enabled: true,
+      vaultPath: '/fake',
+      outputDir: 'Macross',
+      excludeDirs: ['.obsidian', 'Macross'],
+      maxSyncBatchChars: 12
+    },
+    syncStore,
+    adapter: {
+      listNotes: async () => {
+        listCalls += 1;
+        return listed;
+      },
+      getChangedNotes: async (state, alreadyListed) => alreadyListed.filter(n => !state.notes[n.relativePath]),
+      readNote: async (note) => {
+        read.push(note.relativePath);
+        return { relativePath: note.relativePath, title: note.relativePath, tags: [], body: '1234567890' };
+      },
+      writeNote: async () => {}
+    },
+    getMemoryText: () => memory,
+    setMemoryText: (txt) => { memory = txt; },
+    refineNotes: async (oldMemory, notes) => {
+      batches.push({ oldMemory, paths: notes.map(n => n.relativePath) });
+      return `${oldMemory}|${notes.map(n => n.relativePath).join('+')}`;
+    },
+    extractWriteBack: async () => null
+  });
+
+  const result = await service.syncNow();
+
+  assert.equal(result.ok, true);
+  assert.equal(result.scannedFiles, 3);
+  assert.equal(result.changedFiles, 3);
+  assert.equal(listCalls, 1);
+  assert.deepEqual(read, ['A.md', 'B.md', 'C.md']);
+  assert.deepEqual(batches, [
+    { oldMemory: 'base', paths: ['A.md'] },
+    { oldMemory: 'base|A.md', paths: ['B.md'] },
+    { oldMemory: 'base|A.md|B.md', paths: ['C.md'] }
+  ]);
+  assert.equal(memory, 'base|A.md|B.md|C.md');
+});
+
+test('syncNow refreshes Profile after notes update memory', async () => {
+  const vault = fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-vault-'));
+  write(path.join(vault, 'Note.md'), '# Note\n用户喜欢把知识沉淀到 Obsidian。');
+  let memory = '';
+  const service = createObsidianService({
+    config: { enabled: true, vaultPath: vault, outputDir: 'Macross', excludeDirs: ['.obsidian', 'Macross'] },
+    syncStore: createSyncStateStore(path.join(vault, 'state.json')),
+    getMemoryText: () => memory,
+    setMemoryText: (txt) => { memory = txt; },
+    refineNotes: async () => '用户喜欢把知识沉淀到 Obsidian。',
+    extractWriteBack: async () => null
+  });
+
+  const result = await service.syncNow();
+
+  assert.equal(result.ok, true);
+  assert.match(fs.readFileSync(path.join(vault, 'Macross', 'Profile.md'), 'utf8'), /沉淀到 Obsidian/);
+});
+
+test('syncNow persists completed batch fingerprints when a later batch fails', async () => {
+  const stateFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-state-')), 'state.json');
+  const syncStore = createSyncStateStore(stateFile);
+  let calls = 0;
+  const service = createObsidianService({
+    config: {
+      enabled: true,
+      vaultPath: '/fake',
+      outputDir: 'Macross',
+      excludeDirs: ['.obsidian', 'Macross'],
+      maxSyncBatchChars: 12
+    },
+    syncStore,
+    adapter: {
+      listNotes: async () => [
+        { relativePath: 'A.md', mtimeMs: 1, size: 1, hash: 'a'.repeat(64) },
+        { relativePath: 'B.md', mtimeMs: 2, size: 1, hash: 'b'.repeat(64) }
+      ],
+      getChangedNotes: async (state, alreadyListed) => alreadyListed.filter(n => !state.notes[n.relativePath]),
+      readNote: async (note) => ({ relativePath: note.relativePath, title: note.relativePath, tags: [], body: '1234567890' }),
+      writeNote: async () => {}
+    },
+    getMemoryText: () => 'base',
+    setMemoryText: () => {},
+    refineNotes: async (oldMemory, notes) => {
+      calls += 1;
+      if (calls === 2) throw new Error('batch failed');
+      return `${oldMemory}|${notes[0].relativePath}`;
+    },
+    extractWriteBack: async () => null
+  });
+
+  const result = await service.syncNow();
+  const saved = syncStore.load();
+
+  assert.equal(result.ok, false);
+  assert.deepEqual(saved.notes['A.md'], { mtimeMs: 1, size: 1, hash: 'a'.repeat(64) });
+  assert.equal(saved.notes['B.md'], undefined);
+});
+
 test('flushWriteBack creates profile, inbox, and monthly highlights', async () => {
   const vault = fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-vault-'));
   const service = createObsidianService({
@@ -78,6 +194,81 @@ test('flushWriteBack creates profile, inbox, and monthly highlights', async () =
   assert.equal(result.ok, true);
   assert.match(fs.readFileSync(path.join(vault, 'Macross', 'Profile.md'), 'utf8'), /用户喜欢短答案/);
   assert.match(fs.readFileSync(path.join(vault, 'Macross', 'Inbox.md'), 'utf8'), /Obsidian/);
+});
+
+test('flushWriteBack serializes concurrent calls without duplicating a batch', async () => {
+  const vault = fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-vault-'));
+  const files = {};
+  let extractCalls = 0;
+  let releaseExtract;
+  const extractStarted = new Promise(resolve => { releaseExtract = resolve; });
+  const adapter = {
+    writeNote: async (noteRef, content) => {
+      files[noteRef.relativePath] = content;
+    },
+    appendToNote: async (noteRef, content) => {
+      files[noteRef.relativePath] = (files[noteRef.relativePath] || '') + content;
+    },
+    readNote: async (noteRef) => ({ content: files[noteRef.relativePath] || '' })
+  };
+  const service = createObsidianService({
+    config: { enabled: true, vaultPath: vault, outputDir: 'Macross', excludeDirs: ['.obsidian', 'Macross'] },
+    adapter,
+    syncStore: createSyncStateStore(path.join(vault, 'state.json')),
+    getMemoryText: () => '记忆',
+    setMemoryText: () => {},
+    refineNotes: async () => null,
+    extractWriteBack: async () => {
+      extractCalls += 1;
+      if (extractCalls === 1) await extractStarted;
+      return { inbox: ['并发写回'], highlights: [] };
+    }
+  });
+  service.bufferChatTurn('用户问题', 'VF-1 回复');
+
+  const first = service.flushWriteBack('first');
+  const second = service.flushWriteBack('second');
+  releaseExtract();
+  const results = await Promise.all([first, second]);
+
+  assert.deepEqual(results.map(r => r.ok), [true, true]);
+  assert.equal(extractCalls, 1);
+  assert.equal((files['Macross/Inbox.md'].match(/vf1-writeback:1:inbox/g) || []).length, 1);
+});
+
+test('flushWriteBack records failed and successful writeback status', async () => {
+  const vault = fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-vault-'));
+  let fail = true;
+  const service = createObsidianService({
+    config: { enabled: true, vaultPath: vault, outputDir: 'Macross', excludeDirs: ['.obsidian', 'Macross'] },
+    adapter: {
+      writeNote: async () => {
+        if (fail) throw new Error('profile write failed');
+      },
+      appendToNote: async () => {},
+      readNote: async () => ({ content: '' })
+    },
+    syncStore: createSyncStateStore(path.join(vault, 'state.json')),
+    getMemoryText: () => '记忆',
+    setMemoryText: () => {},
+    refineNotes: async () => null,
+    extractWriteBack: async () => ({ inbox: ['x'], highlights: [] })
+  });
+
+  service.bufferChatTurn('用户问题', 'VF-1 回复');
+  const failed = await service.flushWriteBack('first');
+  const failedStatus = service.getStatus();
+  fail = false;
+  const retried = await service.flushWriteBack('second');
+  const okStatus = service.getStatus();
+
+  assert.equal(failed.ok, false);
+  assert.equal(failedStatus.ok, false);
+  assert.match(failedStatus.lastWriteBackError, /profile write failed/);
+  assert.equal(retried.ok, true);
+  assert.equal(okStatus.ok, true);
+  assert.equal(okStatus.lastWriteBackError, '');
+  assert.ok(okStatus.lastWriteBackAt);
 });
 
 test('flushWriteBack does not duplicate buffered turns after profile write failure', async () => {

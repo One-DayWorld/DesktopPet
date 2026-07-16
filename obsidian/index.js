@@ -38,6 +38,36 @@ function normalizeOutputPart(value, fallback) {
   return segments.join('/');
 }
 
+function noteCharLength(note) {
+  return String((note && (note.body || note.content || note.title)) || '').length;
+}
+
+function batchNotesByChars(notes, maxChars) {
+  const limit = Math.max(1, Number(maxChars) || 24000);
+  const batches = [];
+  let current = [];
+  let currentChars = 0;
+  for (const note of notes) {
+    const chars = Math.max(1, noteCharLength(note));
+    if (current.length && currentChars + chars > limit) {
+      batches.push(current);
+      current = [];
+      currentChars = 0;
+    }
+    current.push(note);
+    currentChars += chars;
+  }
+  if (current.length) batches.push(current);
+  return batches;
+}
+
+function saveNoteFingerprints(state, notes) {
+  for (const n of notes) {
+    const old = state.notes[n.relativePath] || {};
+    state.notes[n.relativePath] = { mtimeMs: n.mtimeMs, size: n.size, hash: n.hash || old.hash || '' };
+  }
+}
+
 function createObsidianService(deps) {
   const config = deps.config || {};
   const adapter = deps.adapter || new LocalVaultAdapter(config);
@@ -46,10 +76,20 @@ function createObsidianService(deps) {
   const setMemoryText = deps.setMemoryText;
   const refineNotes = deps.refineNotes;
   const extractWriteBack = deps.extractWriteBack;
-  const status = { ok: true, lastSyncAt: null, scannedFiles: 0, changedFiles: 0, lastError: '' };
+  const status = {
+    ok: true,
+    lastSyncAt: null,
+    lastWriteBackAt: null,
+    scannedFiles: 0,
+    changedFiles: 0,
+    lastError: '',
+    lastSyncError: '',
+    lastWriteBackError: ''
+  };
   let writeBackTurns = [];
   let nextTurnId = 1;
   let pendingWriteBackBatch = null;
+  let flushInFlight = null;
 
   function enabled() {
     return !!config.enabled;
@@ -75,21 +115,38 @@ function createObsidianService(deps) {
     try {
       const state = syncStore.load();
       const all = await adapter.listNotes();
-      const changed = await adapter.getChangedNotes(state);
+      const changed = await adapter.getChangedNotes(state, all);
       status.scannedFiles = all.length;
       status.changedFiles = changed.length;
       if (changed.length) {
         const notes = [];
-        for (const n of changed) notes.push(await adapter.readNote(n));
-        const next = await refineNotes(getMemoryText(), notes);
-        if (next && String(next).trim()) setMemoryText(String(next).trim());
+        for (const n of changed) {
+          notes.push(Object.assign(await adapter.readNote(n), {
+            mtimeMs: n.mtimeMs,
+            size: n.size,
+            hash: n.hash
+          }));
+        }
+        let currentMemory = String(getMemoryText() || '');
+        let memoryChanged = false;
+        for (const batch of batchNotesByChars(notes, config.maxSyncBatchChars)) {
+          const next = await refineNotes(currentMemory, batch);
+          if (next && String(next).trim()) {
+            currentMemory = String(next).trim();
+            setMemoryText(currentMemory);
+            memoryChanged = true;
+          }
+          saveNoteFingerprints(state, batch);
+          syncStore.save(state);
+        }
+        if (memoryChanged) await writeProfile();
       }
-      for (const n of all) state.notes[n.relativePath] = { mtimeMs: n.mtimeMs, size: n.size, hash: n.hash };
+      saveNoteFingerprints(state, all);
       state.lastSyncAt = new Date().toISOString();
       syncStore.save(state);
-      return setStatus({ ok: true, skipped: false, lastSyncAt: state.lastSyncAt, lastError: '' });
+      return setStatus({ ok: true, skipped: false, lastSyncAt: state.lastSyncAt, lastError: '', lastSyncError: '' });
     } catch (e) {
-      return setStatus({ ok: false, skipped: false, lastError: e.message });
+      return setStatus({ ok: false, skipped: false, lastError: e.message, lastSyncError: e.message });
     }
   }
 
@@ -133,13 +190,17 @@ function createObsidianService(deps) {
     };
   }
 
-  async function flushWriteBack(reason = 'manual') {
+  async function doFlushWriteBack(reason = 'manual') {
     if (!enabled() || !autoWriteBackEnabled()) return { ok: true, skipped: true };
     const batch = pendingWriteBackBatch || createWriteBackBatch(writeBackTurns);
     const turns = batch.turns;
     try {
       await writeProfile();
-      if (!turns.length) return { ok: true, wrote: 1 };
+      if (!turns.length) {
+        const now = new Date().toISOString();
+        setStatus({ ok: true, lastWriteBackAt: now, lastError: '', lastWriteBackError: '' });
+        return { ok: true, wrote: 1 };
+      }
       const extracted = await extractWriteBack(turns);
       const inbox = Array.isArray(extracted && extracted.inbox) ? extracted.inbox.map(cleanInbox).filter(Boolean) : [];
       const highlights = Array.isArray(extracted && extracted.highlights) ? extracted.highlights.map(cleanHighlight).filter(Boolean) : [];
@@ -154,11 +215,22 @@ function createObsidianService(deps) {
       const processedIds = new Set(batch.ids);
       writeBackTurns = writeBackTurns.filter(t => !processedIds.has(t.id));
       pendingWriteBackBatch = null;
+      const now = new Date().toISOString();
+      setStatus({ ok: true, lastWriteBackAt: now, lastError: '', lastWriteBackError: '' });
       return { ok: true, wrote: 1 + inbox.length + highlights.length };
     } catch (e) {
       if (turns.length) pendingWriteBackBatch = batch;
+      setStatus({ ok: false, lastError: e.message, lastWriteBackError: e.message });
       return { ok: false, error: e.message };
     }
+  }
+
+  async function flushWriteBack(reason = 'manual') {
+    if (flushInFlight) return flushInFlight;
+    flushInFlight = doFlushWriteBack(reason).finally(() => {
+      flushInFlight = null;
+    });
+    return flushInFlight;
   }
 
   return { syncNow, bufferChatTurn, flushWriteBack, writeProfile, getStatus: () => Object.assign({}, status) };
