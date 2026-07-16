@@ -47,8 +47,8 @@ function calcLevelFromXP(xp) {
 
 function normalizePositiveInt(value, fallback) {
   const n = Number(value);
-  if (Number.isFinite(n)) return Math.max(1, n);
-  return fallback;
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(1, Math.trunc(n));
 }
 
 // data.json 含明文 API Key, 目录/文件都收紧到仅本人可读写 (0700 / 0600)
@@ -84,8 +84,8 @@ function load() {
     merged.breakReminder = Object.assign({}, DEFAULT_STATE.breakReminder, merged.breakReminder || {});
     merged.edgePatrol    = Object.assign({}, DEFAULT_STATE.edgePatrol,    merged.edgePatrol    || {});
     merged.obsidian = Object.assign({}, DEFAULT_STATE.obsidian, merged.obsidian || {});
-    if (!Array.isArray(merged.obsidian.includeTags)) merged.obsidian.includeTags = [];
-    if (!Array.isArray(merged.obsidian.excludeDirs)) merged.obsidian.excludeDirs = DEFAULT_STATE.obsidian.excludeDirs.slice();
+    merged.obsidian.includeTags = Array.isArray(merged.obsidian.includeTags) ? merged.obsidian.includeTags.slice() : [];
+    merged.obsidian.excludeDirs = Array.isArray(merged.obsidian.excludeDirs) ? merged.obsidian.excludeDirs.slice() : DEFAULT_STATE.obsidian.excludeDirs.slice();
     merged.obsidian.vaultPath = String(merged.obsidian.vaultPath || DEFAULT_STATE.obsidian.vaultPath);
     merged.obsidian.outputDir = String(merged.obsidian.outputDir || DEFAULT_STATE.obsidian.outputDir);
     merged.obsidian.syncIntervalMin = normalizePositiveInt(merged.obsidian.syncIntervalMin, DEFAULT_STATE.obsidian.syncIntervalMin);
