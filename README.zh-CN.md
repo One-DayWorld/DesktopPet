@@ -131,7 +131,7 @@ Claude 完成 → Stop hook 触发 → VF-1 播报"任务已完成"
 |---|---|
 | **CHAT** | 大模型对话 + 快捷动作(天气/日历/新闻/赛事)+ 一键启动器 + 📎 投喂文章(txt / docx / 链接) |
 | **WORKFLOW** | 保存并一键运行可复用 AI 提示词 |
-| **CONFIG** | 机体名/头像、休息提醒、边沿巡航开关 + 复位、大模型后台、API Key、打开设定文件(编辑性格/规则/记忆)、从头开始(清空记忆与羁绊) |
+| **CONFIG** | 机体名/头像、休息提醒、边沿巡航开关 + 复位、大模型后台、API Key、Obsidian 双向关联、打开设定文件(编辑性格/规则/记忆)、从头开始(清空记忆与羁绊) |
 
 ---
 
@@ -165,6 +165,41 @@ profile.json 更新 · 羁绊值增长
 | Lv 6+(默契) | 用你喜欢的方式说话,主动引用你关注的事 | + 完整语气契约 |
 
 **两种语气,互不干扰。** 告警和任务完成播报永远是固定预写台词、诙谐幽默口吻(走 `voice-lines.json`,不经 LLM —— 所以记忆绝不会污染它们)。只有 **CHAT** 标签会贴合你。而且你始终掌控:**CONFIG** 标签提供打开设定文件按钮(直接编辑性格/规则/记忆三合一的文本文件)和从头开始按钮(清空近期对话、长期记忆、羁绊等级,保留你设定的性格与原始备份)。一切都不离开你的电脑。
+
+---
+
+## 🗂️ Obsidian 双向关联
+
+VF-1 可以和本地 Obsidian Vault 做 local-first 双向关联:一边读取你的知识库来完善人物画像,一边把聊天里值得沉淀的内容写回知识库。
+
+默认配置:
+
+| 项目 | 默认值 |
+|---|---|
+| Vault 路径 | `/Users/ace/Documents/OneDayWorld` |
+| 可读范围 | Vault 下所有 `.md` 文件,包含子目录 |
+| 自动排除 | `.obsidian/`、隐藏路径、写回目录 |
+| 写回目录 | `/Users/ace/Documents/OneDayWorld/Macross` |
+
+写回文件:
+
+| 文件 | 内容 |
+|---|---|
+| `Macross/Profile.md` | VF-1 当前理解到的长期画像 |
+| `Macross/Inbox.md` | 聊天里可沉淀但尚未归类的条目 |
+| `Macross/Chat Highlights/YYYY-MM.md` | 按月份归档的高价值聊天摘要、结论和后续行动 |
+
+`CONFIG → OBSIDIAN · 知识库` 里有三个开关:
+
+| 开关 | 作用 |
+|---|---|
+| **启用 Obsidian 双向关联** | 总开关。关闭时不读、不写;即使后两个开关打开也不会生效。 |
+| **自动同步笔记到画像** | 开启后定期扫描 Vault 中新增/变更的 Markdown,分批提炼进长期画像。也可以点「立即同步」手动触发。 |
+| **自动写回知识库** | 开启后,聊天达到阈值、关闭 panel、或退出 app 前,会尝试把 Profile / Inbox / Highlights 写回 `Macross/`。 |
+
+因此:如果第一个关闭,第二和第三个打开,**不会写回**。必须先打开总开关,自动同步和自动写回才会实际运行。
+
+实现上保留了 adapter 层,当前版本直接读写本地 Vault;后续如果改成 Obsidian Local REST API,只需要替换 adapter,主流程和 CONFIG UI 不需要重做。
 
 ---
 
@@ -220,6 +255,8 @@ npm run build                    # 两者
 |---|---|
 | 机体状态、对话历史、API Key、设置 | `~/.desktop-pet/data.json`(`0600`) |
 | 长期记忆:画像、投喂的文章、对话归档 | `~/.desktop-pet/memory/`(目录 `0700`,文件 `0600`) |
+| Obsidian 同步状态 | `~/.desktop-pet/obsidian-sync.json`(`0600`) |
+| Obsidian 写回内容 | Vault 内的 `Macross/` 目录 |
 | Claude Code / OpenCode hook 脚本 + flag | `~/.macross/`(`0700`) |
 | Claude Code hook 配置 | `~/.claude/settings.json`(幂等自动注入) |
 

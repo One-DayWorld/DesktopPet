@@ -131,7 +131,7 @@ Click the VF-1 to open a HUD-styled, 3-tab control panel:
 |---|---|
 | **CHAT** | LLM chat with quick-actions (weather, calendar, news, sports), one-click launchers, and a 📎 button to feed it articles (txt / docx / link) |
 | **WORKFLOW** | Save & one-click-run reusable AI prompts |
-| **CONFIG** | Pet name/avatar, break reminder, edge-patrol toggle + reset, AI provider, API keys, settings file editor, and full memory reset |
+| **CONFIG** | Pet name/avatar, break reminder, edge-patrol toggle + reset, AI provider, API keys, Obsidian bidirectional sync, settings file editor, and full memory reset |
 
 ---
 
@@ -165,6 +165,41 @@ Next chat: the distilled profile (a few hundred tokens) is injected into the sys
 | Lv 6+ (默契) | Talks the way you like; references what you care about | + full tone contract |
 
 **Two tones, kept separate.** Alerts and mission-complete callouts stay in fixed, pre-written lines with a light, humorous tone (they run off `voice-lines.json`, never the LLM — so memory never leaks into them). Only the **Chat** tab adapts to you. And you stay in control: the **CONFIG** tab lets you open a unified settings file to edit your personality, session rules, and long-term memory directly, or use the **Reset** button to clear recent chat history, memory, and bond level while preserving your personality. Nothing leaves your machine.
+
+---
+
+## 🗂️ Obsidian bidirectional sync
+
+VF-1 can connect to a local Obsidian vault in a local-first way: it reads your notes to improve its profile of you, and writes useful chat takeaways back into the vault.
+
+Default configuration:
+
+| Item | Default |
+|---|---|
+| Vault path | `/Users/ace/Documents/OneDayWorld` |
+| Read scope | All `.md` files under the vault, including subdirectories |
+| Auto-excluded | `.obsidian/`, hidden paths, and the write-back directory |
+| Write-back directory | `/Users/ace/Documents/OneDayWorld/Macross` |
+
+Write-back files:
+
+| File | Content |
+|---|---|
+| `Macross/Profile.md` | VF-1's current long-term profile of you |
+| `Macross/Inbox.md` | Chat takeaways worth keeping but not yet organized |
+| `Macross/Chat Highlights/YYYY-MM.md` | Monthly high-value chat summaries, reusable conclusions, and follow-up actions |
+
+`CONFIG → OBSIDIAN · Knowledge Base` has three toggles:
+
+| Toggle | Meaning |
+|---|---|
+| **Enable Obsidian bidirectional sync** | Master switch. When off, VF-1 neither reads nor writes Obsidian; the other two toggles have no effect. |
+| **Auto-sync notes into profile** | Periodically scans new/changed Markdown notes and distills them into the long-term profile in bounded batches. You can also click **Sync now** manually. |
+| **Auto write back to knowledge base** | Writes Profile / Inbox / Highlights into `Macross/` after the chat threshold, when the panel closes, or before the app exits. |
+
+So if the first toggle is off while the second and third are on, **nothing will be written**. The master switch must be on before auto-sync or auto-write can run.
+
+The implementation keeps an adapter layer: this version reads/writes the local vault directly, and a future Obsidian Local REST API adapter can replace that layer without rewriting the main flow or CONFIG UI.
 
 ---
 
@@ -220,6 +255,8 @@ Everything is local — no telemetry, no cloud.
 |---|---|
 | Pet state, chat history, API keys, settings | `~/.desktop-pet/data.json` (`0600`) |
 | Long-term memory: profile, fed articles, chat archive | `~/.desktop-pet/memory/` (`0700` dir, `0600` files) |
+| Obsidian sync state | `~/.desktop-pet/obsidian-sync.json` (`0600`) |
+| Obsidian write-back content | `Macross/` inside your vault |
 | Claude Code / OpenCode hook script + flags | `~/.macross/` (`0700`) |
 | Claude Code hook config | `~/.claude/settings.json` (auto-injected, idempotent) |
 
