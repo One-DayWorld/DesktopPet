@@ -64,6 +64,7 @@
       "pet.html",
       "preload.js",
       "store.js",
+      "memory.js",
       "voice-lines.json",
       "obsidian/**/*",
       "scripts/**/*",
