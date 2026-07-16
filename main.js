@@ -1014,6 +1014,62 @@ function togglePetVisible(force) {
   return show;
 }
 
+const DEFAULT_OBSIDIAN_CONFIG = {
+  enabled: false,
+  vaultPath: '/Users/ace/Documents/OneDayWorld',
+  readMode: 'root',
+  includeTags: [],
+  excludeDirs: ['.obsidian', 'Macross'],
+  outputDir: 'Macross',
+  autoSync: true,
+  autoWriteBack: true,
+  syncIntervalMin: 30,
+  writeBackEveryTurns: 10
+};
+
+function normalizeObsidianOutputDir(outputDir) {
+  const raw = String(outputDir || 'Macross').replace(/\\/g, '/').replace(/^\/+/, '').trim() || 'Macross';
+  const parts = raw.split('/').filter(Boolean);
+  if (parts.includes('..')) throw new Error('Invalid Obsidian output directory');
+  return parts.join('/');
+}
+
+function resolveObsidianOutputPath(cfg) {
+  const vault = path.resolve(String((cfg && cfg.vaultPath) || DEFAULT_OBSIDIAN_CONFIG.vaultPath));
+  const out = normalizeObsidianOutputDir((cfg && cfg.outputDir) || DEFAULT_OBSIDIAN_CONFIG.outputDir);
+  const target = path.resolve(vault, out);
+  const rel = path.relative(vault, target);
+  if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) throw new Error('Obsidian output directory escapes vault');
+  return target;
+}
+
+function normalizePositiveInt(value, fallback) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(1, Math.trunc(n));
+}
+
+function normalizeObsidianConfig(cfg) {
+  const src = Object.assign({}, DEFAULT_OBSIDIAN_CONFIG, cfg || {});
+  const outputDir = normalizeObsidianOutputDir(src.outputDir);
+  const includeTags = Array.isArray(src.includeTags) ? src.includeTags.slice() : [];
+  const excludeDirs = Array.isArray(src.excludeDirs) ? src.excludeDirs.slice() : DEFAULT_OBSIDIAN_CONFIG.excludeDirs.slice();
+  if (!excludeDirs.includes('.obsidian')) excludeDirs.push('.obsidian');
+  if (!excludeDirs.includes(outputDir)) excludeDirs.push(outputDir);
+  return {
+    enabled: !!src.enabled,
+    vaultPath: String(src.vaultPath || DEFAULT_OBSIDIAN_CONFIG.vaultPath),
+    readMode: String(src.readMode || DEFAULT_OBSIDIAN_CONFIG.readMode),
+    includeTags,
+    excludeDirs,
+    outputDir,
+    autoSync: src.autoSync !== false,
+    autoWriteBack: src.autoWriteBack !== false,
+    syncIntervalMin: normalizePositiveInt(src.syncIntervalMin, DEFAULT_OBSIDIAN_CONFIG.syncIntervalMin),
+    writeBackEveryTurns: normalizePositiveInt(src.writeBackEveryTurns, DEFAULT_OBSIDIAN_CONFIG.writeBackEveryTurns)
+  };
+}
+
 function initObsidianService() {
   if (obsidianSyncTimer) {
     clearInterval(obsidianSyncTimer);
@@ -1132,13 +1188,14 @@ ipcMain.handle('save-state', (_, newState) => {
 ipcMain.handle('get-obsidian-config', () => state.obsidian || {});
 
 ipcMain.handle('set-obsidian-config', (_, cfg) => {
-  const current = state.obsidian || {};
-  state.obsidian = Object.assign({}, current, cfg || {});
-  if (!Array.isArray(state.obsidian.excludeDirs)) state.obsidian.excludeDirs = ['.obsidian', state.obsidian.outputDir || 'Macross'];
-  if (!state.obsidian.excludeDirs.includes(state.obsidian.outputDir || 'Macross')) state.obsidian.excludeDirs.push(state.obsidian.outputDir || 'Macross');
-  store.save(state);
-  initObsidianService();
-  return { ok: true, config: state.obsidian };
+  try {
+    state.obsidian = normalizeObsidianConfig(Object.assign({}, state.obsidian || {}, cfg || {}));
+    store.save(state);
+    initObsidianService();
+    return { ok: true, config: state.obsidian };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
 });
 
 ipcMain.handle('obsidian-sync-now', async () => {
@@ -1153,8 +1210,7 @@ ipcMain.handle('get-obsidian-status', () => {
 
 ipcMain.handle('open-obsidian-output-dir', async () => {
   try {
-    const cfg = state.obsidian || {};
-    const target = path.join(cfg.vaultPath || '', cfg.outputDir || 'Macross');
+    const target = resolveObsidianOutputPath(state.obsidian || {});
     await shell.openPath(target);
     return { ok: true };
   } catch (e) {
@@ -2293,10 +2349,19 @@ async function extractObsidianWriteBack(turns) {
     noTools: true,
     temperature: 0.2
   });
+  let text = String(raw || '').trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/```\s*$/i, '')
+    .trim();
+  if (!text.startsWith('{')) {
+    const first = text.indexOf('{');
+    const last = text.lastIndexOf('}');
+    if (first >= 0 && last > first) text = text.slice(first, last + 1);
+  }
   try {
-    return JSON.parse(String(raw || '').trim().replace(/^```json\s*/i, '').replace(/```$/i, '').trim());
+    return JSON.parse(text);
   } catch {
-    return { inbox: [], highlights: [] };
+    throw new Error('Obsidian write-back JSON parse failed');
   }
 }
 
@@ -2511,13 +2576,15 @@ ipcMain.handle('chat', async (_, message) => {
 
     // 原始层归档(完整, 不砍) + 提炼缓冲; 缓冲满 10 轮触发后台提炼(保底)
     memory.appendChatArchive(message, reply);
-    if (obsidianService && state.obsidian && state.obsidian.enabled && state.obsidian.autoWriteBack) {
+    if (obsidianService && state.obsidian && state.obsidian.enabled && state.obsidian.autoWriteBack !== false) {
       obsidianService.bufferChatTurn(message, reply);
       _obsidianTurnsSinceWrite += 1;
       const every = Math.max(1, Number(state.obsidian.writeBackEveryTurns) || 10);
       if (_obsidianTurnsSinceWrite >= every) {
-        _obsidianTurnsSinceWrite = 0;
-        obsidianService.flushWriteBack('turn-threshold').catch(e => console.warn('[OBSIDIAN] write-back failed:', e.message));
+        obsidianService.flushWriteBack('turn-threshold').then(res => {
+          if (res && res.ok) _obsidianTurnsSinceWrite = 0;
+          else console.warn('[OBSIDIAN] write-back failed:', res && (res.error || res.lastError) || 'unknown');
+        }).catch(e => console.warn('[OBSIDIAN] write-back failed:', e.message));
       }
     }
     _turnsSinceRefine.push({ user: message, reply });

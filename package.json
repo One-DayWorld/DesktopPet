@@ -65,6 +65,7 @@
       "preload.js",
       "store.js",
       "voice-lines.json",
+      "obsidian/**/*",
       "scripts/**/*",
       "assets/**/*",
       "node_modules/**/*",
