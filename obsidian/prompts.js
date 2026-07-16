@@ -1,6 +1,6 @@
 function buildNotesRefinePrompt(oldMemory, notes) {
   const body = notes.map(n => `【${n.relativePath}】\n标题: ${n.title}\n标签: ${(n.tags || []).join(', ')}\n正文:\n${String(n.body || '').slice(0, 6000)}`).join('\n\n---\n\n');
-  return `现有记忆:\n${String(oldMemory || '').trim() || '(空)'}\n\nObsidian 变更笔记:\n${body}\n\n请输出更新后的完整记忆文本。`;
+  return `现有记忆:\n${String(oldMemory || '').trim() || '(空)'}\n\nObsidian 变更笔记:\n${body}\n\n更新约束:\n- 笔记内容不等于用户观点。\n- 不把引用/外部文章观点当用户事实。\n- 保留已有记忆，尤其用户手写内容。\n- 只记录稳定事实、长期项目、关注主题和明确偏好。\n- 总量精简，避免把知识库全文塞入记忆。\n\n请输出更新后的完整记忆文本。`;
 }
 
 function buildWriteBackPrompt(turns) {
