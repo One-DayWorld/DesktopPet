@@ -1281,6 +1281,37 @@
       <div class="setting-success" id="memory-cleared-msg">✓ 已从头开始</div>
     </div>
 
+    <div class="hud-frame">
+      <div class="hud-pill">OBSIDIAN · 知识库</div>
+      <div class="setting-note" style="margin-bottom:10px">读取 OneDayWorld 下的 Markdown 笔记补全人物画像，并自动把高价值聊天摘要写回 Macross 目录。</div>
+
+      <label class="toggle-row">
+        <input type="checkbox" id="obsidian-enabled">
+        <span>启用 Obsidian 双向关联</span>
+      </label>
+      <label class="toggle-row">
+        <input type="checkbox" id="obsidian-auto-sync">
+        <span>自动同步笔记到画像</span>
+      </label>
+      <label class="toggle-row">
+        <input type="checkbox" id="obsidian-auto-write">
+        <span>自动写回知识库</span>
+      </label>
+
+      <div class="setting-label">Vault 路径</div>
+      <input class="setting-input" id="obsidian-vault-path" placeholder="/Users/ace/Documents/OneDayWorld" />
+
+      <div class="setting-label">写回目录</div>
+      <input class="setting-input" id="obsidian-output-dir" placeholder="Macross" />
+
+      <div class="key-row" style="margin-top:10px">
+        <button class="key-save-btn" onclick="saveObsidianConfig()">保存</button>
+        <button class="key-save-btn" onclick="syncObsidianNow()">立即同步</button>
+        <button class="key-save-btn" onclick="openObsidianOutputDir()">打开目录</button>
+      </div>
+      <div class="setting-note" id="obsidian-status" style="margin-top:8px">未同步</div>
+    </div>
+
     <div style="height:10px"></div>
     <div class="setting-note" style="text-align:center;color:rgba(78,148,175,0.38)">羁绊只靠交流增长 · 聊天+8 · 投喂文章+25 · 提炼出新理解+15</div>
     <div style="height:16px"></div>
@@ -1405,7 +1436,13 @@ document.querySelectorAll('.tab').forEach(tab => {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     tab.classList.add('active');
     document.getElementById('pane-' + tab.dataset.tab).classList.add('active');
-    if (tab.dataset.tab === 'settings') { loadBreakReminder(); loadEdgePatrol(); loadPetVisible(); loadQwenModel(); }
+    if (tab.dataset.tab === 'settings') {
+      loadBreakReminder();
+      loadEdgePatrol();
+      loadPetVisible();
+      loadQwenModel();
+      loadObsidianConfig().catch(e => console.log('[OBSIDIAN] load config failed', e));
+    }
   });
 });
 
@@ -1622,6 +1659,54 @@ async function doClearMemory() {
 async function openConfigFile() {
   try { await window.petAPI.openConfigFile(); }
   catch (e) { console.log('[CONFIG] open file failed', e); }
+}
+
+async function loadObsidianConfig() {
+  if (!window.petAPI.getObsidianConfig) return;
+  const cfg = await window.petAPI.getObsidianConfig();
+  document.getElementById('obsidian-enabled').checked = !!cfg.enabled;
+  document.getElementById('obsidian-auto-sync').checked = cfg.autoSync !== false;
+  document.getElementById('obsidian-auto-write').checked = cfg.autoWriteBack !== false;
+  document.getElementById('obsidian-vault-path').value = cfg.vaultPath || '/Users/ace/Documents/OneDayWorld';
+  document.getElementById('obsidian-output-dir').value = cfg.outputDir || 'Macross';
+  await refreshObsidianStatus();
+}
+
+async function saveObsidianConfig() {
+  const outputDir = (document.getElementById('obsidian-output-dir').value || 'Macross').trim();
+  const cfg = {
+    enabled: document.getElementById('obsidian-enabled').checked,
+    autoSync: document.getElementById('obsidian-auto-sync').checked,
+    autoWriteBack: document.getElementById('obsidian-auto-write').checked,
+    vaultPath: (document.getElementById('obsidian-vault-path').value || '/Users/ace/Documents/OneDayWorld').trim(),
+    outputDir,
+    excludeDirs: ['.obsidian', outputDir]
+  };
+  const res = await window.petAPI.setObsidianConfig(cfg);
+  const el = document.getElementById('obsidian-status');
+  el.textContent = res.ok ? '已保存 Obsidian 设置' : '保存失败';
+}
+
+async function syncObsidianNow() {
+  const el = document.getElementById('obsidian-status');
+  el.textContent = '同步中...';
+  const res = await window.petAPI.obsidianSyncNow();
+  el.textContent = res.ok
+    ? `同步完成: 扫描 ${res.scannedFiles || 0} 个文件, 变更 ${res.changedFiles || 0} 个`
+    : `同步失败: ${res.lastError || res.error || '未知错误'}`;
+}
+
+async function refreshObsidianStatus() {
+  const el = document.getElementById('obsidian-status');
+  if (!el || !window.petAPI.getObsidianStatus) return;
+  const st = await window.petAPI.getObsidianStatus();
+  el.textContent = st.lastSyncAt
+    ? `上次同步: ${st.lastSyncAt} · 扫描 ${st.scannedFiles || 0} · 变更 ${st.changedFiles || 0}`
+    : '尚未同步';
+}
+
+async function openObsidianOutputDir() {
+  await window.petAPI.openObsidianOutputDir();
 }
 document.getElementById('chat-input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.metaKey) { e.preventDefault(); sendChat(); }
