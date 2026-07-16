@@ -4,11 +4,11 @@
 
 ### 你的 Claude Code 僚机:一架会变形的 3D **VF-1S 瓦尔基里**,在你的 macOS 桌面边沿巡航——当 AI 智能体等你授权时拉响警报,任务完成时报告"已着陆"。
 
-[![Platform](https://img.shields.io/badge/platform-macOS-000000?logo=apple&logoColor=white)](https://github.com/One-DayWorld/VF-1-DesktopPet)
+[![Platform](https://img.shields.io/badge/platform-macOS-000000?logo=apple&logoColor=white)](https://github.com/One-DayWorld/DesktopPet)
 [![Electron](https://img.shields.io/badge/Electron-28-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/)
 [![Three.js](https://img.shields.io/badge/Three.js-r158-000000?logo=three.js&logoColor=white)](https://threejs.org/)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-已集成-D97757)](https://claude.com/claude-code)
-[![Stars](https://img.shields.io/github/stars/One-DayWorld/VF-1-DesktopPet?style=social)](https://github.com/One-DayWorld/VF-1-DesktopPet/stargazers)
+[![Stars](https://img.shields.io/github/stars/One-DayWorld/DesktopPet?style=social)](https://github.com/One-DayWorld/DesktopPet/stargazers)
 
 [English](./README.md) · **简体中文**
 
@@ -35,7 +35,7 @@
 
 ### 方式 A —— 安装预编译 DMG(普通用户)
 
-1. 从 [Releases](https://github.com/One-DayWorld/VF-1-DesktopPet/releases) 下载 `Macross-1.0.0-arm64.dmg`(Apple Silicon)。
+1. 从 [Releases](https://github.com/One-DayWorld/DesktopPet/releases) 下载 `Macross-1.0.0-arm64.dmg`(Apple Silicon)。
 2. 拖进 `应用程序`。
 3. 首次启动未签名,会被 Gatekeeper 拦截。**右键 → 打开 → 确认**,或执行:
    ```bash
@@ -49,8 +49,8 @@
 需要 **Node.js 18+**;Apple Silicon 还需 `xcode-select --install`。
 
 ```bash
-git clone https://github.com/One-DayWorld/VF-1-DesktopPet.git
-cd VF-1-DesktopPet
+git clone https://github.com/One-DayWorld/DesktopPet.git
+cd DesktopPet
 npm install          # 约 300 MB, 主要是 Electron + Three.js
 npm start
 ```

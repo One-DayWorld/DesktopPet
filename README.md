@@ -4,11 +4,11 @@
 
 ### Your Claude Code wingman: a transformable 3D **VF-1S Valkyrie** that patrols your macOS desktop, sounds the alarm the moment an agent needs your permission, and reports *"mission complete"* when it lands.
 
-[![Platform](https://img.shields.io/badge/platform-macOS-000000?logo=apple&logoColor=white)](https://github.com/One-DayWorld/VF-1-DesktopPet)
+[![Platform](https://img.shields.io/badge/platform-macOS-000000?logo=apple&logoColor=white)](https://github.com/One-DayWorld/DesktopPet)
 [![Electron](https://img.shields.io/badge/Electron-28-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/)
 [![Three.js](https://img.shields.io/badge/Three.js-r158-000000?logo=three.js&logoColor=white)](https://threejs.org/)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-integrated-D97757)](https://claude.com/claude-code)
-[![Stars](https://img.shields.io/github/stars/One-DayWorld/VF-1-DesktopPet?style=social)](https://github.com/One-DayWorld/VF-1-DesktopPet/stargazers)
+[![Stars](https://img.shields.io/github/stars/One-DayWorld/DesktopPet?style=social)](https://github.com/One-DayWorld/DesktopPet/stargazers)
 
 **English** · [简体中文](./README.zh-CN.md)
 
@@ -35,7 +35,7 @@
 
 ### Option A — Install the prebuilt DMG (end users)
 
-1. Download `Macross-1.0.0-arm64.dmg` (Apple Silicon) from the [Releases](https://github.com/One-DayWorld/VF-1-DesktopPet/releases) page.
+1. Download `Macross-1.0.0-arm64.dmg` (Apple Silicon) from the [Releases](https://github.com/One-DayWorld/DesktopPet/releases) page.
 2. Drag the app into `Applications`.
 3. First launch is unsigned, so macOS Gatekeeper will block it. **Right-click → Open → confirm**, or run:
    ```bash
@@ -49,8 +49,8 @@
 Requires **Node.js 18+**. On Apple Silicon, also `xcode-select --install`.
 
 ```bash
-git clone https://github.com/One-DayWorld/VF-1-DesktopPet.git
-cd VF-1-DesktopPet
+git clone https://github.com/One-DayWorld/DesktopPet.git
+cd DesktopPet
 npm install          # ~300 MB, mostly Electron + Three.js
 npm start
 ```
