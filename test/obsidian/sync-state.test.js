@@ -84,6 +84,36 @@ test('sync state store normalizes strange persisted input', () => {
   }
 });
 
+test('sync state store validates metadata types and ISO timestamps', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-sync-state-'));
+  const invalidCases = [
+    ['string-version.json', '2'],
+    ['array-version.json', [3]]
+  ];
+
+  for (const [name, version] of invalidCases) {
+    const file = path.join(dir, name);
+    fs.writeFileSync(file, JSON.stringify({
+      version,
+      lastSyncAt: 'not-a-date'
+    }), 'utf8');
+
+    const loaded = createSyncStateStore(file).load();
+    assert.equal(loaded.version, 1);
+    assert.equal(loaded.lastSyncAt, null);
+  }
+
+  const validFile = path.join(dir, 'valid-metadata.json');
+  fs.writeFileSync(validFile, JSON.stringify({
+    version: 2,
+    lastSyncAt: '2026-07-16T00:00:00.000Z'
+  }), 'utf8');
+
+  const loaded = createSyncStateStore(validFile).load();
+  assert.equal(loaded.version, 2);
+  assert.equal(loaded.lastSyncAt, '2026-07-16T00:00:00.000Z');
+});
+
 test('sync state store does not reuse fixed tmp files', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-sync-state-'));
   const file = path.join(dir, 'obsidian-sync.json');

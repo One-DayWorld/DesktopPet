@@ -7,6 +7,13 @@ const DEFAULT_STATE = { version: 1, lastSyncAt: null, notes: {}, recentWrites: [
 const DANGEROUS_NOTE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 let tmpCounter = 0;
 
+function normalizeLastSyncAt(value) {
+  if (typeof value !== 'string') return null;
+  const ms = Date.parse(value);
+  if (!Number.isFinite(ms)) return null;
+  return value;
+}
+
 function mergeState(raw) {
   const input = raw && typeof raw === 'object' ? raw : {};
   const notes = {};
@@ -16,10 +23,9 @@ function mergeState(raw) {
     }
   }
   const recentWrites = Array.isArray(input.recentWrites) ? input.recentWrites.slice() : [];
-  const version = Number(input.version);
   return {
-    version: Number.isInteger(version) && version > 0 ? version : DEFAULT_STATE.version,
-    lastSyncAt: typeof input.lastSyncAt === 'string' ? input.lastSyncAt : null,
+    version: typeof input.version === 'number' && Number.isInteger(input.version) && input.version > 0 ? input.version : DEFAULT_STATE.version,
+    lastSyncAt: normalizeLastSyncAt(input.lastSyncAt),
     notes,
     recentWrites
   };
