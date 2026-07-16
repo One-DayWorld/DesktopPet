@@ -19,3 +19,17 @@ test('sync state store saves and reloads note fingerprints', () => {
   assert.equal(loaded.notes['A.md'].hash, 'abc');
   assert.equal(loaded.lastSyncAt, '2026-07-16T00:00:00.000Z');
 });
+
+test('sync state store isolates default notes and recent writes between loads', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-sync-state-'));
+  const first = createSyncStateStore(path.join(dir, 'first.json'));
+  const second = createSyncStateStore(path.join(dir, 'second.json'));
+
+  const state = first.load();
+  state.notes['A.md'] = { mtimeMs: 1, size: 2, hash: 'abc' };
+  state.recentWrites.push('A.md');
+
+  const loaded = second.load();
+  assert.deepEqual(loaded.notes, {});
+  assert.deepEqual(loaded.recentWrites, []);
+});

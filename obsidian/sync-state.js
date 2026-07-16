@@ -6,10 +6,15 @@ const DEFAULT_FILE = path.join(os.homedir(), '.desktop-pet', 'obsidian-sync.json
 const DEFAULT_STATE = { version: 1, lastSyncAt: null, notes: {}, recentWrites: [] };
 
 function mergeState(raw) {
-  const s = Object.assign({}, DEFAULT_STATE, raw || {});
-  if (!s.notes || typeof s.notes !== 'object') s.notes = {};
-  if (!Array.isArray(s.recentWrites)) s.recentWrites = [];
-  return s;
+  const input = raw && typeof raw === 'object' ? raw : {};
+  const notes = input.notes && typeof input.notes === 'object' && !Array.isArray(input.notes) ? Object.assign({}, input.notes) : {};
+  const recentWrites = Array.isArray(input.recentWrites) ? input.recentWrites.slice() : [];
+  return {
+    version: Number(input.version) || DEFAULT_STATE.version,
+    lastSyncAt: input.lastSyncAt || null,
+    notes,
+    recentWrites
+  };
 }
 
 function createSyncStateStore(filePath = DEFAULT_FILE) {
