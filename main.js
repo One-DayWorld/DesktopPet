@@ -10,11 +10,17 @@ const execAsync = util.promisify(exec);
 const execFileAsync = util.promisify(execFile);
 const store = require('./store');
 const memory = require('./memory');
+const { createSyncStateStore } = require('./obsidian/sync-state');
+const { createObsidianService } = require('./obsidian');
+const { buildNotesRefinePrompt, buildWriteBackPrompt } = require('./obsidian/prompts');
 const mammoth = require('mammoth');   // docx → 纯文本 (文章投喂)
 
 let petWindow = null;
 let panelWindow = null;
 let state = store.load();
+let obsidianService = null;
+let obsidianSyncTimer = null;
+let _obsidianTurnsSinceWrite = 0;
 // 首次启动: 把旧的 persona/sessionRules(data.json) 与结构化画像(profile.json) 迁移进 persona-memory.md
 memory.migrateIfNeeded(state.persona, state.sessionRules);
 
@@ -1008,12 +1014,35 @@ function togglePetVisible(force) {
   return show;
 }
 
+function initObsidianService() {
+  if (obsidianSyncTimer) {
+    clearInterval(obsidianSyncTimer);
+    obsidianSyncTimer = null;
+  }
+  obsidianService = createObsidianService({
+    config: state.obsidian || {},
+    syncStore: createSyncStateStore(),
+    getMemoryText: () => memory.getMemoryText(),
+    setMemoryText: (txt) => memory.setMemoryText(txt),
+    refineNotes: refineFromObsidianNotes,
+    extractWriteBack: extractObsidianWriteBack
+  });
+  const cfg = state.obsidian || {};
+  if (cfg.enabled && cfg.autoSync) {
+    const intervalMs = Math.max(1, Number(cfg.syncIntervalMin) || 30) * 60 * 1000;
+    obsidianSyncTimer = setInterval(() => {
+      obsidianService.syncNow().catch(e => console.warn('[OBSIDIAN] scheduled sync failed:', e.message));
+    }, intervalMs);
+  }
+}
+
 app.whenReady().then(() => {
   // 自动安装 Claude Code hooks (首次启动 / app 被搬到新位置 / 脚本更新都会刷新)
   ensureClaudeHooksInstalled();
 
   createPetWindow();
   createPanelWindow();
+  initObsidianService();
 
   // 启动时清掉残留的 flag 文件 — 它们是 app 关闭期间累积的陈旧通知,
   // 不该在新会话启动时被当作"刚刚完成"重新播报
@@ -1098,6 +1127,39 @@ ipcMain.handle('save-state', (_, newState) => {
   state = newState;
   store.save(state);
   broadcastPetUpdate();
+});
+
+ipcMain.handle('get-obsidian-config', () => state.obsidian || {});
+
+ipcMain.handle('set-obsidian-config', (_, cfg) => {
+  const current = state.obsidian || {};
+  state.obsidian = Object.assign({}, current, cfg || {});
+  if (!Array.isArray(state.obsidian.excludeDirs)) state.obsidian.excludeDirs = ['.obsidian', state.obsidian.outputDir || 'Macross'];
+  if (!state.obsidian.excludeDirs.includes(state.obsidian.outputDir || 'Macross')) state.obsidian.excludeDirs.push(state.obsidian.outputDir || 'Macross');
+  store.save(state);
+  initObsidianService();
+  return { ok: true, config: state.obsidian };
+});
+
+ipcMain.handle('obsidian-sync-now', async () => {
+  if (!obsidianService) initObsidianService();
+  return obsidianService.syncNow();
+});
+
+ipcMain.handle('get-obsidian-status', () => {
+  if (!obsidianService) initObsidianService();
+  return obsidianService.getStatus();
+});
+
+ipcMain.handle('open-obsidian-output-dir', async () => {
+  try {
+    const cfg = state.obsidian || {};
+    const target = path.join(cfg.vaultPath || '', cfg.outputDir || 'Macross');
+    await shell.openPath(target);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
 });
 
 ipcMain.handle('toggle-panel', () => {
@@ -2207,6 +2269,37 @@ function buildProfileInject(memoryText, personaActive = false) {
   return header + mem + footer;
 }
 
+async function refineFromObsidianNotes(oldMemory, notes) {
+  const provider = state.aiProvider || 'qwen';
+  const apiKey = (state.apiKeys || {})[provider] || '';
+  if (!apiKey) throw new Error('请先在设置中填写 API Key 后再同步 Obsidian');
+  const metasoKey = (state.apiKeys || {}).metaso || '';
+  const system = `你是一个长期记忆整理器。根据用户 Obsidian 笔记更新桌宠对用户的长期记忆。笔记内容不等于用户观点; 只记录稳定事实、长期项目、关注主题和明确偏好。只输出完整记忆文本。`;
+  return callAI(provider, apiKey, state.pet.name, [], buildNotesRefinePrompt(oldMemory, notes), metasoKey, {
+    systemOverride: system,
+    noTools: true,
+    temperature: 0.3
+  });
+}
+
+async function extractObsidianWriteBack(turns) {
+  const provider = state.aiProvider || 'qwen';
+  const apiKey = (state.apiKeys || {})[provider] || '';
+  if (!apiKey) return { inbox: [], highlights: [] };
+  const metasoKey = (state.apiKeys || {}).metaso || '';
+  const system = `你是知识库整理器。只返回合法 JSON, 不要 markdown 代码块。普通寒暄、情绪陪伴、一次性工具结果不要写入。`;
+  const raw = await callAI(provider, apiKey, state.pet.name, [], buildWriteBackPrompt(turns), metasoKey, {
+    systemOverride: system,
+    noTools: true,
+    temperature: 0.2
+  });
+  try {
+    return JSON.parse(String(raw || '').trim().replace(/^```json\s*/i, '').replace(/```$/i, '').trim());
+  } catch {
+    return { inbox: [], highlights: [] };
+  }
+}
+
 // 后台提炼: 把"现有记忆文本 + 最近若干轮对话"合并出更新后的记忆文本. 失败静默, 绝不影响聊天主流程.
 // 用 systemOverride 走独立提炼 prompt, noTools, 低温度求稳定.
 async function refineProfile(provider, apiKey, petName, oldMemory, newTurns, metasoKey = '') {
@@ -2418,6 +2511,15 @@ ipcMain.handle('chat', async (_, message) => {
 
     // 原始层归档(完整, 不砍) + 提炼缓冲; 缓冲满 10 轮触发后台提炼(保底)
     memory.appendChatArchive(message, reply);
+    if (obsidianService && state.obsidian && state.obsidian.enabled && state.obsidian.autoWriteBack) {
+      obsidianService.bufferChatTurn(message, reply);
+      _obsidianTurnsSinceWrite += 1;
+      const every = Math.max(1, Number(state.obsidian.writeBackEveryTurns) || 10);
+      if (_obsidianTurnsSinceWrite >= every) {
+        _obsidianTurnsSinceWrite = 0;
+        obsidianService.flushWriteBack('turn-threshold').catch(e => console.warn('[OBSIDIAN] write-back failed:', e.message));
+      }
+    }
     _turnsSinceRefine.push({ user: message, reply });
     if (_turnsSinceRefine.length >= 10) runRefine('buffer-full').catch(() => {});
 

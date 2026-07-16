@@ -9,6 +9,12 @@ contextBridge.exposeInMainWorld('petAPI', {
 
   chat: (message) => ipcRenderer.invoke('chat', message),
 
+  getObsidianConfig: () => ipcRenderer.invoke('get-obsidian-config'),
+  setObsidianConfig: (cfg) => ipcRenderer.invoke('set-obsidian-config', cfg),
+  obsidianSyncNow: () => ipcRenderer.invoke('obsidian-sync-now'),
+  getObsidianStatus: () => ipcRenderer.invoke('get-obsidian-status'),
+  openObsidianOutputDir: () => ipcRenderer.invoke('open-obsidian-output-dir'),
+
   // 文章投喂 (记忆系统)
   pickArticleFile: () => ipcRenderer.invoke('pick-article-file'),
   ingestArticleUrl: (url) => ipcRenderer.invoke('ingest-article-url', url),
