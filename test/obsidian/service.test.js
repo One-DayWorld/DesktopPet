@@ -33,6 +33,30 @@ test('syncNow refines changed notes and saves fingerprints', async () => {
   assert.equal(createSyncStateStore(stateFile).load().notes['Note.md'].hash.length, 64);
 });
 
+test('syncNow saves fingerprints even when no notes changed', async () => {
+  const stateFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-state-')), 'state.json');
+  const syncStore = createSyncStateStore(stateFile);
+  const note = { relativePath: 'Stable.md', mtimeMs: 10, size: 20, hash: 'a'.repeat(64) };
+  const service = createObsidianService({
+    config: { enabled: true, vaultPath: '/fake', outputDir: 'Macross', excludeDirs: ['.obsidian', 'Macross'] },
+    syncStore,
+    adapter: {
+      listNotes: async () => [note],
+      getChangedNotes: async () => [],
+      readNote: async () => { throw new Error('unchanged note should not be read'); }
+    },
+    getMemoryText: () => '',
+    setMemoryText: () => {},
+    refineNotes: async () => { throw new Error('unchanged note should not be refined'); },
+    extractWriteBack: async () => null
+  });
+
+  const result = await service.syncNow();
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(syncStore.load().notes['Stable.md'], { mtimeMs: 10, size: 20, hash: 'a'.repeat(64) });
+});
+
 test('flushWriteBack creates profile, inbox, and monthly highlights', async () => {
   const vault = fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-vault-'));
   const service = createObsidianService({
@@ -53,4 +77,42 @@ test('flushWriteBack creates profile, inbox, and monthly highlights', async () =
   assert.equal(result.ok, true);
   assert.match(fs.readFileSync(path.join(vault, 'Macross', 'Profile.md'), 'utf8'), /用户喜欢短答案/);
   assert.match(fs.readFileSync(path.join(vault, 'Macross', 'Inbox.md'), 'utf8'), /Obsidian/);
+});
+
+test('flushWriteBack does not duplicate buffered turns after profile write failure', async () => {
+  const vault = fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-vault-'));
+  const writes = [];
+  let failProfile = true;
+  let extractedTurnCount = 0;
+  const adapter = {
+    writeNote: async (noteRef, content) => {
+      if (failProfile) throw new Error('profile failed');
+      writes.push({ noteRef, content });
+    },
+    appendToNote: async (noteRef, content) => {
+      writes.push({ noteRef, content });
+    }
+  };
+  const service = createObsidianService({
+    config: { enabled: true, vaultPath: vault, outputDir: 'Macross', excludeDirs: ['.obsidian', 'Macross'] },
+    adapter,
+    syncStore: createSyncStateStore(path.join(vault, 'state.json')),
+    getMemoryText: () => '用户喜欢短答案。',
+    setMemoryText: () => {},
+    refineNotes: async () => null,
+    extractWriteBack: async (turns) => {
+      extractedTurnCount = turns.length;
+      return { inbox: ['一条'], highlights: [] };
+    }
+  });
+
+  service.bufferChatTurn('用户问题', 'VF-1 回复');
+  const failed = await service.flushWriteBack('test');
+  failProfile = false;
+  const retried = await service.flushWriteBack('test');
+
+  assert.equal(failed.ok, false);
+  assert.equal(retried.ok, true);
+  assert.equal(extractedTurnCount, 1);
+  assert.equal(writes.length, 2);
 });

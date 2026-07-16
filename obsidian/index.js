@@ -45,8 +45,8 @@ function createObsidianService(deps) {
         for (const n of changed) notes.push(await adapter.readNote(n));
         const next = await refineNotes(getMemoryText(), notes);
         if (next && String(next).trim()) setMemoryText(String(next).trim());
-        for (const n of all) state.notes[n.relativePath] = { mtimeMs: n.mtimeMs, size: n.size, hash: n.hash };
       }
+      for (const n of all) state.notes[n.relativePath] = { mtimeMs: n.mtimeMs, size: n.size, hash: n.hash };
       state.lastSyncAt = new Date().toISOString();
       syncStore.save(state);
       return Object.assign(status, { ok: true, lastSyncAt: state.lastSyncAt, lastError: '' });
@@ -69,10 +69,9 @@ function createObsidianService(deps) {
 
   async function flushWriteBack(reason = 'manual') {
     if (!enabled() || !autoWriteBackEnabled()) return { ok: true, skipped: true };
-    const turns = writeBackTurns;
+    const turns = writeBackTurns.slice();
     try {
       await writeProfile();
-      writeBackTurns = [];
       if (!turns.length) return { ok: true, wrote: 1 };
       const extracted = await extractWriteBack(turns);
       const inbox = Array.isArray(extracted && extracted.inbox) ? extracted.inbox : [];
@@ -85,9 +84,9 @@ function createObsidianService(deps) {
         const lines = `\n## ${stamp()} (${reason})\n\n` + highlights.map(h => `- 主题: ${h.topic || ''}\n- 可复用结论: ${h.reusable || ''}\n- 后续行动: ${h.action || ''}`).join('\n\n') + '\n';
         await adapter.appendToNote({ relativePath: outputRel(path.posix.join('Chat Highlights', `${monthName()}.md`)) }, lines);
       }
+      writeBackTurns = writeBackTurns.slice(turns.length);
       return { ok: true, wrote: 1 + inbox.length + highlights.length };
     } catch (e) {
-      writeBackTurns = turns.concat(writeBackTurns);
       return { ok: false, error: e.message };
     }
   }
