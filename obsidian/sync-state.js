@@ -9,9 +9,10 @@ let tmpCounter = 0;
 
 function normalizeLastSyncAt(value) {
   if (typeof value !== 'string') return null;
-  const ms = Date.parse(value);
-  if (!Number.isFinite(ms)) return null;
-  return value;
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)) return null;
+  const d = new Date(value);
+  if (!Number.isFinite(d.getTime())) return null;
+  return d.toISOString() === value ? value : null;
 }
 
 function mergeState(raw) {

@@ -87,15 +87,17 @@ test('sync state store normalizes strange persisted input', () => {
 test('sync state store validates metadata types and ISO timestamps', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-sync-state-'));
   const invalidCases = [
-    ['string-version.json', '2'],
-    ['array-version.json', [3]]
+    ['string-version.json', '2', 'not-a-date'],
+    ['array-version.json', [3], 'not-a-date'],
+    ['rolled-date.json', 1, '2026-02-30T00:00:00.000Z'],
+    ['non-iso-date.json', 1, '0']
   ];
 
-  for (const [name, version] of invalidCases) {
+  for (const [name, version, lastSyncAt] of invalidCases) {
     const file = path.join(dir, name);
     fs.writeFileSync(file, JSON.stringify({
       version,
-      lastSyncAt: 'not-a-date'
+      lastSyncAt
     }), 'utf8');
 
     const loaded = createSyncStateStore(file).load();
