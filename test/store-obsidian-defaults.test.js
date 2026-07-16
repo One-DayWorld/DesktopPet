@@ -25,3 +25,25 @@ test('store default state includes local Obsidian configuration', () => {
     delete require.cache[require.resolve('../store')];
   }
 });
+
+test('store clamps zero Obsidian intervals from existing data to one', () => {
+  const oldHome = process.env.HOME;
+  process.env.HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-store-home-'));
+  const dataDir = path.join(process.env.HOME, '.desktop-pet');
+  fs.mkdirSync(dataDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(dataDir, 'data.json'),
+    JSON.stringify({ obsidian: { syncIntervalMin: 0, writeBackEveryTurns: 0 } })
+  );
+  delete require.cache[require.resolve('../store')];
+  try {
+    const store = require('../store');
+    const state = store.load();
+
+    assert.equal(state.obsidian.syncIntervalMin, 1);
+    assert.equal(state.obsidian.writeBackEveryTurns, 1);
+  } finally {
+    process.env.HOME = oldHome;
+    delete require.cache[require.resolve('../store')];
+  }
+});

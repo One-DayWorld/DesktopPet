@@ -45,6 +45,12 @@ function calcLevelFromXP(xp) {
   return level;
 }
 
+function normalizePositiveInt(value, fallback) {
+  const n = Number(value);
+  if (Number.isFinite(n)) return Math.max(1, n);
+  return fallback;
+}
+
 // data.json 含明文 API Key, 目录/文件都收紧到仅本人可读写 (0700 / 0600)
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true, mode: 0o700 });
@@ -82,8 +88,8 @@ function load() {
     if (!Array.isArray(merged.obsidian.excludeDirs)) merged.obsidian.excludeDirs = DEFAULT_STATE.obsidian.excludeDirs.slice();
     merged.obsidian.vaultPath = String(merged.obsidian.vaultPath || DEFAULT_STATE.obsidian.vaultPath);
     merged.obsidian.outputDir = String(merged.obsidian.outputDir || DEFAULT_STATE.obsidian.outputDir);
-    merged.obsidian.syncIntervalMin = Math.max(1, Number(merged.obsidian.syncIntervalMin) || DEFAULT_STATE.obsidian.syncIntervalMin);
-    merged.obsidian.writeBackEveryTurns = Math.max(1, Number(merged.obsidian.writeBackEveryTurns) || DEFAULT_STATE.obsidian.writeBackEveryTurns);
+    merged.obsidian.syncIntervalMin = normalizePositiveInt(merged.obsidian.syncIntervalMin, DEFAULT_STATE.obsidian.syncIntervalMin);
+    merged.obsidian.writeBackEveryTurns = normalizePositiveInt(merged.obsidian.writeBackEveryTurns, DEFAULT_STATE.obsidian.writeBackEveryTurns);
     // 羁绊系统迁移: 战斗等级语义改为"羁绊/熟悉度", 一次性清零旧战斗经验, 从 Lv.1 重新养羁绊
     if (!merged._bondMigrated) {
       merged.pet.xp = 0;
