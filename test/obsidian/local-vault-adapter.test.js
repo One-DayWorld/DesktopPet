@@ -35,3 +35,44 @@ test('LocalVaultAdapter reads, writes, and appends notes inside the vault', asyn
   assert.match(note.content, /# Inbox/);
   assert.match(note.content, /- item/);
 });
+
+test('LocalVaultAdapter always excludes outputDir even when excludeDirs omits it', async () => {
+  const vault = fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-vault-'));
+  write(path.join(vault, 'A.md'), '# A');
+  write(path.join(vault, 'Macross', 'Profile.md'), '# generated');
+
+  const adapter = new LocalVaultAdapter({ vaultPath: vault, outputDir: 'Macross', excludeDirs: ['.obsidian'] });
+  const notes = await adapter.listNotes();
+
+  assert.deepEqual(notes.map(n => n.relativePath).sort(), ['A.md']);
+});
+
+test('LocalVaultAdapter excludes nested outputDir by full relative path', async () => {
+  const vault = fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-vault-'));
+  write(path.join(vault, 'A.md'), '# A');
+  write(path.join(vault, 'Generated', 'Keep.md'), '# keep');
+  write(path.join(vault, 'Generated', 'Macross', 'Profile.md'), '# generated');
+
+  const adapter = new LocalVaultAdapter({ vaultPath: vault, outputDir: 'Generated/Macross', excludeDirs: ['.obsidian'] });
+  const notes = await adapter.listNotes();
+
+  assert.deepEqual(notes.map(n => n.relativePath).sort(), ['A.md', 'Generated/Keep.md']);
+});
+
+test('LocalVaultAdapter rejects write and append paths that escape the vault', async () => {
+  const vault = fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-vault-'));
+  const escaped = path.resolve(vault, '..', 'escaped.md');
+  const adapter = new LocalVaultAdapter({ vaultPath: vault, outputDir: 'Macross', excludeDirs: ['.obsidian'] });
+
+  if (fs.existsSync(escaped)) fs.unlinkSync(escaped);
+  await assert.rejects(() => adapter.writeNote({ relativePath: '../escaped.md' }, '# escaped\n'), /Invalid Obsidian note path/);
+  await assert.rejects(() => adapter.appendToNote({ relativePath: '../escaped.md' }, '# escaped\n'), /Invalid Obsidian note path/);
+  assert.equal(fs.existsSync(escaped), false);
+});
+
+test('LocalVaultAdapter rejects read paths that escape the vault', async () => {
+  const vault = fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-vault-'));
+  const adapter = new LocalVaultAdapter({ vaultPath: vault, outputDir: 'Macross', excludeDirs: ['.obsidian'] });
+
+  await assert.rejects(() => adapter.readNote({ relativePath: '../escaped.md' }), /Invalid Obsidian note path/);
+});

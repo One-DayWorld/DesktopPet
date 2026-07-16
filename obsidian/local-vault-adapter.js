@@ -11,12 +11,17 @@ function hashText(text) {
   return crypto.createHash('sha256').update(String(text || '')).digest('hex');
 }
 
+function isInside(parent, child) {
+  const rel = path.relative(parent, child);
+  return rel === '' || (!!rel && !rel.startsWith('..') && !path.isAbsolute(rel));
+}
+
 class LocalVaultAdapter {
   constructor(config) {
     this.config = config || {};
     this.vaultPath = path.resolve(this.config.vaultPath || '');
     this.outputDir = normalizeRel(this.config.outputDir || 'Macross');
-    this.excludeDirs = new Set((this.config.excludeDirs || ['.obsidian', this.outputDir]).map(normalizeRel));
+    this.excludeDirs = new Set(['.obsidian', this.outputDir, ...(this.config.excludeDirs || [])].map(normalizeRel).filter(Boolean));
   }
 
   assertVault() {
@@ -27,7 +32,16 @@ class LocalVaultAdapter {
   shouldSkipDir(absDir) {
     const rel = normalizeRel(path.relative(this.vaultPath, absDir));
     if (!rel) return false;
-    return rel.split('/').some(part => part.startsWith('.') || this.excludeDirs.has(part));
+    if (rel.split('/').some(part => part.startsWith('.'))) return true;
+    return [...this.excludeDirs].some(excluded => rel === excluded || rel.startsWith(`${excluded}/`));
+  }
+
+  resolveNotePath(relativePath) {
+    const rel = normalizeRel(relativePath);
+    if (!rel || rel.split('/').includes('..')) throw new Error('Invalid Obsidian note path');
+    const abs = path.resolve(this.vaultPath, rel);
+    if (!isInside(this.vaultPath, abs)) throw new Error('Obsidian note path escapes vault');
+    return { relativePath: rel, path: abs };
   }
 
   async listNotes() {
@@ -52,26 +66,23 @@ class LocalVaultAdapter {
   }
 
   async readNote(noteRef) {
-    const relativePath = normalizeRel(noteRef.relativePath);
-    const abs = path.join(this.vaultPath, relativePath);
-    const content = fs.readFileSync(abs, 'utf8');
-    return Object.assign(parseMarkdownNote({ path: abs, relativePath, content }), { content });
+    const resolved = this.resolveNotePath(noteRef.relativePath);
+    const content = fs.readFileSync(resolved.path, 'utf8');
+    return Object.assign(parseMarkdownNote({ path: resolved.path, relativePath: resolved.relativePath, content }), { content });
   }
 
   async writeNote(noteRef, content) {
-    const relativePath = normalizeRel(noteRef.relativePath);
-    const abs = path.join(this.vaultPath, relativePath);
-    fs.mkdirSync(path.dirname(abs), { recursive: true });
-    fs.writeFileSync(abs, String(content || ''), 'utf8');
-    return { relativePath, path: abs };
+    const resolved = this.resolveNotePath(noteRef.relativePath);
+    fs.mkdirSync(path.dirname(resolved.path), { recursive: true });
+    fs.writeFileSync(resolved.path, String(content || ''), 'utf8');
+    return resolved;
   }
 
   async appendToNote(noteRef, content) {
-    const relativePath = normalizeRel(noteRef.relativePath);
-    const abs = path.join(this.vaultPath, relativePath);
-    fs.mkdirSync(path.dirname(abs), { recursive: true });
-    fs.appendFileSync(abs, String(content || ''), 'utf8');
-    return { relativePath, path: abs };
+    const resolved = this.resolveNotePath(noteRef.relativePath);
+    fs.mkdirSync(path.dirname(resolved.path), { recursive: true });
+    fs.appendFileSync(resolved.path, String(content || ''), 'utf8');
+    return resolved;
   }
 
   async getChangedNotes(previousState) {
@@ -84,4 +95,4 @@ class LocalVaultAdapter {
   }
 }
 
-module.exports = { LocalVaultAdapter, normalizeRel, hashText };
+module.exports = { LocalVaultAdapter, normalizeRel, hashText, isInside };
