@@ -18,6 +18,18 @@ const DEFAULT_STATE = {
   alertSoundEnabled: true,
   breakReminder: { enabled: true, intervalMin: 60 },
   edgePatrol:    { enabled: true },
+  obsidian: {
+    enabled: false,
+    vaultPath: '/Users/ace/Documents/OneDayWorld',
+    readMode: 'root',
+    includeTags: [],
+    excludeDirs: ['.obsidian', 'Macross'],
+    outputDir: 'Macross',
+    autoSync: true,
+    autoWriteBack: true,
+    syncIntervalMin: 30,
+    writeBackEveryTurns: 10
+  },
   voiceLang:     'zh',           // 语音台词语言: 'zh' 中文 / 'en' 英文
   persona:       '',             // [已迁移] 现存于 ~/.desktop-pet/persona-memory.md; 此字段仅供旧数据一次性迁移(migrateIfNeeded)
   sessionRules:  '',             // [已迁移] 同上, 现存于 persona-memory.md 的「本场规则」段
@@ -65,6 +77,13 @@ function load() {
     // deep merge breakReminder for older data files that don't have this field
     merged.breakReminder = Object.assign({}, DEFAULT_STATE.breakReminder, merged.breakReminder || {});
     merged.edgePatrol    = Object.assign({}, DEFAULT_STATE.edgePatrol,    merged.edgePatrol    || {});
+    merged.obsidian = Object.assign({}, DEFAULT_STATE.obsidian, merged.obsidian || {});
+    if (!Array.isArray(merged.obsidian.includeTags)) merged.obsidian.includeTags = [];
+    if (!Array.isArray(merged.obsidian.excludeDirs)) merged.obsidian.excludeDirs = DEFAULT_STATE.obsidian.excludeDirs.slice();
+    merged.obsidian.vaultPath = String(merged.obsidian.vaultPath || DEFAULT_STATE.obsidian.vaultPath);
+    merged.obsidian.outputDir = String(merged.obsidian.outputDir || DEFAULT_STATE.obsidian.outputDir);
+    merged.obsidian.syncIntervalMin = Math.max(1, Number(merged.obsidian.syncIntervalMin) || DEFAULT_STATE.obsidian.syncIntervalMin);
+    merged.obsidian.writeBackEveryTurns = Math.max(1, Number(merged.obsidian.writeBackEveryTurns) || DEFAULT_STATE.obsidian.writeBackEveryTurns);
     // 羁绊系统迁移: 战斗等级语义改为"羁绊/熟悉度", 一次性清零旧战斗经验, 从 Lv.1 重新养羁绊
     if (!merged._bondMigrated) {
       merged.pet.xp = 0;
