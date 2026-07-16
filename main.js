@@ -2353,11 +2353,9 @@ async function extractObsidianWriteBack(turns) {
     .replace(/^```(?:json)?\s*/i, '')
     .replace(/```\s*$/i, '')
     .trim();
-  if (!text.startsWith('{')) {
-    const first = text.indexOf('{');
-    const last = text.lastIndexOf('}');
-    if (first >= 0 && last > first) text = text.slice(first, last + 1);
-  }
+  const first = text.indexOf('{');
+  const last = text.lastIndexOf('}');
+  if (first >= 0 && last > first) text = text.slice(first, last + 1);
   try {
     return JSON.parse(text);
   } catch {
