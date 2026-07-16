@@ -7,10 +7,10 @@ function clipText(text, maxChars) {
 function parseFrontmatter(raw) {
   const frontmatter = {};
   let body = String(raw || '');
-  const match = body.match(/^---\n([\s\S]*?)\n---\n?/);
+  const match = body.match(/^\uFEFF?---\r?\n([\s\S]*?)\r?\n---(?:\r?\n)?/);
   if (!match) return { frontmatter, body };
   body = body.slice(match[0].length);
-  for (const line of match[1].split('\n')) {
+  for (const line of match[1].split(/\r?\n/)) {
     const m = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
     if (!m) continue;
     const key = m[1];
@@ -37,12 +37,18 @@ function cleanBody(markdown) {
     .trim();
 }
 
+function stripCodeForTagScan(text) {
+  return String(text || '')
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/`[^`]*`/g, '');
+}
+
 function extractTags(body, frontmatter) {
   const tags = new Set();
   const fmTags = frontmatter.tags;
   if (Array.isArray(fmTags)) fmTags.forEach(t => tags.add(String(t).replace(/^#/, '').trim()));
   else if (typeof fmTags === 'string') fmTags.split(/[,\s]+/).forEach(t => tags.add(t.replace(/^#/, '').trim()));
-  for (const m of String(body || '').matchAll(/(^|\s)#([\p{L}\p{N}_/-]+)/gu)) {
+  for (const m of stripCodeForTagScan(body).matchAll(/(^|\s)#([\p{L}\p{N}_/-]+)/gu)) {
     tags.add(m[2]);
   }
   return [...tags].filter(Boolean);
@@ -67,4 +73,4 @@ function parseMarkdownNote({ path, relativePath, content }) {
   };
 }
 
-module.exports = { clipText, parseMarkdownNote, parseFrontmatter, cleanBody, extractTags };
+module.exports = { clipText, parseMarkdownNote, parseFrontmatter, cleanBody, stripCodeForTagScan, extractTags };
