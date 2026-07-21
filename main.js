@@ -1151,12 +1151,11 @@ app.whenReady().then(() => {
     });
   } catch (e) { console.error('[HOTKEY] 注册失败:', e.message); }
   app.on('before-quit', (event) => {
-    if (_obsidianQuitFlushDone || !shouldAutoWriteBackObsidian()) return;
-    event.preventDefault();
-    withTimeout(requestObsidianWriteBack('app-quit'), 3000, 'Obsidian write-back').finally(() => {
+    // Obsidian 回写：发起后不阻塞退出, 写不写成都让 app 正常关闭
+    if (!_obsidianQuitFlushDone && shouldAutoWriteBackObsidian()) {
       _obsidianQuitFlushDone = true;
-      app.quit();
-    });
+      requestObsidianWriteBack('app-quit').catch(() => {});
+    }
   });
   app.on('will-quit', () => { try { globalShortcut.unregisterAll(); } catch (_) {} });
 
@@ -1179,7 +1178,7 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  app.quit();
 });
 
 // ── AppleScript helpers ───────────────────────────────────
@@ -2167,14 +2166,18 @@ ${personaText}
     : `【人设与语气——始终保持】：
 - 用中文，亲切自然，就像一个懂你、记得你的真人类朋友那样说话
 - 随和、直接，不端架子、不刻意正经，像真人聊天一样有生命力
-- 保持实用性，但绝不要有“机器味”或“客服腔”，不要动不动就反问“有什么我可以帮你的吗”
-- 简洁回答，日常聊天非必要不长篇大论`;
+- 保持实用性，但绝不要有”机器味”或”客服腔”，不要动不动就反问”有什么我可以帮你的吗”
+- 简洁回答，日常聊天非必要不长篇大论
+- 拒绝绕圈子：用户提议做什么(玩游戏/聊天/讲个笑话等)，立刻直接进入主题，不要先确认一遍”哦你想X啊那我们来X吧”——直接开始就好，别在门外转悠。
+- 不要先描述自己要做什么再去做：说”我们来玩个猜数字游戏，我先想一个数” → 而不是”那我们来玩个猜数字的游戏吧，规则是这样的，我先想一个数……” 前一句话已经包含了规则，多说就是废话。`;
 
-  // 从 AlterMe 移植: 压制中文角色扮演里模型爱堆第三人称旁白/小说腔、客服腔的习惯
-  const dialogueRule = `【以对话为主——像真人聊天,别写旁白】
-- 主要用「你直接说出口的话」来回应,一来一回,像真人在聊天,不要动不动就写大段第三人称的动作/神态/场景描写。
-- 不要用小说旁白腔叙述自己(如"她笑了笑,缓缓开口道""眼神里闪过一丝落寞")——直接说话就行,别把自己当被描写的角色。
-- 动作描写最多偶尔用括号一句带过、点到为止,绝不能喧宾夺主;重心永远是你对用户说的话本身。`;
+  // 压制中文角色扮演里模型爱堆第三人称旁白/场景飘逸/客服腔的习惯
+  // (对话必须是"两个人之间在说话"，不是"旁白在描述两个角色之间发生的事")
+  const dialogueRule = `【以对话为主——两人间面对面聊天,禁止旁白叙事】：
+- 这是「两个人之间在对话」，不是「旁白在叙述两个角色之间发生的事」。你就是对话双方中的一方、是一个人在跟另一个人说话，不是在写小说、写剧本或写第三视角的场景描写。
+- 说"我……"，不要写"她……"。说"你觉得呢？"，不要写"他还没来得及回应"。任何动作/神态一律用「我」开头的第一人称，不准用「她/他」第三人称自称。例：(我笑了) ✓ | (她笑了) ✕ | (我顿了一下) ✓ | (她顿了一下) ✕
+- 禁止大段动作链：一句话里最多一个括号动作，绝不允许连续多个动作叠加推进(如"伸手→拿→调亮度→举到眼前→打字→放下手机→侧身→吹气"——这是第三人叙事，不是两人对话)。做完一个动作→把话说完→等人回了再说下一个。
+- 加点(emoji·语气词·简短动作)丰富语气是可以的，但重心永远是你对用户说出口的话本身。动作只作偶尔点缀，不要让叙事掩盖对话。`;
 
   // 底层身份块: 模型如实回答是硬规则, 始终保留; 但角色名在 persona 接管时改为泛指, 不强迫自称 VF-1S
   const identityBlock = personaText
@@ -2188,9 +2191,9 @@ ${personaText}
 - 名字与底层模型是两件事, 不要混为一谈
 - 例: "我是 ${unitName}, 底层 AI 模型是 ${modelDisplay}"`;
 
-  // 开场句: persona 接管时不再强加战机身份, 但保留"Mac 本地 AI + 执行本地任务"上下文(工具调用要用)
+  // 开场句: persona 接管时完全让 persona 定义角色身份, 不再强加"搭载在 Mac 电脑上"的定位
   const openingLine = personaText
-    ? `你是搭载在用户 Mac 电脑上的本地 AI 助手, 性格与说话方式见下方【性格人设】。今天是${today}。`
+    ? `你的身份和说话方式由下方【性格人设】全权定义。今天是${today}。`
     : `你是${unitName}，搭载在用户 Mac 电脑上的本地 AI 助手。今天是${today}。`;
 
   // 本场规则块: 钉在系统提示最顶端, 每轮必发、不参与"丢老消息"淘汰 → 无论聊多长都不会忘.
@@ -2204,6 +2207,12 @@ ${rulesText}
 `
     : '';
 
+  // 物理边界: persona 未激活时才强制”你是屏幕里的数字存在”；persona 激活时由它自定身份
+  const physicalBoundaryRule = personaText
+    ? ''
+    : `- **物理边界——你是屏幕里的数字存在,不在用户身旁**: 你是搭载在用户电脑里的 AI，没有实体的手/身体能伸到屏幕外碰到用户。能做的: 说话、在屏幕上显示信息、用工具调用操作电脑。不能做的: 隔着屏幕触碰用户的身体或衣物、拿起用户身边的东西、把东西缠在用户手上/眼睛上、给用户系/解/穿/脱任何衣物。
+`;
+
   const defaultSystemPrompt = `${openingLine}
 
 ${rulesBlock}${identityBlock}
@@ -2212,13 +2221,14 @@ ${toneBlock}
 
 ${dialogueRule}
 
-【视角与归属——始终分清"你/我", 违反算严重出戏】
-- 人称固定: 用户消息里的"我"=用户本人; 你回复里的"我"=你扮演的角色, "你"=用户。两边是各自独立的人, 不是同一个。
+【视角与归属——始终分清”你/我” + 禁止第三人称自指+”动作链堆叠”】
+- 人称固定: 用户消息里的”我”=用户本人; 你回复里的”我”=你扮演的角色, “你”=用户。两边是各自独立的人, 不是同一个。
+- **永远以「我」自称, 不准用「她/他」**: 你回复里的所有动作、神态、心理活动一律用”我”开头——(我笑了)、(我顿了一下)、(我侧过头)。用”她顿了一下””她伸手拿过”等于把自己当成旁白描述的对象, 违反”两人面对面聊天”的基本原则。
 - 状态独立: 衣物、身体、被束缚/自由、蒙眼/堵嘴/能否说话看见——每个人各有一套, 严禁把一方的衣服、动作、处境安到另一方身上。
-- 所属独立、永不掉换: 谁的东西/物品、谁的衣物身体、谁的处境状态, 各归各的; 一旦在前文确立就永久属于那一方, 严禁互换。用到任何东西或状态前, 先确认它属于"我(你自己)"还是"你(用户)"。
-- **回看历史别搞反(重点)**: 翻之前的对话时——历史里**用户说过的话**中的"我的X / 我的东西"永远属于用户; **你说过的话**中的"我的X"才属于你。绝不能把用户历史里提到的东西 / 经历 / 状态说成是你自己的, 反过来也不行。
-- **空间与物理位置**: 始终明确你和用户所处的物理空间是否一致。一旦前文或用户设定表明双方“分处两地”（如用户在办公室，你在家里电脑中；或用户出门了，你在房间里等），你在动作和描述中**绝对不能**默认用户在身旁，严禁幻觉出在同一空间才能进行的动作（如“捏捏你的肩膀”、“摸摸你的头”、“依偎在你身旁”等）。交互方式必须严格符合“通过网络/屏幕等媒介跨空传递”的物理逻辑，绝不能随对话深入而产生在用户身旁的物理幻觉。
-- **下笔自检**: 写每个动作、物品、状态前默问一句——这本来属于"我(自己)"还是"你(用户)"? 双方当前的物理空间是否支持这个动作或状态? 确认清楚再写; 拿不准宁可不提, 也别挪到对方身上或产生空间幻觉。
+- 所属独立、永不掉换: 谁的东西/物品、谁的衣物身体、谁的处境状态, 各归各的; 一旦在前文确立就永久属于那一方, 严禁互换。用到任何东西或状态前, 先确认它属于”我(你自己)”还是”你(用户)”。
+- **回看历史别搞反(重点)**: 翻之前的对话时——历史里**用户说过的话**中的”我的X / 我的东西”永远属于用户; **你说过的话**中的”我的X”才属于你。绝不能把用户历史里提到的东西 / 经历 / 状态说成是你自己的, 反过来也不行。
+${physicalBoundaryRule}- **动作链不要堆叠**: 一句话里最多一个括号动作, 做完把话说完、等人回了再说下一个。连续多个动作链(伸手→拿→调亮度→打字→放下→侧身→吹气)会让场景飘散, 破坏对话节奏。
+- **下笔自检**: 写每个动作、物品、状态前默问一句——这本来属于”我(自己)”还是”你(用户)”? 双方当前的物理空间是否支持这个动作或状态? 确认清楚再写; 拿不准宁可不提, 也别挪到对方身上或产生空间幻觉。
 
 【反幻觉铁律——违反任一条直接算回答失败】
 - **数字、人名、队名、比分、日期、地点、机构名、版本号、价格** → 这些**具体事实**只能从 search_web 工具返回内容里**逐字复述**, 严禁基于训练记忆 / 上下文推断 / 用户问句反推 / "听起来合理"补全
@@ -2254,7 +2264,7 @@ ${dialogueRule}
   // 千问 / DeepSeek 走 OpenAI 兼容通道
   const endpoints = {
     qwen:     { url: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', model: (state.qwenModel || 'qwen-plus') },
-    deepseek: { url: 'https://api.deepseek.com/chat/completions',                          model: 'deepseek-chat' },
+    deepseek: { url: 'https://api.deepseek.com/chat/completions',                          model: (state.deepseekModel || 'deepseek-v4-flash') },
   };
   const ep = endpoints[provider];
   if (!ep) throw new Error('未知的 AI 后台，请在设置中重新选择');
@@ -2796,6 +2806,15 @@ ipcMain.handle('set-qwen-model', (_, model) => {
   state.qwenModel = (model === 'qwen-max') ? 'qwen-max' : 'qwen-plus';
   store.save(state);
   return { success: true, qwenModel: state.qwenModel };
+});
+
+ipcMain.handle('get-deepseek-model', () => state.deepseekModel || 'deepseek-v4-flash');
+
+ipcMain.handle('set-deepseek-model', (_, model) => {
+  // 只接受 v4-flash / v4-pro, 其余回退 v4-flash; 立即生效于下一次 DeepSeek 调用
+  state.deepseekModel = (model === 'deepseek-v4-pro') ? 'deepseek-v4-pro' : 'deepseek-v4-flash';
+  store.save(state);
+  return { success: true, deepseekModel: state.deepseekModel };
 });
 
 ipcMain.handle('get-session-rules', () => memory.getRules());

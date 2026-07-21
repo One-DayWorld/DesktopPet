@@ -66,6 +66,8 @@ contextBridge.exposeInMainWorld('petAPI', {
   setSessionRules: (text) => ipcRenderer.invoke('set-session-rules', text),
   getQwenModel: () => ipcRenderer.invoke('get-qwen-model'),
   setQwenModel: (model) => ipcRenderer.invoke('set-qwen-model', model),
+  getDeepseekModel: () => ipcRenderer.invoke('get-deepseek-model'),
+  setDeepseekModel: (model) => ipcRenderer.invoke('set-deepseek-model', model),
   resetPetPosition: () => ipcRenderer.invoke('reset-pet-position'),
   setIgnoreMouse: (ignore) => ipcRenderer.invoke('set-ignore-mouse', ignore),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),

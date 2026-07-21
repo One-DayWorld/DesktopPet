@@ -33,7 +33,8 @@ const DEFAULT_STATE = {
   voiceLang:     'zh',           // 语音台词语言: 'zh' 中文 / 'en' 英文
   persona:       '',             // [已迁移] 现存于 ~/.desktop-pet/persona-memory.md; 此字段仅供旧数据一次性迁移(migrateIfNeeded)
   sessionRules:  '',             // [已迁移] 同上, 现存于 persona-memory.md 的「本场规则」段
-  qwenModel:     'qwen-plus'     // 千问后台具体型号: 'qwen-plus'(默认/更省) 或 'qwen-max'(更强/更贵)
+  qwenModel:     'qwen-plus',    // 千问后台具体型号: 'qwen-plus'(默认/更省) 或 'qwen-max'(更强/更贵)
+  deepseekModel: 'deepseek-v4-flash'  // DeepSeek 具体型号: 'deepseek-v4-flash'(默认) 或 'deepseek-v4-pro'(旗舰)
 };
 
 function calcLevelFromXP(xp) {
@@ -78,6 +79,9 @@ function load() {
     // 千问型号只允许 plus / max, 非法值回退 plus
     const VALID_QWEN = ['qwen-plus', 'qwen-max'];
     if (!VALID_QWEN.includes(merged.qwenModel)) merged.qwenModel = 'qwen-plus';
+    // DeepSeek 型号只允许 v4-flash / v4-pro, 非法值回退 v4-flash
+    const VALID_DEEPSEEK = ['deepseek-v4-flash', 'deepseek-v4-pro'];
+    if (!VALID_DEEPSEEK.includes(merged.deepseekModel)) merged.deepseekModel = 'deepseek-v4-flash';
     // deep merge pet to fill any missing fields
     merged.pet = Object.assign({}, DEFAULT_STATE.pet, merged.pet);
     // deep merge breakReminder for older data files that don't have this field
