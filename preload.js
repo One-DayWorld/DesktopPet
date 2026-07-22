@@ -14,6 +14,10 @@ contextBridge.exposeInMainWorld('petAPI', {
   obsidianSyncNow: () => ipcRenderer.invoke('obsidian-sync-now'),
   getObsidianStatus: () => ipcRenderer.invoke('get-obsidian-status'),
   openObsidianOutputDir: () => ipcRenderer.invoke('open-obsidian-output-dir'),
+  getStoryLearningConfig: () => ipcRenderer.invoke('get-story-learning-config'),
+  setStoryLearningConfig: (cfg) => ipcRenderer.invoke('set-story-learning-config', cfg),
+  storyLearnNow: () => ipcRenderer.invoke('story-learn-now'),
+  getStoryLearningStatus: () => ipcRenderer.invoke('get-story-learning-status'),
 
   // 文章投喂 (记忆系统)
   pickArticleFile: () => ipcRenderer.invoke('pick-article-file'),

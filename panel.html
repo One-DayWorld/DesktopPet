@@ -1334,6 +1334,22 @@
       <div class="setting-note" id="obsidian-status" style="margin-top:8px">未同步</div>
     </div>
 
+    <div class="hud-frame">
+      <div class="hud-pill">STORY · 成人主题互动知识</div>
+      <div class="setting-note" style="margin-bottom:10px">只读取 Story 目录下的 Markdown，把创作语境、互动偏好和安全边界提炼进长期记忆。</div>
+      <label class="toggle-row">
+        <input type="checkbox" id="story-learning-enabled">
+        <span>启用 Story 学习入口</span>
+      </label>
+      <div class="setting-label">Story 路径</div>
+      <input class="setting-input" id="story-learning-path" placeholder="/Users/ace/Documents/OneDayWorld/Story" />
+      <div class="key-row obsidian-actions" style="margin-top:10px">
+        <button class="key-save-btn" onclick="saveStoryLearningConfig()">保存</button>
+        <button class="key-save-btn" onclick="learnStoryNow()">学习 Story 文档</button>
+      </div>
+      <div class="setting-note" id="story-learning-status" style="margin-top:8px">未学习</div>
+    </div>
+
     <div style="height:10px"></div>
     <div class="setting-note" style="text-align:center;color:rgba(78,148,175,0.38)">羁绊只靠交流增长 · 聊天+8 · 投喂文章+25 · 提炼出新理解+15</div>
     <div style="height:16px"></div>
@@ -1464,6 +1480,7 @@ document.querySelectorAll('.tab').forEach(tab => {
       loadPetVisible();
       loadQwenModel();
       loadObsidianConfig().catch(e => console.log('[OBSIDIAN] load config failed', e));
+      loadStoryLearningConfig().catch(e => console.log('[STORY] load config failed', e));
     }
   });
 });
@@ -1851,6 +1868,119 @@ async function openObsidianOutputDir() {
     setObsidianStatus(`打开目录失败: ${getObsidianError(null, e)}`);
   }
 }
+
+function setStoryLearningStatus(text) {
+  const el = document.getElementById('story-learning-status');
+  if (el) {
+    el.textContent = text;
+    return true;
+  }
+  console.log('[STORY] status unavailable:', text);
+  return false;
+}
+
+function getStoryLearningEls() {
+  const els = {
+    enabled: document.getElementById('story-learning-enabled'),
+    storyPath: document.getElementById('story-learning-path'),
+    status: document.getElementById('story-learning-status')
+  };
+  const missing = Object.entries(els).filter(([, el]) => !el).map(([name]) => name);
+  if (missing.length) {
+    setStoryLearningStatus('当前版本不支持 Story 学习配置');
+    console.log('[STORY] missing DOM elements:', missing.join(', '));
+    return null;
+  }
+  return els;
+}
+
+function getStoryLearningError(res, err) {
+  return (res && (res.lastError || res.error)) || (err && err.message) || '未知错误';
+}
+
+async function loadStoryLearningConfig() {
+  const els = getStoryLearningEls();
+  if (!els) return;
+  if (!window.petAPI || !window.petAPI.getStoryLearningConfig) {
+    setStoryLearningStatus('当前版本不支持 Story 学习配置');
+    return;
+  }
+  try {
+    const cfg = await window.petAPI.getStoryLearningConfig();
+    els.enabled.checked = cfg.enabled !== false;
+    els.storyPath.value = cfg.storyPath || '/Users/ace/Documents/OneDayWorld/Story';
+    await refreshStoryLearningStatus();
+  } catch (e) {
+    setStoryLearningStatus(`加载失败: ${getStoryLearningError(null, e)}`);
+  }
+}
+
+async function saveStoryLearningConfig(options = {}) {
+  const els = getStoryLearningEls();
+  if (!els) return false;
+  if (!window.petAPI || !window.petAPI.setStoryLearningConfig) {
+    setStoryLearningStatus('当前版本不支持 Story 学习配置');
+    return false;
+  }
+  const cfg = {
+    enabled: els.enabled.checked,
+    storyPath: ((els.storyPath.value || '/Users/ace/Documents/OneDayWorld/Story').trim() || '/Users/ace/Documents/OneDayWorld/Story')
+  };
+  try {
+    const res = await window.petAPI.setStoryLearningConfig(cfg);
+    if (!res || res.ok === false) {
+      setStoryLearningStatus(`保存失败: ${getStoryLearningError(res)}`);
+      return false;
+    }
+    if (!options.silentSuccess) setStoryLearningStatus('已保存 Story 设置');
+    return true;
+  } catch (e) {
+    setStoryLearningStatus(`保存失败: ${getStoryLearningError(null, e)}`);
+    return false;
+  }
+}
+
+async function refreshStoryLearningStatus() {
+  if (!getStoryLearningEls()) return;
+  if (!window.petAPI || !window.petAPI.getStoryLearningStatus) {
+    setStoryLearningStatus('当前版本不支持 Story 学习配置');
+    return;
+  }
+  try {
+    const status = await window.petAPI.getStoryLearningStatus();
+    if (status && status.lastError) {
+      setStoryLearningStatus(`上次失败: ${status.lastError}`);
+    } else if (status && status.lastLearnAt) {
+      setStoryLearningStatus(`上次学习: ${status.lastLearnAt} · 扫描 ${status.scannedFiles || 0} 个文件, 变更 ${status.changedFiles || 0} 个`);
+    } else {
+      setStoryLearningStatus('未学习');
+    }
+  } catch (e) {
+    setStoryLearningStatus(`状态读取失败: ${getStoryLearningError(null, e)}`);
+  }
+}
+
+async function learnStoryNow() {
+  const els = getStoryLearningEls();
+  if (!els) return;
+  setStoryLearningStatus('学习前保存设置中');
+  const saved = await saveStoryLearningConfig({ silentSuccess: true });
+  if (!saved) return;
+  if (!window.petAPI || !window.petAPI.storyLearnNow) {
+    setStoryLearningStatus('当前版本不支持 Story 学习配置');
+    return;
+  }
+  setStoryLearningStatus('学习中');
+  try {
+    const res = await window.petAPI.storyLearnNow();
+    setStoryLearningStatus(res && res.ok !== false
+      ? `学习完成: 扫描 ${res.scannedFiles || 0} 个文件, 变更 ${res.changedFiles || 0} 个${res.memoryChanged ? ', 已更新记忆' : ''}`
+      : `学习失败: ${getStoryLearningError(res)}`);
+  } catch (e) {
+    setStoryLearningStatus(`学习失败: ${getStoryLearningError(null, e)}`);
+  }
+}
+
 document.getElementById('chat-input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.metaKey) { e.preventDefault(); sendChat(); }
 });
