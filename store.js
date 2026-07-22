@@ -30,6 +30,12 @@ const DEFAULT_STATE = {
     syncIntervalMin: 30,
     writeBackEveryTurns: 10
   },
+  storyLearning: {
+    enabled: true,
+    storyPath: '/Users/ace/Documents/OneDayWorld/Story',
+    autoSync: false,
+    maxBatchChars: 24000
+  },
   voiceLang:     'zh',           // 语音台词语言: 'zh' 中文 / 'en' 英文
   persona:       '',             // [已迁移] 现存于 ~/.desktop-pet/persona-memory.md; 此字段仅供旧数据一次性迁移(migrateIfNeeded)
   sessionRules:  '',             // [已迁移] 同上, 现存于 persona-memory.md 的「本场规则」段
@@ -94,6 +100,11 @@ function load() {
     merged.obsidian.outputDir = String(merged.obsidian.outputDir || DEFAULT_STATE.obsidian.outputDir);
     merged.obsidian.syncIntervalMin = normalizePositiveInt(merged.obsidian.syncIntervalMin, DEFAULT_STATE.obsidian.syncIntervalMin);
     merged.obsidian.writeBackEveryTurns = normalizePositiveInt(merged.obsidian.writeBackEveryTurns, DEFAULT_STATE.obsidian.writeBackEveryTurns);
+    merged.storyLearning = Object.assign({}, DEFAULT_STATE.storyLearning, merged.storyLearning || {});
+    merged.storyLearning.enabled = merged.storyLearning.enabled !== false;
+    merged.storyLearning.storyPath = String(merged.storyLearning.storyPath || DEFAULT_STATE.storyLearning.storyPath);
+    merged.storyLearning.autoSync = merged.storyLearning.autoSync === true;
+    merged.storyLearning.maxBatchChars = normalizePositiveInt(merged.storyLearning.maxBatchChars, DEFAULT_STATE.storyLearning.maxBatchChars);
     // 羁绊系统迁移: 战斗等级语义改为"羁绊/熟悉度", 一次性清零旧战斗经验, 从 Lv.1 重新养羁绊
     if (!merged._bondMigrated) {
       merged.pet.xp = 0;
