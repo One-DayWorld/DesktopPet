@@ -47,7 +47,7 @@ test('story prompt tolerates empty notes and missing note fields', () => {
   assert.match(prompt, /标签: story note/);
 });
 
-test('story prompt limits old knowledge and total note body length', () => {
+test('story prompt limits old knowledge and each note body length', () => {
   const oldTail = 'OLD_TAIL_SHOULD_NOT_APPEAR';
   const noteTail = 'NOTE_TAIL_SHOULD_NOT_APPEAR';
   const oldStoryKnowledge = `${'旧'.repeat(4000)}${oldTail}`;
@@ -62,5 +62,9 @@ test('story prompt limits old knowledge and total note body length', () => {
 
   assert.doesNotMatch(prompt, new RegExp(oldTail));
   assert.doesNotMatch(prompt, new RegExp(noteTail));
-  assert.equal((prompt.match(/正文:/g) || []).length, 3);
+  assert.equal((prompt.match(/正文:/g) || []).length, 4);
+  for (let index = 0; index < 4; index += 1) {
+    assert.match(prompt, new RegExp(`Scene-${index}\\.md`));
+    assert.match(prompt, new RegExp(`标题: Scene ${index}`));
+  }
 });
