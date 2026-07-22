@@ -25,3 +25,42 @@ test('story prompt preserves fiction and safety boundaries', () => {
   assert.match(prompt, /捆绑、堵嘴、捂嘴/);
   assert.match(prompt, /呼吸受限/);
 });
+
+test('story prompt tolerates empty notes and missing note fields', () => {
+  assert.doesNotThrow(() => buildStoryLearningPrompt('', [
+    null,
+    undefined,
+    {},
+    { relativePath: '  Scene \n One.md  ', title: '  Scene\tOne  ', tags: ['  story\nnote  '] }
+  ]));
+
+  const prompt = buildStoryLearningPrompt('', [
+    null,
+    undefined,
+    {},
+    { relativePath: '  Scene \n One.md  ', title: '  Scene\tOne  ', tags: ['  story\nnote  '] }
+  ]);
+
+  assert.match(prompt, /Story 变更文档/);
+  assert.match(prompt, /Scene One\.md/);
+  assert.match(prompt, /标题: Scene One/);
+  assert.match(prompt, /标签: story note/);
+});
+
+test('story prompt limits old knowledge and total note body length', () => {
+  const oldTail = 'OLD_TAIL_SHOULD_NOT_APPEAR';
+  const noteTail = 'NOTE_TAIL_SHOULD_NOT_APPEAR';
+  const oldStoryKnowledge = `${'旧'.repeat(4000)}${oldTail}`;
+  const notes = Array.from({ length: 4 }, (_, index) => ({
+    relativePath: `Scene-${index}.md`,
+    title: `Scene ${index}`,
+    tags: ['story'],
+    body: `${String(index).repeat(8000)}${noteTail}`
+  }));
+
+  const prompt = buildStoryLearningPrompt(oldStoryKnowledge, notes);
+
+  assert.doesNotMatch(prompt, new RegExp(oldTail));
+  assert.doesNotMatch(prompt, new RegExp(noteTail));
+  assert.equal((prompt.match(/正文:/g) || []).length, 3);
+});
