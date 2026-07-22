@@ -123,6 +123,27 @@ test('batchNotesByChars splits notes by configured character budget', () => {
   ]);
 });
 
+test('learnNow reports disabled Story learning as skipped', async () => {
+  const stateFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-story-state-')), 'state.json');
+  const service = createStoryLearningService({
+    config: { enabled: false, storyPath: '/fake', maxBatchChars: 24000 },
+    syncStore: createSyncStateStore(stateFile),
+    adapter: {
+      listNotes: async () => { throw new Error('disabled service should not scan'); },
+      getChangedNotes: async () => [],
+      readNote: async () => null
+    },
+    getMemoryText: () => '',
+    setMemoryText: () => {},
+    refineStoryKnowledge: async () => ''
+  });
+
+  const result = await service.learnNow();
+
+  assert.equal(result.ok, true);
+  assert.equal(result.skipped, true);
+});
+
 test('learnNow scans changed Story markdown and updates memory section', async () => {
   const storyRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-story-'));
   write(path.join(storyRoot, '0_总纲.md'), '# 总纲\n成人互动氛围。');

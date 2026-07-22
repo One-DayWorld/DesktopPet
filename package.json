@@ -67,6 +67,7 @@
       "memory.js",
       "voice-lines.json",
       "obsidian/**/*",
+      "story/**/*",
       "scripts/**/*",
       "assets/**/*",
       "node_modules/**/*",

@@ -13,6 +13,8 @@ const memory = require('./memory');
 const { createSyncStateStore } = require('./obsidian/sync-state');
 const { createObsidianService } = require('./obsidian');
 const { buildNotesRefinePrompt, buildWriteBackPrompt } = require('./obsidian/prompts');
+const { createStoryLearningService } = require('./story');
+const { buildStoryLearningPrompt } = require('./story/prompts');
 const mammoth = require('mammoth');   // docx → 纯文本 (文章投喂)
 
 let petWindow = null;
@@ -20,6 +22,7 @@ let panelWindow = null;
 let state = store.load();
 let obsidianService = null;
 let obsidianSyncTimer = null;
+let storyLearningService = null;
 let _obsidianTurnsSinceWrite = 0;
 let _obsidianQuitFlushDone = false;
 // 首次启动: 把旧的 persona/sessionRules(data.json) 与结构化画像(profile.json) 迁移进 persona-memory.md
@@ -1028,6 +1031,13 @@ const DEFAULT_OBSIDIAN_CONFIG = {
   writeBackEveryTurns: 10
 };
 
+const DEFAULT_STORY_LEARNING_CONFIG = {
+  enabled: true,
+  storyPath: '/Users/ace/Documents/OneDayWorld/Story',
+  autoSync: false,
+  maxBatchChars: 24000
+};
+
 function normalizeObsidianOutputDir(outputDir) {
   const raw = String(outputDir || 'Macross').replace(/\\/g, '/').replace(/^\/+/, '').trim() || 'Macross';
   const parts = raw.split('/').filter(Boolean);
@@ -1071,6 +1081,16 @@ function normalizeObsidianConfig(cfg) {
   };
 }
 
+function normalizeStoryLearningConfig(cfg) {
+  const src = Object.assign({}, DEFAULT_STORY_LEARNING_CONFIG, cfg || {});
+  return {
+    enabled: src.enabled !== false,
+    storyPath: String(src.storyPath || DEFAULT_STORY_LEARNING_CONFIG.storyPath),
+    autoSync: src.autoSync === true,
+    maxBatchChars: normalizePositiveInt(src.maxBatchChars, DEFAULT_STORY_LEARNING_CONFIG.maxBatchChars)
+  };
+}
+
 function initObsidianService() {
   if (obsidianSyncTimer) {
     clearInterval(obsidianSyncTimer);
@@ -1091,6 +1111,16 @@ function initObsidianService() {
       obsidianService.syncNow().catch(e => console.warn('[OBSIDIAN] scheduled sync failed:', e.message));
     }, intervalMs);
   }
+}
+
+function initStoryLearningService() {
+  storyLearningService = createStoryLearningService({
+    config: state.storyLearning || DEFAULT_STORY_LEARNING_CONFIG,
+    syncStore: createSyncStateStore(path.join(memory.MEM_DIR, 'story-learning-sync.json')),
+    getMemoryText: () => memory.getMemoryText(),
+    setMemoryText: (txt) => memory.setMemoryText(txt),
+    refineStoryKnowledge: refineFromStoryNotes
+  });
 }
 
 function shouldAutoWriteBackObsidian() {
@@ -1123,6 +1153,7 @@ app.whenReady().then(() => {
   createPetWindow();
   createPanelWindow();
   initObsidianService();
+  initStoryLearningService();
 
   // 启动时清掉残留的 flag 文件 — 它们是 app 关闭期间累积的陈旧通知,
   // 不该在新会话启动时被当作"刚刚完成"重新播报
@@ -1237,6 +1268,29 @@ ipcMain.handle('obsidian-sync-now', async () => {
 ipcMain.handle('get-obsidian-status', () => {
   if (!obsidianService) initObsidianService();
   return obsidianService.getStatus();
+});
+
+ipcMain.handle('get-story-learning-config', () => state.storyLearning || DEFAULT_STORY_LEARNING_CONFIG);
+
+ipcMain.handle('set-story-learning-config', (_, cfg) => {
+  try {
+    state.storyLearning = normalizeStoryLearningConfig(Object.assign({}, state.storyLearning || {}, cfg || {}));
+    store.save(state);
+    initStoryLearningService();
+    return { ok: true, config: state.storyLearning };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle('story-learn-now', async () => {
+  if (!storyLearningService) initStoryLearningService();
+  return storyLearningService.learnNow();
+});
+
+ipcMain.handle('get-story-learning-status', () => {
+  if (!storyLearningService) initStoryLearningService();
+  return storyLearningService.getStatus();
 });
 
 ipcMain.handle('open-obsidian-output-dir', async () => {
@@ -2380,6 +2434,19 @@ async function refineFromObsidianNotes(oldMemory, notes) {
     systemOverride: system,
     noTools: true,
     temperature: 0.3
+  });
+}
+
+async function refineFromStoryNotes(oldStoryKnowledge, notes) {
+  const provider = state.aiProvider || 'qwen';
+  const apiKey = (state.apiKeys || {})[provider] || '';
+  if (!apiKey) throw new Error('请先在设置中填写 API Key 后再学习 Story 文档');
+  const metasoKey = (state.apiKeys || {}).metaso || '';
+  const system = `你是桌宠的成人主题互动知识整理器。只从 Story 文档提炼创作语境、互动偏好和安全边界。故事内容不等于用户现实经历; 不输出危险实操细节; 只输出指定 Markdown 小节。`;
+  return callAI(provider, apiKey, state.pet.name, [], buildStoryLearningPrompt(oldStoryKnowledge, notes), metasoKey, {
+    systemOverride: system,
+    noTools: true,
+    temperature: 0.25
   });
 }
 
