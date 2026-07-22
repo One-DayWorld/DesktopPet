@@ -42,6 +42,33 @@ test('extractStoryKnowledgeSection returns existing Story section only', () => {
   );
 });
 
+test('Story heading must be an independent level-2 heading line', () => {
+  const memory = `正文提到 ${STORY_KNOWLEDGE_HEADING} 只是普通文本。\n- ${STORY_KNOWLEDGE_HEADING} 也只是列表内容。`;
+  const section = `${STORY_KNOWLEDGE_HEADING}\n\n### 安全边界\n只在创作语境使用。`;
+
+  assert.equal(extractStoryKnowledgeSection(memory), '');
+
+  const replaced = replaceStoryKnowledgeSection(memory, section);
+  assert.match(replaced, /普通文本/);
+  assert.match(replaced, /列表内容/);
+  assert.equal((replaced.match(/^## Story 成人主题互动知识\s*$/gm) || []).length, 1);
+});
+
+test('replaceStoryKnowledgeSection removes duplicate Story sections and keeps non-Story sections', () => {
+  const memory = `开头记忆\n\n${STORY_KNOWLEDGE_HEADING}\n\n旧版一\n\n## 其他小节 A\n保留 A\n\n${STORY_KNOWLEDGE_HEADING}\n\n旧版二\n\n## 其他小节 B\n保留 B`;
+  const section = `${STORY_KNOWLEDGE_HEADING}\n\n### 题材与术语理解\n新版`;
+
+  const replaced = replaceStoryKnowledgeSection(memory, section);
+
+  assert.match(replaced, /开头记忆/);
+  assert.match(replaced, /保留 A/);
+  assert.match(replaced, /保留 B/);
+  assert.match(replaced, /新版/);
+  assert.doesNotMatch(replaced, /旧版一/);
+  assert.doesNotMatch(replaced, /旧版二/);
+  assert.equal((replaced.match(/^## Story 成人主题互动知识\s*$/gm) || []).length, 1);
+});
+
 test('batchNotesByChars splits notes by configured character budget', () => {
   const notes = [
     { relativePath: 'A.md', body: '12345' },
@@ -107,4 +134,61 @@ test('learnNow skips refinement when files are unchanged', async () => {
   assert.equal(second.ok, true);
   assert.equal(second.changedFiles, 0);
   assert.equal(calls, 1);
+});
+
+test('learnNow retries changed notes when refinement returns blank', async () => {
+  const storyRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-story-'));
+  write(path.join(storyRoot, 'Scene.md'), '# Scene\n内容。');
+  const stateFile = path.join(storyRoot, 'state.json');
+  let calls = 0;
+  const service = createStoryLearningService({
+    config: { enabled: true, storyPath: storyRoot, maxBatchChars: 24000 },
+    syncStore: createSyncStateStore(stateFile),
+    getMemoryText: () => '',
+    setMemoryText: () => {},
+    refineStoryKnowledge: async () => {
+      calls += 1;
+      return '   ';
+    }
+  });
+
+  const first = await service.learnNow();
+  const stateAfterFirst = createSyncStateStore(stateFile).load();
+  const second = await service.learnNow();
+
+  assert.equal(first.ok, true);
+  assert.equal(first.memoryChanged, false);
+  assert.equal(stateAfterFirst.notes['Scene.md'], undefined);
+  assert.equal(second.changedFiles, 1);
+  assert.equal(calls, 2);
+});
+
+test('learnNow keeps successful batch state when a later batch fails', async () => {
+  const storyRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-story-'));
+  write(path.join(storyRoot, 'A.md'), '# A\n12345');
+  write(path.join(storyRoot, 'B.md'), '# B\n12345');
+  const stateFile = path.join(storyRoot, 'state.json');
+  let memoryText = '';
+  let calls = 0;
+  const service = createStoryLearningService({
+    config: { enabled: true, storyPath: storyRoot, maxBatchChars: 6 },
+    syncStore: createSyncStateStore(stateFile),
+    getMemoryText: () => memoryText,
+    setMemoryText: (txt) => { memoryText = txt; },
+    refineStoryKnowledge: async (_oldSection, notes) => {
+      calls += 1;
+      if (calls === 2) throw new Error('refine failed');
+      return `${STORY_KNOWLEDGE_HEADING}\n\n### 题材与术语理解\n已学习 ${notes[0].relativePath}`;
+    }
+  });
+
+  const result = await service.learnNow();
+  const state = createSyncStateStore(stateFile).load();
+
+  assert.equal(result.ok, false);
+  assert.equal(result.memoryChanged, true);
+  assert.match(result.lastError, /refine failed/);
+  assert.match(memoryText, /已学习 A\.md/);
+  assert.equal(state.notes['A.md'].hash.length, 64);
+  assert.equal(state.notes['B.md'], undefined);
 });
