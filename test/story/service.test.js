@@ -225,6 +225,87 @@ test('learnNow retries changed notes when refinement returns blank', async () =>
   assert.equal(calls, 2);
 });
 
+test('learnNow retries changed notes when refinement returns ordinary text', async () => {
+  const storyRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-story-'));
+  write(path.join(storyRoot, 'Scene.md'), '# Scene\n内容。');
+  const stateFile = path.join(storyRoot, 'state.json');
+  let memoryText = '既有记忆';
+  let calls = 0;
+  const service = createStoryLearningService({
+    config: { enabled: true, storyPath: storyRoot, maxBatchChars: 24000 },
+    syncStore: createSyncStateStore(stateFile),
+    getMemoryText: () => memoryText,
+    setMemoryText: (txt) => { memoryText = txt; },
+    refineStoryKnowledge: async () => {
+      calls += 1;
+      return '模型跑偏输出';
+    }
+  });
+
+  const first = await service.learnNow();
+  const stateAfterFirst = createSyncStateStore(stateFile).load();
+  const second = await service.learnNow();
+
+  assert.equal(first.ok, true);
+  assert.equal(first.memoryChanged, false);
+  assert.equal(memoryText, '既有记忆');
+  assert.equal(stateAfterFirst.notes['Scene.md'], undefined);
+  assert.equal(second.changedFiles, 1);
+  assert.equal(calls, 2);
+});
+
+test('learnNow retries changed notes when refinement returns a non-Story heading', async () => {
+  const storyRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-story-'));
+  write(path.join(storyRoot, 'Scene.md'), '# Scene\n内容。');
+  const stateFile = path.join(storyRoot, 'state.json');
+  let memoryText = '既有记忆';
+  let calls = 0;
+  const service = createStoryLearningService({
+    config: { enabled: true, storyPath: storyRoot, maxBatchChars: 24000 },
+    syncStore: createSyncStateStore(stateFile),
+    getMemoryText: () => memoryText,
+    setMemoryText: (txt) => { memoryText = txt; },
+    refineStoryKnowledge: async () => {
+      calls += 1;
+      return '## Other\n\n跑偏内容';
+    }
+  });
+
+  const first = await service.learnNow();
+  const stateAfterFirst = createSyncStateStore(stateFile).load();
+  const second = await service.learnNow();
+
+  assert.equal(first.ok, true);
+  assert.equal(first.memoryChanged, false);
+  assert.equal(memoryText, '既有记忆');
+  assert.equal(stateAfterFirst.notes['Scene.md'], undefined);
+  assert.equal(second.changedFiles, 1);
+  assert.equal(calls, 2);
+});
+
+test('learnNow accepts refinement with surrounding whitespace around the Story section', async () => {
+  const storyRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-story-'));
+  write(path.join(storyRoot, 'Scene.md'), '# Scene\n内容。');
+  const stateFile = path.join(storyRoot, 'state.json');
+  let memoryText = '既有记忆';
+  const service = createStoryLearningService({
+    config: { enabled: true, storyPath: storyRoot, maxBatchChars: 24000 },
+    syncStore: createSyncStateStore(stateFile),
+    getMemoryText: () => memoryText,
+    setMemoryText: (txt) => { memoryText = txt; },
+    refineStoryKnowledge: async () => `\n\n  ${STORY_KNOWLEDGE_HEADING}  \n\n### 安全边界\n只在创作语境使用。\n\n`
+  });
+
+  const result = await service.learnNow();
+  const state = createSyncStateStore(stateFile).load();
+
+  assert.equal(result.ok, true);
+  assert.equal(result.memoryChanged, true);
+  assert.match(memoryText, /既有记忆/);
+  assert.match(memoryText, /只在创作语境使用/);
+  assert.equal(state.notes['Scene.md'].hash.length, 64);
+});
+
 test('learnNow keeps successful batch state when a later batch fails', async () => {
   const storyRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'vf1-story-'));
   write(path.join(storyRoot, 'A.md'), '# A\n12345');

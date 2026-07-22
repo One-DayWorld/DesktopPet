@@ -56,11 +56,11 @@ function findLevelTwoHeadings(text) {
         fenceType = '';
         fenceLength = 0;
       }
-    } else if (!inFence && /^##\s+.+\s*$/.test(line)) {
+    } else if (!inFence && /^ {0,3}##\s+.+\s*$/.test(line)) {
       headings.push({
         start: lineStart,
         end: lineEnd,
-        isStory: line.trimEnd() === STORY_KNOWLEDGE_HEADING
+        isStory: line.trim() === STORY_KNOWLEDGE_HEADING
       });
     }
     index = newline >= 0 ? newline + 1 : text.length;
@@ -88,6 +88,22 @@ function extractStoryKnowledgeSection(memoryText) {
   const sections = findStorySections(text);
   if (!sections.length) return '';
   return text.slice(sections[0].start, sections[0].end).trim();
+}
+
+function normalizeStoryKnowledgeSection(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  const firstLineEnd = text.indexOf('\n');
+  const firstLine = (firstLineEnd >= 0 ? text.slice(0, firstLineEnd) : text).trim();
+  if (firstLine !== STORY_KNOWLEDGE_HEADING) return '';
+  const section = extractStoryKnowledgeSection(text);
+  if (!section) return '';
+  const sectionFirstLineEnd = section.indexOf('\n');
+  const sectionFirstLine = (sectionFirstLineEnd >= 0 ? section.slice(0, sectionFirstLineEnd) : section).trim();
+  if (sectionFirstLine !== STORY_KNOWLEDGE_HEADING) return '';
+  return [STORY_KNOWLEDGE_HEADING, section.slice(sectionFirstLineEnd >= 0 ? sectionFirstLineEnd + 1 : section.length).trim()]
+    .filter(Boolean)
+    .join('\n\n');
 }
 
 function replaceStoryKnowledgeSection(memoryText, storySection) {
@@ -162,8 +178,9 @@ function createStoryLearningService(deps) {
         let currentSection = extractStoryKnowledgeSection(currentMemory);
         for (const batch of batchNotesByChars(notes, config.maxBatchChars)) {
           const nextSection = await refineStoryKnowledge(currentSection, batch);
-          if (nextSection && String(nextSection).trim()) {
-            currentSection = String(nextSection).trim();
+          const normalizedSection = normalizeStoryKnowledgeSection(nextSection);
+          if (normalizedSection) {
+            currentSection = normalizedSection;
             currentMemory = replaceStoryKnowledgeSection(currentMemory, currentSection);
             setMemoryText(currentMemory);
             memoryChanged = true;
@@ -188,6 +205,7 @@ module.exports = {
   STORY_KNOWLEDGE_HEADING,
   batchNotesByChars,
   extractStoryKnowledgeSection,
+  normalizeStoryKnowledgeSection,
   replaceStoryKnowledgeSection,
   createStoryLearningService
 };
