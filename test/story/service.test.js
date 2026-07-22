@@ -54,14 +54,13 @@ test('Story heading must be an independent level-2 heading line', () => {
   assert.equal((replaced.match(/^## Story 成人主题互动知识\s*$/gm) || []).length, 1);
 });
 
-test('four-backtick fences keep shorter backtick fences from exposing Story headings', () => {
+test('four-backtick fences require blank closers before exposing Story headings', () => {
   const memory = [
+    '````md',
+    '```js',
     '````js',
-    'const hidden = `',
-    '```',
     STORY_KNOWLEDGE_HEADING,
-    '```',
-    '`;',
+    'const stillHidden = true;',
     '````',
     '代码块后内容'
   ].join('\n');
@@ -70,18 +69,20 @@ test('four-backtick fences keep shorter backtick fences from exposing Story head
   assert.equal(extractStoryKnowledgeSection(memory), '');
 
   const replaced = replaceStoryKnowledgeSection(memory, section);
-  assert.match(replaced, /const hidden/);
+  assert.match(replaced, /```js/);
+  assert.match(replaced, /````js/);
+  assert.match(replaced, /const stillHidden = true/);
   assert.match(replaced, /代码块后内容/);
   assert.match(replaced, /### 安全边界\n新版/);
 });
 
-test('four-tilde fences keep shorter tilde fences from exposing Story headings', () => {
+test('four-tilde fences require blank closers before exposing Story headings', () => {
   const memory = [
     '~~~~md',
-    '嵌套样例',
-    '~~~',
+    '~~~md',
+    '~~~~md',
     STORY_KNOWLEDGE_HEADING,
-    '~~~',
+    '仍在波浪围栏内',
     '~~~~',
     '波浪围栏后内容'
   ].join('\n');
@@ -90,7 +91,9 @@ test('four-tilde fences keep shorter tilde fences from exposing Story headings',
   assert.equal(extractStoryKnowledgeSection(memory), '');
 
   const replaced = replaceStoryKnowledgeSection(memory, section);
-  assert.match(replaced, /嵌套样例/);
+  assert.match(replaced, /~~~md/);
+  assert.match(replaced, /~~~~md/);
+  assert.match(replaced, /仍在波浪围栏内/);
   assert.match(replaced, /波浪围栏后内容/);
   assert.match(replaced, /### 题材与术语理解\n新版/);
 });

@@ -42,26 +42,32 @@ function findLevelTwoHeadings(text) {
     const newline = text.indexOf('\n', index);
     const lineEnd = newline >= 0 ? newline : text.length;
     const line = text.slice(lineStart, lineEnd);
-    const fence = line.match(/^ {0,3}(`{3,}|~{3,})/);
-    if (fence) {
-      const marker = fence[1];
-      const markerType = marker[0];
-      const markerLength = marker.length;
-      if (!inFence) {
+    if (!inFence) {
+      const openingFence = line.match(/^ {0,3}(`{3,}|~{3,})/);
+      if (openingFence) {
+        const marker = openingFence[1];
         inFence = true;
-        fenceType = markerType;
-        fenceLength = markerLength;
-      } else if (markerType === fenceType && markerLength >= fenceLength) {
-        inFence = false;
-        fenceType = '';
-        fenceLength = 0;
+        fenceType = marker[0];
+        fenceLength = marker.length;
+      } else if (/^ {0,3}##\s+.+\s*$/.test(line)) {
+        headings.push({
+          start: lineStart,
+          end: lineEnd,
+          isStory: line.trim() === STORY_KNOWLEDGE_HEADING
+        });
       }
-    } else if (!inFence && /^ {0,3}##\s+.+\s*$/.test(line)) {
-      headings.push({
-        start: lineStart,
-        end: lineEnd,
-        isStory: line.trim() === STORY_KNOWLEDGE_HEADING
-      });
+    } else {
+      const closingFence = line.match(/^ {0,3}(`{3,}|~{3,})[ \t]*$/);
+      if (closingFence) {
+        const marker = closingFence[1];
+        const markerType = marker[0];
+        const markerLength = marker.length;
+        if (markerType === fenceType && markerLength >= fenceLength) {
+          inFence = false;
+          fenceType = '';
+          fenceLength = 0;
+        }
+      }
     }
     index = newline >= 0 ? newline + 1 : text.length;
   }
