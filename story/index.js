@@ -35,20 +35,26 @@ function findLevelTwoHeadings(text) {
   const headings = [];
   let index = 0;
   let inFence = false;
-  let fenceMarker = '';
+  let fenceType = '';
+  let fenceLength = 0;
   while (index < text.length) {
     const lineStart = index;
     const newline = text.indexOf('\n', index);
     const lineEnd = newline >= 0 ? newline : text.length;
     const line = text.slice(lineStart, lineEnd);
-    const fence = line.match(/^\s{0,3}(```|~~~)/);
+    const fence = line.match(/^ {0,3}(`{3,}|~{3,})/);
     if (fence) {
+      const marker = fence[1];
+      const markerType = marker[0];
+      const markerLength = marker.length;
       if (!inFence) {
         inFence = true;
-        fenceMarker = fence[1];
-      } else if (fence[1] === fenceMarker) {
+        fenceType = markerType;
+        fenceLength = markerLength;
+      } else if (markerType === fenceType && markerLength >= fenceLength) {
         inFence = false;
-        fenceMarker = '';
+        fenceType = '';
+        fenceLength = 0;
       }
     } else if (!inFence && /^##\s+.+\s*$/.test(line)) {
       headings.push({

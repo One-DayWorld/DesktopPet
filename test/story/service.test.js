@@ -54,6 +54,47 @@ test('Story heading must be an independent level-2 heading line', () => {
   assert.equal((replaced.match(/^## Story 成人主题互动知识\s*$/gm) || []).length, 1);
 });
 
+test('four-backtick fences keep shorter backtick fences from exposing Story headings', () => {
+  const memory = [
+    '````js',
+    'const hidden = `',
+    '```',
+    STORY_KNOWLEDGE_HEADING,
+    '```',
+    '`;',
+    '````',
+    '代码块后内容'
+  ].join('\n');
+  const section = `${STORY_KNOWLEDGE_HEADING}\n\n### 安全边界\n新版`;
+
+  assert.equal(extractStoryKnowledgeSection(memory), '');
+
+  const replaced = replaceStoryKnowledgeSection(memory, section);
+  assert.match(replaced, /const hidden/);
+  assert.match(replaced, /代码块后内容/);
+  assert.match(replaced, /### 安全边界\n新版/);
+});
+
+test('four-tilde fences keep shorter tilde fences from exposing Story headings', () => {
+  const memory = [
+    '~~~~md',
+    '嵌套样例',
+    '~~~',
+    STORY_KNOWLEDGE_HEADING,
+    '~~~',
+    '~~~~',
+    '波浪围栏后内容'
+  ].join('\n');
+  const section = `${STORY_KNOWLEDGE_HEADING}\n\n### 题材与术语理解\n新版`;
+
+  assert.equal(extractStoryKnowledgeSection(memory), '');
+
+  const replaced = replaceStoryKnowledgeSection(memory, section);
+  assert.match(replaced, /嵌套样例/);
+  assert.match(replaced, /波浪围栏后内容/);
+  assert.match(replaced, /### 题材与术语理解\n新版/);
+});
+
 test('replaceStoryKnowledgeSection removes duplicate Story sections and keeps non-Story sections', () => {
   const memory = `开头记忆\n\n${STORY_KNOWLEDGE_HEADING}\n\n旧版一\n\n## 其他小节 A\n保留 A\n\n${STORY_KNOWLEDGE_HEADING}\n\n旧版二\n\n## 其他小节 B\n保留 B`;
   const section = `${STORY_KNOWLEDGE_HEADING}\n\n### 题材与术语理解\n新版`;
