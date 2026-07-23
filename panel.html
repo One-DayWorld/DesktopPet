@@ -228,15 +228,20 @@
   }
 
   .msg-wrap { position: relative; display: inline-block; max-width: 320px; }
-  .msg-copy {
+  .msg-actions {
     position: absolute; top: 4px; right: 4px;
+    display: flex; gap: 4px;
+    opacity: 0; transition: opacity 0.15s;
+  }
+  .msg-wrap:hover .msg-actions { opacity: 1; }
+  .msg-action {
     background: rgba(0, 60, 100, 0.85); border: 1px solid rgba(0, 175, 215, 0.35);
     color: rgba(150, 210, 235, 0.8); border-radius: 4px;
     font-size: 10px; padding: 1px 5px; cursor: pointer;
-    opacity: 0; transition: opacity 0.15s; user-select: none; line-height: 16px;
+    user-select: none; line-height: 16px;
   }
-  .msg-wrap:hover .msg-copy { opacity: 1; }
-  .msg-copy:active { background: rgba(0, 130, 180, 0.7); }
+  .msg-action:active { background: rgba(0, 130, 180, 0.7); }
+  .msg-action.approved { color: #8ff0be; border-color: rgba(80, 220, 150, 0.5); }
 
   .typing-indicator { display: flex; gap: 4px; padding: 7px 12px; }
   .typing-dot {
@@ -298,26 +303,6 @@
   }
   #send-btn:active { transform: scale(0.91); }
   #send-btn:disabled { opacity: 0.28; cursor: default; box-shadow: none; }
-
-  #attach-btn {
-    width: 34px; height: 34px;
-    background: rgba(0, 20, 40, 0.6);
-    border: 1px solid rgba(0, 155, 195, 0.28);
-    border-radius: 50%;
-    cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 15px;
-    color: rgba(150, 205, 230, 0.8);
-    transition: all 0.15s;
-    flex-shrink: 0;
-  }
-  #attach-btn:hover {
-    border-color: rgba(0, 200, 235, 0.5);
-    color: #d0ecf8;
-    box-shadow: 0 0 12px rgba(0, 170, 215, 0.25);
-  }
-  #attach-btn:active { transform: scale(0.91); }
-  #attach-btn:disabled { opacity: 0.32; cursor: default; }
 
   .refresh-btn {
     background: rgba(0, 28, 52, 0.62);
@@ -714,11 +699,11 @@
     border: 1px solid var(--border-medium);
     color: var(--text-md);
   }
-  .msg-copy {
+  .msg-action {
     background: var(--bg-card-hover); border: 1px solid var(--border-medium);
     color: var(--text-md);
   }
-  .msg-copy:active { background: var(--bg-elevated); }
+  .msg-action:active { background: var(--bg-elevated); }
   .typing-dot { background: var(--accent-gold); }
 
   #chat-input {
@@ -1131,7 +1116,6 @@
       <div class="hud-pill">CHAT CONSOLE</div>
       <div id="chat-messages"></div>
       <div id="chat-input-area">
-        <button id="attach-btn" title="投喂文章 (txt/docx/链接) — 让骷髅一号更懂你" onclick="attachArticle()">📎</button>
         <textarea id="chat-input" placeholder="说点什么... (⌘↵ 发送)" rows="1"></textarea>
         <button id="send-btn" title="发送 (⌘↵)">↑</button>
       </div>
@@ -1351,7 +1335,7 @@
     </div>
 
     <div style="height:10px"></div>
-    <div class="setting-note" style="text-align:center;color:rgba(78,148,175,0.38)">羁绊只靠交流增长 · 聊天+8 · 投喂文章+25 · 提炼出新理解+15</div>
+    <div class="setting-note" style="text-align:center;color:rgba(78,148,175,0.38)">羁绊只靠交流增长 · 聊天+8 · 提炼出新理解+15</div>
     <div style="height:16px"></div>
   </div>
 
@@ -1442,7 +1426,6 @@ function applyPetName(name) {
   const n = name || '桌宠';
   const set = (id, fn) => { const el = document.getElementById(id); if (el) fn(el); };
   set('axw-sub', el => el.innerHTML = `${n}无法读取 Claude Code 等全屏 TUI 的内容, 终端确认提示<strong>完全检测不到</strong>`);
-  set('attach-btn', el => el.title = `投喂文章 (txt/docx/链接) — 让${n}更懂你`);
   set('break-enable-text', el => el.textContent = `启用${n}飞到屏幕中央提示休息`);
   set('break-note', el => el.textContent = `${n}会变形飞到屏幕中央, 语音提示你起身活动, 念完后飞回原位`);
   set('settings-file-note', el => el.textContent = `性格、本场规则、长期记忆现在统一存于一个文本文件。点下方按钮直接打开编辑，改完保存即生效——记忆段${n}会自动更新，你也可以随时手改。`);
@@ -1488,7 +1471,7 @@ document.querySelectorAll('.tab').forEach(tab => {
 // ── Chat ──
 function makeCopyBtn(getText) {
   const btn = document.createElement('button');
-  btn.className = 'msg-copy';
+  btn.className = 'msg-action';
   btn.textContent = '复制';
   btn.onclick = () => {
     navigator.clipboard.writeText(getText()).then(() => {
@@ -1499,10 +1482,66 @@ function makeCopyBtn(getText) {
   return btn;
 }
 
-function addPetMessage(text) {
+function makeDeleteBtn(turnId) {
+  const btn = document.createElement('button');
+  btn.className = 'msg-action';
+  btn.textContent = '删';
+  btn.title = '删除这一轮对话';
+  btn.onclick = async () => {
+    if (!turnId) return;
+    const res = await window.petAPI.deleteChatTurn(turnId);
+    if (res && res.ok) {
+      document.querySelectorAll('.msg[data-turn-id]').forEach(el => {
+        if (el.dataset.turnId === turnId) el.remove();
+      });
+      showToast('已删除这一轮');
+    } else {
+      showToast('删除失败');
+    }
+  };
+  return btn;
+}
+
+function makeApproveBtn(turnId) {
+  const btn = document.createElement('button');
+  btn.className = 'msg-action';
+  btn.textContent = '✓';
+  btn.title = '这次回复是我期待的样子';
+  btn.onclick = async () => {
+    if (!turnId || btn.classList.contains('approved')) return;
+    const res = await window.petAPI.approveAiReply(turnId);
+    if (res && res.ok) {
+      btn.classList.add('approved');
+      btn.title = '已记录为认可样例';
+      showToast('已记下这次回复风格');
+      state.pet = Object.assign(state.pet || {}, { xp: res.xp, level: res.level });
+    } else {
+      showToast((res && res.error) || '记录失败');
+    }
+  };
+  return btn;
+}
+
+function appendActions(wrap, buttons) {
+  const actions = document.createElement('div');
+  actions.className = 'msg-actions';
+  buttons.filter(Boolean).forEach(btn => actions.appendChild(btn));
+  wrap.appendChild(actions);
+}
+
+function addTurnControlsToUserMessage(div, text, turnId) {
+  if (!div || !turnId) return;
+  div.dataset.turnId = turnId;
+  const wrap = div.querySelector('.msg-wrap');
+  if (!wrap || wrap.querySelector('.msg-actions')) return;
+  appendActions(wrap, [makeCopyBtn(() => text), makeDeleteBtn(turnId)]);
+}
+
+function addPetMessage(text, turnId = '') {
   const msgs = document.getElementById('chat-messages');
   const div = document.createElement('div');
   div.className = 'msg pet';
+  if (turnId) div.dataset.turnId = turnId;
   const wrap = document.createElement('div');
   wrap.className = 'msg-wrap';
   const bubble = document.createElement('div');
@@ -1510,7 +1549,7 @@ function addPetMessage(text) {
   bubble.innerHTML = renderMarkdown(text);
   wrap.appendChild(bubble);
   // 复制按钮还是给原文 (markdown 源码), 不是渲染后的 HTML
-  wrap.appendChild(makeCopyBtn(() => text));
+  appendActions(wrap, [makeCopyBtn(() => text), turnId ? makeApproveBtn(turnId) : null, turnId ? makeDeleteBtn(turnId) : null]);
   const avatar = document.createElement('div');
   avatar.className = 'msg-avatar';
   setAvatarContent(avatar, currentAvatar);
@@ -1518,19 +1557,21 @@ function addPetMessage(text) {
   div.appendChild(wrap);
   msgs.appendChild(div);
   msgs.scrollTop = msgs.scrollHeight;
+  return div;
 }
 
-function addUserMessage(text) {
+function addUserMessage(text, turnId = '') {
   const msgs = document.getElementById('chat-messages');
   const div = document.createElement('div');
   div.className = 'msg user';
+  if (turnId) div.dataset.turnId = turnId;
   const wrap = document.createElement('div');
   wrap.className = 'msg-wrap';
   const bubble = document.createElement('div');
   bubble.className = 'msg-bubble';
   bubble.textContent = text;
   wrap.appendChild(bubble);
-  wrap.appendChild(makeCopyBtn(() => text));
+  appendActions(wrap, [makeCopyBtn(() => text), turnId ? makeDeleteBtn(turnId) : null]);
   const avatar = document.createElement('div');
   avatar.className = 'msg-avatar';
   avatar.style.cssText = 'font-size:10px;color:#98d4eb;font-weight:600';
@@ -1539,6 +1580,7 @@ function addUserMessage(text) {
   div.appendChild(avatar);
   msgs.appendChild(div);
   msgs.scrollTop = msgs.scrollHeight;
+  return div;
 }
 
 function addTypingIndicator() {
@@ -1569,18 +1611,9 @@ async function sendChat() {
   const text = input.value.trim();
   if (!text) return;
 
-  // 纯链接 → 文章投喂 (而非聊天); 链接夹在句子里仍当普通聊天
-  if (/^https?:\/\/\S+$/i.test(text)) {
-    input.value = '';
-    input.style.height = 'auto';
-    addUserMessage(text);
-    await ingestUrlFlow(text);
-    return;
-  }
-
   input.value = '';
   input.style.height = 'auto';
-  addUserMessage(text);
+  const userMsgEl = addUserMessage(text);
   addTypingIndicator();
   isChatting = true;
   document.getElementById('send-btn').disabled = true;
@@ -1593,48 +1626,13 @@ async function sendChat() {
   if (result.error) {
     addPetMessage('系统异常——' + result.error);
   } else {
-    addPetMessage(result.reply);
+    if (result.turnId) addTurnControlsToUserMessage(userMsgEl, text, result.turnId);
+    addPetMessage(result.reply, result.turnId || '');
     if (result.level > (state.pet?.level || 1)) {
       setTimeout(() => addPetMessage(`💠 羁绊加深——${state.pet.name} 升到 羁绊Lv.${result.level}，对你的了解更深了`), 500);
     }
     state.pet = Object.assign(state.pet || {}, { xp: result.xp, level: result.level });
   }
-}
-
-// ── 文章投喂 (记忆系统) ──
-// 展示摄取结果 + 羁绊升级提示. oldLevel 在调用前抓取, 避免被 broadcast 抢先刷新导致漏判升级.
-function showIngestResult(result, oldLevel) {
-  if (!result || result.canceled) return;
-  if (!result.ok) { addPetMessage('投喂失败——' + (result.error || '未知错误')); return; }
-  const tip = result.changed ? '，已记下其中与你相关的要点 ✓' : '，已归档';
-  addPetMessage(`已读取《${result.title}》${tip}`);
-  if (result.level > (oldLevel || 1)) {
-    setTimeout(() => addPetMessage(`💠 羁绊加深——${state.pet.name} 升到 羁绊Lv.${result.level}，对你的了解更深了`), 500);
-  }
-}
-
-// 点 📎 选本地文件 (txt/docx) 投喂
-async function attachArticle() {
-  if (isChatting) return;
-  const btn = document.getElementById('attach-btn');
-  const oldLevel = state.pet?.level || 1;
-  btn.disabled = true;
-  let result;
-  try { result = await window.petAPI.pickArticleFile(); }
-  catch (e) { result = { ok: false, error: e.message }; }
-  finally { btn.disabled = false; }
-  showIngestResult(result, oldLevel);
-}
-
-// 粘贴纯链接 → 抓正文投喂
-async function ingestUrlFlow(url) {
-  const oldLevel = state.pet?.level || 1;
-  addTypingIndicator();
-  let result;
-  try { result = await window.petAPI.ingestArticleUrl(url); }
-  catch (e) { result = { ok: false, error: e.message }; }
-  removeTypingIndicator();
-  showIngestResult(result, oldLevel);
 }
 
 document.getElementById('send-btn').addEventListener('click', sendChat);

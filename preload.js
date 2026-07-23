@@ -8,6 +8,8 @@ contextBridge.exposeInMainWorld('petAPI', {
   movePet: (x, y) => ipcRenderer.invoke('move-pet', x, y),
 
   chat: (message) => ipcRenderer.invoke('chat', message),
+  deleteChatTurn: (turnId) => ipcRenderer.invoke('delete-chat-turn', turnId),
+  approveAiReply: (turnId) => ipcRenderer.invoke('approve-ai-reply', turnId),
 
   getObsidianConfig: () => ipcRenderer.invoke('get-obsidian-config'),
   setObsidianConfig: (cfg) => ipcRenderer.invoke('set-obsidian-config', cfg),
@@ -18,10 +20,6 @@ contextBridge.exposeInMainWorld('petAPI', {
   setStoryLearningConfig: (cfg) => ipcRenderer.invoke('set-story-learning-config', cfg),
   storyLearnNow: () => ipcRenderer.invoke('story-learn-now'),
   getStoryLearningStatus: () => ipcRenderer.invoke('get-story-learning-status'),
-
-  // 文章投喂 (记忆系统)
-  pickArticleFile: () => ipcRenderer.invoke('pick-article-file'),
-  ingestArticleUrl: (url) => ipcRenderer.invoke('ingest-article-url', url),
 
   // 设定文件 (性格 / 本场规则 / 长期记忆 三合一) + 从头开始
   openConfigFile: () => ipcRenderer.invoke('open-config-file'),

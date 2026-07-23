@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
-    "mammoth": "^1.12.0",
     "three": "^0.158.0"
   },
   "devDependencies": {
@@ -64,7 +63,10 @@
       "pet.html",
       "preload.js",
       "store.js",
+      "chat-history.js",
+      "chat-feedback.js",
       "memory.js",
+      "memory-prompts.js",
       "voice-lines.json",
       "obsidian/**/*",
       "story/**/*",

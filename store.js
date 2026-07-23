@@ -11,6 +11,7 @@ const XP_THRESHOLDS = [0, 40, 100, 200, 350, 550, 800, 1100, 1500, 2000];
 const DEFAULT_STATE = {
   pet: { name: '骷髅一号', level: 1, xp: 0, mood: 'happy', avatar: '🐕' },
   chatHistory: [],
+  approvedReplies: [],
   aiProvider: 'qwen',
   apiKeys: { qwen: '', deepseek: '', metaso: '' },
   petPosition: { x: 100, y: 100 },
@@ -105,6 +106,8 @@ function load() {
     merged.storyLearning.storyPath = String(merged.storyLearning.storyPath || DEFAULT_STATE.storyLearning.storyPath);
     merged.storyLearning.autoSync = merged.storyLearning.autoSync === true;
     merged.storyLearning.maxBatchChars = normalizePositiveInt(merged.storyLearning.maxBatchChars, DEFAULT_STATE.storyLearning.maxBatchChars);
+    merged.chatHistory = Array.isArray(merged.chatHistory) ? merged.chatHistory : [];
+    merged.approvedReplies = Array.isArray(merged.approvedReplies) ? merged.approvedReplies.slice(-20) : [];
     // 羁绊系统迁移: 战斗等级语义改为"羁绊/熟悉度", 一次性清零旧战斗经验, 从 Lv.1 重新养羁绊
     if (!merged._bondMigrated) {
       merged.pet.xp = 0;
